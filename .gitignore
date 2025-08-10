@@ -1,0 +1,15 @@
+# Node
+frontend/node_modules
+# Python
+backend/.venv
+__pycache__/
+# Env
+*.env
+.env
+# Build
+dist
+build
+# Python cache
+**/.pytest_cache
+# OS
+.DS_Store
