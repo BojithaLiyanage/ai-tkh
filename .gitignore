@@ -6,6 +6,7 @@ __pycache__/
 # Env
 *.env
 .env
+.env.local
 # Build
 dist
 build
