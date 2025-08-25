@@ -21,7 +21,7 @@ export interface User {
   id: number;
   email: string;
   full_name: string;
-  user_type: 'admin' | 'normal';
+  user_type: 'super_admin' | 'admin' | 'client';
   is_active: boolean;
   created_at: string;
 }
@@ -35,7 +35,7 @@ export interface SignupData {
   email: string;
   password: string;
   full_name: string;
-  user_type?: 'admin' | 'normal';
+  user_type?: 'super_admin' | 'admin' | 'client';
 }
 
 export interface TokenResponse {

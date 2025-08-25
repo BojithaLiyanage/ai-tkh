@@ -12,14 +12,14 @@ class User(Base):
     __tablename__ = "users"
     __table_args__ = (
         UniqueConstraint("email", name="users_email_key"),
-        CheckConstraint("user_type in ('admin','normal')", name="users_user_type_check"),
+        CheckConstraint("user_type in ('super_admin','admin','client')", name="users_user_type_check"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     email: Mapped[str] = mapped_column(String(255), nullable=False)
     password_hash: Mapped[str] = mapped_column(Text, nullable=False)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    user_type: Mapped[str] = mapped_column(String(10), server_default=text("'normal'"))
+    user_type: Mapped[str] = mapped_column(String(15), server_default=text("'client'"))
     is_active: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, onupdate=lambda: datetime.now(timezone.utc))

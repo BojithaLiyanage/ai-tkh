@@ -3,13 +3,13 @@ from typing import Optional, Literal, Any
 from datetime import datetime
 
 # ---- users
-UserType = Literal["admin", "normal"]
+UserType = Literal["super_admin", "admin", "client"]
 
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
     full_name: str
-    user_type: UserType = "normal"
+    user_type: UserType = "client"
 
 class UserLogin(BaseModel):
     email: EmailStr

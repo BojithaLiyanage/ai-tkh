@@ -4,10 +4,10 @@ import { useAuth } from '../contexts/AuthContext';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  adminOnly?: boolean;
+  allowedUserTypes?: ('super_admin' | 'admin' | 'client')[];
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, adminOnly = false }) => {
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedUserTypes }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -18,7 +18,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, adminOnly = f
     return <Navigate to="/login" replace />;
   }
 
-  if (adminOnly && user.user_type !== 'admin') {
+  if (allowedUserTypes && !allowedUserTypes.includes(user.user_type)) {
     return <Navigate to="/dashboard" replace />;
   }
 

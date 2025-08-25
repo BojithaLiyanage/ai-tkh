@@ -25,7 +25,7 @@ const Signup: React.FC = () => {
     try {
       // Extract full name from email (before @) as a simple default
       const fullName = email.split('@')[0];
-      await signup(email, password, fullName, 'normal'); // Only normal users can sign up
+      await signup(email, password, fullName, 'client'); // Only client users can sign up
       navigate('/dashboard');
     } catch (error: any) {
       setError(error.response?.data?.detail || 'Registration failed');

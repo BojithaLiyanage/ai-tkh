@@ -11,7 +11,7 @@ from app.schemas.schemas import (
 )
 from app.core.auth import (
     get_password_hash, verify_password, create_access_token, get_user_by_email,
-    get_current_active_user, get_current_admin_user
+    get_current_active_user, get_current_admin_user, get_current_super_admin_user
 )
 
 router = APIRouter()
@@ -29,6 +29,13 @@ def signup(user_data: UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already registered"
+        )
+    
+    # Only allow client signups through public endpoint
+    if user_data.user_type != "client":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only client accounts can be created through signup"
         )
     
     # Create new user
@@ -74,6 +81,34 @@ def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
 @router.get("/auth/me", response_model=UserRead)
 def get_current_user_info(current_user: User = Depends(get_current_active_user)):
     return current_user
+
+# Super admin only route to create admin users
+@router.post("/auth/create-user", response_model=UserRead, status_code=201)
+def create_user_by_super_admin(
+    user_data: UserCreate, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_super_admin_user)
+):
+    # Check if user already exists
+    existing_user = get_user_by_email(db, user_data.email)
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered"
+        )
+    
+    # Create new user (super admin can create any type)
+    hashed_password = get_password_hash(user_data.password)
+    db_user = User(
+        email=user_data.email,
+        password_hash=hashed_password,
+        full_name=user_data.full_name,
+        user_type=user_data.user_type
+    )
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
 
 @router.get("/modules", response_model=list[ModuleRead])
 def list_modules(db: Session = Depends(get_db)):

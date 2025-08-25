@@ -4,7 +4,7 @@ import { type User, authApi } from '../services/api';
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string, fullName: string, userType?: 'admin' | 'normal') => Promise<void>;
+  signup: (email: string, password: string, fullName: string, userType?: 'super_admin' | 'admin' | 'client') => Promise<void>;
   logout: () => void;
   loading: boolean;
 }
@@ -55,7 +55,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const signup = async (email: string, password: string, fullName: string, userType: 'admin' | 'normal' = 'normal') => {
+  const signup = async (email: string, password: string, fullName: string, userType: 'super_admin' | 'admin' | 'client' = 'client') => {
     try {
       const user = await authApi.signup({ email, password, full_name: fullName, user_type: userType });
       // Auto-login after signup
