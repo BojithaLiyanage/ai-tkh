@@ -1,10 +1,28 @@
 from typing import Optional
 from sqlalchemy import (
-    BigInteger, Integer, String, Text, ForeignKey, CheckConstraint, UniqueConstraint, JSON, text, CHAR
+    BigInteger, Integer, String, Text, ForeignKey, CheckConstraint, UniqueConstraint, JSON, text, CHAR, Boolean, DateTime
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.session import Base
+from datetime import datetime, timezone
+
+# --- users ---
+class User(Base):
+    __tablename__ = "users"
+    __table_args__ = (
+        UniqueConstraint("email", name="users_email_key"),
+        CheckConstraint("user_type in ('admin','normal')", name="users_user_type_check"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    email: Mapped[str] = mapped_column(String(255), nullable=False)
+    password_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    full_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    user_type: Mapped[str] = mapped_column(String(10), server_default=text("'normal'"))
+    is_active: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, onupdate=lambda: datetime.now(timezone.utc))
 
 # --- modules ---
 class Module(Base):
