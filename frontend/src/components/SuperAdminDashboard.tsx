@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import CreateAdminForm from './CreateAdminForm';
 import UserManagement from './UserManagement';
+import ContentManagement from './ContentManagement';
 import { authApi, type UserStats } from '../services/api';
 
 const SuperAdminDashboard: React.FC = () => {
   const { user, logout } = useAuth();
   const [showCreateAdminModal, setShowCreateAdminModal] = useState(false);
   const [showUserManageModal, setShowUserManageModal] = useState(false);
+  const [showContentManagement, setShowContentManagement] = useState(false);
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -141,13 +143,16 @@ const SuperAdminDashboard: React.FC = () => {
           System Administration
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow duration-200 cursor-pointer">
+          <div 
+            onClick={() => setShowContentManagement(true)}
+            className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow duration-200 cursor-pointer"
+          >
             <div className="text-center">
               <div className="w-12 h-12 bg-indigo-100 rounded-lg mx-auto mb-3 flex items-center justify-center">
-                <span className="text-indigo-600 text-xl">🔧</span>
+                <span className="text-indigo-600 text-xl">📚</span>
               </div>
-              <p className="font-medium text-gray-900">System Settings</p>
-              <p className="text-sm text-gray-500 mt-1">Configure system parameters</p>
+              <p className="font-medium text-gray-900">Content Management</p>
+              <p className="text-sm text-gray-500 mt-1">Manage educational content</p>
             </div>
           </div>
           <div className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow duration-200 cursor-pointer">
@@ -222,6 +227,18 @@ const SuperAdminDashboard: React.FC = () => {
           <UserManagement 
             onClose={() => setShowUserManageModal(false)}
             onUserUpdated={() => fetchStats()} // Refresh stats when users are updated
+          />
+        </div>
+      )}
+
+      {/* Content Management Modal */}
+      {showContentManagement && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <ContentManagement 
+            onClose={() => setShowContentManagement(false)}
+            onContentUpdated={() => {
+              // Could refresh content statistics here if needed
+            }}
           />
         </div>
       )}
