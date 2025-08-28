@@ -198,7 +198,7 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ onClose, onConten
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-screen overflow-y-auto">
+    <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full h-[90vh] flex flex-col">
       <div className="sticky top-0 bg-white border-b border-gray-200 p-6">
         <div className="flex justify-between items-center">
           <h2 className="text-2xl font-semibold text-gray-900">Content Management</h2>
@@ -247,7 +247,7 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ onClose, onConten
         </div>
       </div>
 
-      <div className="p-6">
+      <div className="flex-1 overflow-y-auto p-6">
         {/* Status Messages */}
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
@@ -263,7 +263,7 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ onClose, onConten
 
         {/* Module Tab */}
         {activeTab === 'modules' && (
-          <div>
+          <div className="min-h-[500px]">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Create New Module</h3>
             <form onSubmit={handleCreateModule} className="space-y-4">
               <div>
@@ -309,7 +309,7 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ onClose, onConten
 
         {/* Topic Tab */}
         {activeTab === 'topics' && (
-          <div>
+          <div className="min-h-[500px]">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Create New Topic</h3>
             
             {/* Module Selection */}
@@ -377,7 +377,7 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ onClose, onConten
 
         {/* Subtopic Tab */}
         {activeTab === 'subtopics' && (
-          <div>
+          <div className="min-h-[500px]">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Create New Subtopic</h3>
             
             {/* Module Selection */}
