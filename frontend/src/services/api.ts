@@ -43,6 +43,20 @@ export interface TokenResponse {
   token_type: string;
 }
 
+export interface UserUpdate {
+  full_name?: string;
+  user_type?: 'super_admin' | 'admin' | 'client';
+  is_active?: boolean;
+}
+
+export interface UserStats {
+  total_users: number;
+  active_users: number;
+  admin_users: number;
+  client_users: number;
+  super_admin_users: number;
+}
+
 export const authApi = {
   login: async (data: LoginData): Promise<TokenResponse> => {
     const response = await api.post('/auth/login', data);
@@ -54,8 +68,38 @@ export const authApi = {
     return response.data;
   },
 
+  createUser: async (data: SignupData): Promise<User> => {
+    const response = await api.post('/auth/create-user', data);
+    return response.data;
+  },
+
   getCurrentUser: async (): Promise<User> => {
     const response = await api.get('/auth/me');
+    return response.data;
+  },
+
+  getUserStats: async (): Promise<UserStats> => {
+    const response = await api.get('/auth/stats');
+    return response.data;
+  },
+
+  getAllUsers: async (): Promise<User[]> => {
+    const response = await api.get('/auth/users');
+    return response.data;
+  },
+
+  updateUser: async (userId: number, userData: UserUpdate): Promise<User> => {
+    const response = await api.put(`/auth/users/${userId}`, userData);
+    return response.data;
+  },
+
+  deactivateUser: async (userId: number): Promise<{ message: string }> => {
+    const response = await api.patch(`/auth/users/${userId}/deactivate`);
+    return response.data;
+  },
+
+  activateUser: async (userId: number): Promise<{ message: string }> => {
+    const response = await api.patch(`/auth/users/${userId}/activate`);
     return response.data;
   },
 };

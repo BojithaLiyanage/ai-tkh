@@ -1,8 +1,30 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import CreateAdminForm from './CreateAdminForm';
+import UserManagement from './UserManagement';
+import { authApi, type UserStats } from '../services/api';
 
 const SuperAdminDashboard: React.FC = () => {
   const { user, logout } = useAuth();
+  const [showCreateAdminModal, setShowCreateAdminModal] = useState(false);
+  const [showUserManageModal, setShowUserManageModal] = useState(false);
+  const [stats, setStats] = useState<UserStats | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchStats = async () => {
+    try {
+      const userStats = await authApi.getUserStats();
+      setStats(userStats);
+    } catch (error) {
+      console.error('Failed to fetch user stats:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
 
   if (!user || user.user_type !== 'super_admin') {
     return <div className="loading">Access denied...</div>;
@@ -39,15 +61,27 @@ const SuperAdminDashboard: React.FC = () => {
           <div className="space-y-4">
             <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
               <span className="text-gray-600">Total Users</span>
-              <span className="font-semibold text-gray-900">-</span>
+              <span className="font-semibold text-gray-900">
+                {loading ? 'Loading...' : stats?.total_users || 0}
+              </span>
             </div>
             <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-              <span className="text-gray-600">Active Admins</span>
-              <span className="font-semibold text-gray-900">-</span>
+              <span className="text-gray-600">Active Users</span>
+              <span className="font-semibold text-gray-900">
+                {loading ? 'Loading...' : stats?.active_users || 0}
+              </span>
+            </div>
+            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+              <span className="text-gray-600">Admin Users</span>
+              <span className="font-semibold text-gray-900">
+                {loading ? 'Loading...' : stats?.admin_users || 0}
+              </span>
             </div>
             <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
               <span className="text-gray-600">Client Accounts</span>
-              <span className="font-semibold text-gray-900">-</span>
+              <span className="font-semibold text-gray-900">
+                {loading ? 'Loading...' : stats?.client_users || 0}
+              </span>
             </div>
             <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
               <span className="text-gray-600">System Status</span>
@@ -63,7 +97,10 @@ const SuperAdminDashboard: React.FC = () => {
             User Management
           </h2>
           <div className="space-y-3">
-            <button className="w-full p-4 text-left bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors duration-200">
+            <button 
+              onClick={() => setShowCreateAdminModal(true)}
+              className="w-full p-4 text-left bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors duration-200"
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium text-blue-900">Create Admin User</p>
@@ -72,7 +109,10 @@ const SuperAdminDashboard: React.FC = () => {
                 <span className="text-blue-500 text-lg">→</span>
               </div>
             </button>
-            <button className="w-full p-4 text-left bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors duration-200">
+            <button 
+              onClick={() => setShowUserManageModal(true)}
+              className="w-full p-4 text-left bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors duration-200"
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium text-green-900">Manage All Users</p>
@@ -160,6 +200,31 @@ const SuperAdminDashboard: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Create Admin Modal */}
+      {showCreateAdminModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-screen overflow-y-auto">
+            <CreateAdminForm 
+              onSuccess={() => {
+                setShowCreateAdminModal(false);
+                fetchStats(); // Refresh stats after creating new user
+              }}
+              onCancel={() => setShowCreateAdminModal(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* User Management Modal */}
+      {showUserManageModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <UserManagement 
+            onClose={() => setShowUserManageModal(false)}
+            onUserUpdated={() => fetchStats()} // Refresh stats when users are updated
+          />
+        </div>
+      )}
     </div>
   );
 };
