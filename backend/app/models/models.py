@@ -29,11 +29,10 @@ class Module(Base):
     __tablename__ = "modules"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    # slug is a STORED generated column in DB; we just read it
-    slug: Mapped[Optional[str]] = mapped_column(Text)
     name: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text)
     order_index: Mapped[int] = mapped_column(Integer, server_default=text("0"))
+    # slug is a STORED generated column in DB; we just read it - exclude from mapped columns
     # created_at / updated_at exist in DB; include as readable columns (optional)
     # You can add them as mapped fields if you want to read them.
 
@@ -46,7 +45,6 @@ class Topic(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     module_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("modules.id", ondelete="CASCADE"), nullable=False)
-    slug: Mapped[Optional[str]] = mapped_column(Text)
     name: Mapped[str] = mapped_column(Text, nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text)
     order_index: Mapped[int] = mapped_column(Integer, server_default=text("0"))
@@ -65,7 +63,6 @@ class Subtopic(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     topic_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("topics.id", ondelete="CASCADE"), nullable=False)
-    slug: Mapped[Optional[str]] = mapped_column(Text)
     name: Mapped[str] = mapped_column(Text, nullable=False)
     definition: Mapped[Optional[str]] = mapped_column(Text)
     notes: Mapped[Optional[str]] = mapped_column(Text)

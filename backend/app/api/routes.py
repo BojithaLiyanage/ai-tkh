@@ -198,55 +198,120 @@ def activate_user(
     return {"message": "User activated successfully"}
 
 @router.get("/modules", response_model=list[ModuleRead])
-def list_modules(db: Session = Depends(get_db)):
+def list_modules(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
     rows = db.execute(select(Module).order_by(Module.order_index, Module.id)).scalars().all()
     return rows
 
 @router.post("/modules", response_model=ModuleRead, status_code=201)
-def create_module(payload: ModuleCreate, db: Session = Depends(get_db)):
-    m = Module(name=payload.name, description=payload.description, order_index=payload.order_index)
+def create_module(
+    payload: ModuleCreate, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    # Auto-assign order_index if not provided or is 0
+    order_index = payload.order_index
+    if order_index == 0:
+        max_order = db.execute(select(Module.order_index).order_by(Module.order_index.desc())).first()
+        order_index = (max_order[0] + 1) if max_order and max_order[0] is not None else 1
+    
+    m = Module(name=payload.name, description=payload.description, order_index=order_index)
     db.add(m); db.commit(); db.refresh(m)
     return m
 
 @router.get("/modules/{module_id}/topics", response_model=list[TopicRead])
-def list_topics(module_id: int, db: Session = Depends(get_db)):
+def list_topics(
+    module_id: int, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
     rows = db.execute(
         select(Topic).where(Topic.module_id == module_id).order_by(Topic.order_index, Topic.id)
     ).scalars().all()
     return rows
 
 @router.post("/modules/{module_id}/topics", response_model=TopicRead, status_code=201)
-def create_topic(module_id: int, payload: TopicCreate, db: Session = Depends(get_db)):
+def create_topic(
+    module_id: int, 
+    payload: TopicCreate, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
     if not db.get(Module, module_id):
         raise HTTPException(404, "Module not found")
-    t = Topic(module_id=module_id, name=payload.name, description=payload.description, order_index=payload.order_index)
+    
+    # Auto-assign order_index if not provided or is 0
+    order_index = payload.order_index
+    if order_index == 0:
+        max_order = db.execute(
+            select(Topic.order_index)
+            .where(Topic.module_id == module_id)
+            .order_by(Topic.order_index.desc())
+        ).first()
+        order_index = (max_order[0] + 1) if max_order and max_order[0] is not None else 1
+    
+    t = Topic(module_id=module_id, name=payload.name, description=payload.description, order_index=order_index)
     db.add(t); db.commit(); db.refresh(t)
     return t
 
 @router.get("/topics/{topic_id}/subtopics", response_model=list[SubtopicRead])
-def list_subtopics(topic_id: int, db: Session = Depends(get_db)):
+def list_subtopics(
+    topic_id: int, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
     rows = db.execute(
         select(Subtopic).where(Subtopic.topic_id == topic_id).order_by(Subtopic.order_index, Subtopic.id)
     ).scalars().all()
     return rows
 
 @router.post("/topics/{topic_id}/subtopics", response_model=SubtopicRead, status_code=201)
-def create_subtopic(topic_id: int, payload: SubtopicCreate, db: Session = Depends(get_db)):
+def create_subtopic(
+    topic_id: int, 
+    payload: SubtopicCreate, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
     if not db.get(Topic, topic_id):
         raise HTTPException(404, "Topic not found")
-    s = Subtopic(topic_id=topic_id, **payload.model_dump())
+    
+    # Auto-assign order_index if not provided or is 0
+    order_index = payload.order_index
+    if order_index == 0:
+        max_order = db.execute(
+            select(Subtopic.order_index)
+            .where(Subtopic.topic_id == topic_id)
+            .order_by(Subtopic.order_index.desc())
+        ).first()
+        order_index = (max_order[0] + 1) if max_order and max_order[0] is not None else 1
+    
+    # Create subtopic with auto-assigned order_index
+    subtopic_data = payload.model_dump()
+    subtopic_data['order_index'] = order_index
+    s = Subtopic(topic_id=topic_id, **subtopic_data)
     db.add(s); db.commit(); db.refresh(s)
     return s
 
 @router.get("/subtopics/{subtopic_id}/blocks", response_model=list[ContentBlockRead])
-def list_blocks(subtopic_id: int, db: Session = Depends(get_db)):
+def list_blocks(
+    subtopic_id: int, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
     rows = db.execute(
         select(ContentBlock).where(ContentBlock.subtopic_id == subtopic_id).order_by(ContentBlock.position, ContentBlock.id)
     ).scalars().all()
     return rows
 
 @router.post("/subtopics/{subtopic_id}/blocks", response_model=ContentBlockRead, status_code=201)
-def create_block(subtopic_id: int, payload: ContentBlockCreate, db: Session = Depends(get_db)):
+def create_block(
+    subtopic_id: int, 
+    payload: ContentBlockCreate, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
     if not db.get(Subtopic, subtopic_id):
         raise HTTPException(404, "Subtopic not found")
     b = ContentBlock(subtopic_id=subtopic_id, **payload.model_dump())
@@ -254,12 +319,19 @@ def create_block(subtopic_id: int, payload: ContentBlockCreate, db: Session = De
     return b
 
 @router.get("/tags", response_model=list[TagRead])
-def list_tags(db: Session = Depends(get_db)):
+def list_tags(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
     rows = db.execute(select(Tag).order_by(Tag.id)).scalars().all()
     return rows
 
 @router.post("/tags", response_model=TagRead, status_code=201)
-def create_tag(payload: TagCreate, db: Session = Depends(get_db)):
+def create_tag(
+    payload: TagCreate, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
     t = Tag(name=payload.name)
     db.add(t)
     try:
@@ -271,7 +343,12 @@ def create_tag(payload: TagCreate, db: Session = Depends(get_db)):
     return t
 
 @router.post("/subtopics/{subtopic_id}/tags/{tag_id}", status_code=204)
-def attach_tag(subtopic_id: int, tag_id: int, db: Session = Depends(get_db)):
+def attach_tag(
+    subtopic_id: int, 
+    tag_id: int, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
     if not db.get(Subtopic, subtopic_id):
         raise HTTPException(404, "Subtopic not found")
     if not db.get(Tag, tag_id):
@@ -281,12 +358,20 @@ def attach_tag(subtopic_id: int, tag_id: int, db: Session = Depends(get_db)):
     return
 
 @router.get("/study-groups", response_model=list[StudyGroupRead])
-def list_groups(db: Session = Depends(get_db)):
+def list_groups(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
     rows = db.execute(select(StudyGroup).order_by(StudyGroup.code)).scalars().all()
     return rows
 
 @router.post("/subtopics/{subtopic_id}/study-groups/{code}", status_code=204)
-def attach_group(subtopic_id: int, code: str, db: Session = Depends(get_db)):
+def attach_group(
+    subtopic_id: int, 
+    code: str, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
     if not db.get(Subtopic, subtopic_id):
         raise HTTPException(404, "Subtopic not found")
     if not db.get(StudyGroup, code):
