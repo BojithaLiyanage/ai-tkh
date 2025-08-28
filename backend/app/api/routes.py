@@ -7,8 +7,10 @@ from app.models.models import Module, Topic, Subtopic, ContentBlock, Tag, Subtop
 from app.schemas.schemas import (
     ModuleCreate, ModuleRead, TopicCreate, TopicRead,
     SubtopicCreate, SubtopicRead, ContentBlockCreate, ContentBlockRead,
-    TagCreate, TagRead, StudyGroupRead, UserCreate, UserLogin, UserRead, Token
+    TagCreate, TagRead, StudyGroupRead, UserCreate, UserLogin, UserRead, Token,
+    UserUpdate, UserStats
 )
+from typing import List
 from app.core.auth import (
     get_password_hash, verify_password, create_access_token, get_user_by_email,
     get_current_active_user, get_current_admin_user, get_current_super_admin_user
@@ -109,6 +111,91 @@ def create_user_by_super_admin(
     db.commit()
     db.refresh(db_user)
     return db_user
+
+@router.get("/auth/stats", response_model=UserStats)
+def get_user_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_super_admin_user)
+):
+    total_users = db.execute(select(User)).scalars().all()
+    total_count = len(total_users)
+    
+    active_count = len([u for u in total_users if u.is_active])
+    admin_count = len([u for u in total_users if u.user_type == 'admin'])
+    client_count = len([u for u in total_users if u.user_type == 'client'])
+    super_admin_count = len([u for u in total_users if u.user_type == 'super_admin'])
+    
+    return UserStats(
+        total_users=total_count,
+        active_users=active_count,
+        admin_users=admin_count,
+        client_users=client_count,
+        super_admin_users=super_admin_count
+    )
+
+# List all users (Super Admin only)
+@router.get("/auth/users", response_model=List[UserRead])
+def list_users(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_super_admin_user)
+):
+    users = db.execute(select(User).order_by(User.created_at.desc())).scalars().all()
+    return users
+
+# Update user (Super Admin only)
+@router.put("/auth/users/{user_id}", response_model=UserRead)
+def update_user(
+    user_id: int,
+    user_update: UserUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_super_admin_user)
+):
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Update only provided fields
+    update_data = user_update.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(user, field, value)
+    
+    db.commit()
+    db.refresh(user)
+    return user
+
+# Deactivate user (Super Admin only)
+@router.patch("/auth/users/{user_id}/deactivate")
+def deactivate_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_super_admin_user)
+):
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Prevent deactivating super admin
+    if user.user_type == 'super_admin':
+        raise HTTPException(status_code=400, detail="Cannot deactivate super admin")
+    
+    user.is_active = False
+    db.commit()
+    return {"message": "User deactivated successfully"}
+
+# Activate user (Super Admin only)
+@router.patch("/auth/users/{user_id}/activate")
+def activate_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_super_admin_user)
+):
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    user.is_active = True
+    db.commit()
+    return {"message": "User activated successfully"}
 
 @router.get("/modules", response_model=list[ModuleRead])
 def list_modules(db: Session = Depends(get_db)):

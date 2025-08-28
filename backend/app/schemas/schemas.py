@@ -24,6 +24,18 @@ class UserRead(BaseModel):
     is_active: bool
     created_at: datetime
 
+class UserUpdate(BaseModel):
+    full_name: Optional[str] = None
+    user_type: Optional[UserType] = None
+    is_active: Optional[bool] = None
+
+class UserStats(BaseModel):
+    total_users: int
+    active_users: int
+    admin_users: int
+    client_users: int
+    super_admin_users: int
+
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
