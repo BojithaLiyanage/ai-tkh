@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { authApi, type User, type UserUpdate } from '../services/api';
+import { authApi, type User, type UserUpdate, type ClientType } from '../services/api';
 
 interface UserManagementProps {
   onClose?: () => void;
@@ -135,7 +135,9 @@ const UserManagement: React.FC<UserManagementProps> = ({ onClose, onUserUpdated 
                 <tr className="border-b border-gray-200">
                   <th className="text-left py-3 px-4 font-medium text-gray-700">Name</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-700">Email</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Type</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-700">User Type</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-700">Client Type</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-700">Organization</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-700">Status</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-700">Created</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-700">Actions</th>
@@ -152,6 +154,16 @@ const UserManagement: React.FC<UserManagementProps> = ({ onClose, onUserUpdated 
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${getUserTypeColor(user.user_type)}`}>
                         {user.user_type.replace('_', ' ').toUpperCase()}
                       </span>
+                    </td>
+                    <td className="py-3 px-4">
+                      {user.client && (
+                        <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium">
+                          {user.client.client_type.replace('_', ' ').toUpperCase()}
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-3 px-4 text-gray-600 text-sm">
+                      {user.client?.organization || '-'}
                     </td>
                     <td className="py-3 px-4">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${

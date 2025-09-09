@@ -17,6 +17,17 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+export type ClientType = 'researcher' | 'industry_expert' | 'student' | 'undergraduate';
+
+export interface Client {
+  id: number;
+  user_id: number;
+  client_type: ClientType;
+  organization?: string;
+  specialization?: string;
+  created_at: string;
+}
+
 export interface User {
   id: number;
   email: string;
@@ -24,6 +35,7 @@ export interface User {
   user_type: 'super_admin' | 'admin' | 'client';
   is_active: boolean;
   created_at: string;
+  client?: Client;
 }
 
 export interface LoginData {
@@ -36,6 +48,9 @@ export interface SignupData {
   password: string;
   full_name: string;
   user_type?: 'super_admin' | 'admin' | 'client';
+  client_type: ClientType;
+  organization?: string;
+  specialization?: string;
 }
 
 export interface TokenResponse {
@@ -100,6 +115,23 @@ export const authApi = {
 
   activateUser: async (userId: number): Promise<{ message: string }> => {
     const response = await api.patch(`/auth/users/${userId}/activate`);
+    return response.data;
+  },
+};
+
+export const clientApi = {
+  getAllClients: async (): Promise<Client[]> => {
+    const response = await api.get('/auth/clients');
+    return response.data;
+  },
+
+  getClient: async (clientId: number): Promise<Client> => {
+    const response = await api.get(`/auth/clients/${clientId}`);
+    return response.data;
+  },
+
+  updateClient: async (clientId: number, clientData: Partial<Client>): Promise<Client> => {
+    const response = await api.put(`/auth/clients/${clientId}`, clientData);
     return response.data;
   },
 };

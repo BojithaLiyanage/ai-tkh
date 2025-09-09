@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { authApi } from '../services/api';
+import { authApi, type ClientType } from '../services/api';
 
 interface CreateAdminFormProps {
   onSuccess?: () => void;
@@ -11,7 +11,10 @@ const CreateAdminForm: React.FC<CreateAdminFormProps> = ({ onSuccess, onCancel }
     email: '',
     password: '',
     full_name: '',
-    user_type: 'admin' as const
+    user_type: 'admin' as 'admin' | 'client',
+    client_type: 'student' as ClientType,
+    organization: '',
+    specialization: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -37,7 +40,10 @@ const CreateAdminForm: React.FC<CreateAdminFormProps> = ({ onSuccess, onCancel }
         email: '',
         password: '',
         full_name: '',
-        user_type: 'admin'
+        user_type: 'admin',
+        client_type: 'student',
+        organization: '',
+        specialization: ''
       });
       if (onSuccess) {
         setTimeout(() => onSuccess(), 1500);
@@ -135,6 +141,62 @@ const CreateAdminForm: React.FC<CreateAdminFormProps> = ({ onSuccess, onCancel }
             <option value="client">Client</option>
           </select>
         </div>
+
+        {formData.user_type === 'client' && (
+          <>
+            <div>
+              <label htmlFor="client_type" className="block text-sm font-medium text-gray-700 mb-1">
+                Client Type
+              </label>
+              <select
+                id="client_type"
+                name="client_type"
+                value={formData.client_type}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="student">Student</option>
+                <option value="undergraduate">Undergraduate</option>
+                <option value="researcher">Researcher</option>
+                <option value="industry_expert">Industry Expert</option>
+              </select>
+            </div>
+
+            {(formData.client_type === 'researcher' || formData.client_type === 'industry_expert') && (
+              <div>
+                <label htmlFor="organization" className="block text-sm font-medium text-gray-700 mb-1">
+                  Organization
+                </label>
+                <input
+                  type="text"
+                  id="organization"
+                  name="organization"
+                  value={formData.organization}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter organization name"
+                />
+              </div>
+            )}
+
+            {formData.client_type === 'researcher' && (
+              <div>
+                <label htmlFor="specialization" className="block text-sm font-medium text-gray-700 mb-1">
+                  Research Specialization
+                </label>
+                <input
+                  type="text"
+                  id="specialization"
+                  name="specialization"
+                  value={formData.specialization}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter research specialization"
+                />
+              </div>
+            )}
+          </>
+        )}
 
         <div className="flex space-x-3 pt-4">
           <button

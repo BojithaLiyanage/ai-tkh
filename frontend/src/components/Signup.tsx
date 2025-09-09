@@ -1,11 +1,16 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
+import { ClientType } from '../services/api';
 
 const Signup: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [clientType, setClientType] = useState<ClientType>('student');
+  const [organization, setOrganization] = useState('');
+  const [specialization, setSpecialization] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { signup } = useAuth();
@@ -23,9 +28,7 @@ const Signup: React.FC = () => {
     }
 
     try {
-      // Extract full name from email (before @) as a simple default
-      const fullName = email.split('@')[0];
-      await signup(email, password, fullName, 'client'); // Only client users can sign up
+      await signup(email, password, fullName, 'client', clientType, organization, specialization);
       navigate('/dashboard');
     } catch (error: any) {
       setError(error.response?.data?.detail || 'Registration failed');
@@ -44,6 +47,21 @@ const Signup: React.FC = () => {
         
         <form onSubmit={handleSubmit} className="mb-6">
           <div className="mb-5">
+            <label htmlFor="fullName" className="block mb-1.5 text-sm font-medium text-gray-700">
+              Full Name
+            </label>
+            <input
+              id="fullName"
+              type="text"
+              placeholder="Enter your full name"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              required
+              className="w-full px-3 py-3 border border-gray-300 rounded-md text-sm bg-white transition-all duration-200 placeholder:text-gray-400 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 hover:border-gray-400"
+            />
+          </div>
+          
+          <div className="mb-5">
             <label htmlFor="email" className="block mb-1.5 text-sm font-medium text-gray-700">
               Email
             </label>
@@ -57,6 +75,56 @@ const Signup: React.FC = () => {
               className="w-full px-3 py-3 border border-gray-300 rounded-md text-sm bg-white transition-all duration-200 placeholder:text-gray-400 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 hover:border-gray-400"
             />
           </div>
+          
+          <div className="mb-5">
+            <label htmlFor="clientType" className="block mb-1.5 text-sm font-medium text-gray-700">
+              I am a
+            </label>
+            <select
+              id="clientType"
+              value={clientType}
+              onChange={(e) => setClientType(e.target.value as ClientType)}
+              required
+              className="w-full px-3 py-3 border border-gray-300 rounded-md text-sm bg-white transition-all duration-200 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 hover:border-gray-400"
+            >
+              <option value="student">Student</option>
+              <option value="undergraduate">Undergraduate</option>
+              <option value="researcher">Researcher</option>
+              <option value="industry_expert">Industry Expert</option>
+            </select>
+          </div>
+          
+          {(clientType === 'researcher' || clientType === 'industry_expert') && (
+            <div className="mb-5">
+              <label htmlFor="organization" className="block mb-1.5 text-sm font-medium text-gray-700">
+                Organization
+              </label>
+              <input
+                id="organization"
+                type="text"
+                placeholder="Enter your organization"
+                value={organization}
+                onChange={(e) => setOrganization(e.target.value)}
+                className="w-full px-3 py-3 border border-gray-300 rounded-md text-sm bg-white transition-all duration-200 placeholder:text-gray-400 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 hover:border-gray-400"
+              />
+            </div>
+          )}
+          
+          {clientType === 'researcher' && (
+            <div className="mb-5">
+              <label htmlFor="specialization" className="block mb-1.5 text-sm font-medium text-gray-700">
+                Research Specialization
+              </label>
+              <input
+                id="specialization"
+                type="text"
+                placeholder="Enter your research area"
+                value={specialization}
+                onChange={(e) => setSpecialization(e.target.value)}
+                className="w-full px-3 py-3 border border-gray-300 rounded-md text-sm bg-white transition-all duration-200 placeholder:text-gray-400 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 hover:border-gray-400"
+              />
+            </div>
+          )}
           
           <div className="mb-5">
             <label htmlFor="password" className="block mb-1.5 text-sm font-medium text-gray-700">

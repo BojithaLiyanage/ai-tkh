@@ -1,10 +1,10 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { type User, authApi } from '../services/api';
+import { type User, type ClientType, authApi } from '../services/api';
 
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string, fullName: string, userType?: 'super_admin' | 'admin' | 'client') => Promise<void>;
+  signup: (email: string, password: string, fullName: string, userType: 'super_admin' | 'admin' | 'client', clientType: ClientType, organization?: string, specialization?: string) => Promise<void>;
   logout: () => void;
   loading: boolean;
 }
@@ -55,9 +55,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const signup = async (email: string, password: string, fullName: string, userType: 'super_admin' | 'admin' | 'client' = 'client') => {
+  const signup = async (
+    email: string, 
+    password: string, 
+    fullName: string, 
+    userType: 'super_admin' | 'admin' | 'client' = 'client',
+    clientType: ClientType,
+    organization?: string,
+    specialization?: string
+  ) => {
     try {
-      const user = await authApi.signup({ email, password, full_name: fullName, user_type: userType });
+      const user = await authApi.signup({ 
+        email, 
+        password, 
+        full_name: fullName, 
+        user_type: userType,
+        client_type: clientType,
+        organization,
+        specialization
+      });
       // Auto-login after signup
       await login(email, password);
     } catch (error) {
