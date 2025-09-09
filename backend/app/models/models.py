@@ -24,6 +24,25 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, onupdate=lambda: datetime.now(timezone.utc))
 
+    client: Mapped[Optional["Client"]] = relationship("Client", back_populates="user", uselist=False)
+
+# --- clients ---
+class Client(Base):
+    __tablename__ = "clients"
+    __table_args__ = (
+        CheckConstraint("client_type in ('researcher','industry_expert','student','undergraduate')", name="clients_client_type_check"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
+    client_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    organization: Mapped[Optional[str]] = mapped_column(String(255))
+    specialization: Mapped[Optional[str]] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, onupdate=lambda: datetime.now(timezone.utc))
+
+    user: Mapped["User"] = relationship("User", back_populates="client")
+
 # --- modules ---
 class Module(Base):
     __tablename__ = "modules"

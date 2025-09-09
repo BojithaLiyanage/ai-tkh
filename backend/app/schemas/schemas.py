@@ -4,6 +4,7 @@ from datetime import datetime
 
 # ---- users
 UserType = Literal["super_admin", "admin", "client"]
+ClientType = Literal["researcher", "industry_expert", "student", "undergraduate"]
 
 class UserCreate(BaseModel):
     email: EmailStr
@@ -35,6 +36,45 @@ class UserStats(BaseModel):
     admin_users: int
     client_users: int
     super_admin_users: int
+
+# ---- clients
+class ClientCreate(BaseModel):
+    client_type: ClientType
+    organization: Optional[str] = None
+    specialization: Optional[str] = None
+
+class ClientRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    user_id: int
+    client_type: ClientType
+    organization: Optional[str] = None
+    specialization: Optional[str] = None
+    created_at: datetime
+
+class ClientUpdate(BaseModel):
+    client_type: Optional[ClientType] = None
+    organization: Optional[str] = None
+    specialization: Optional[str] = None
+
+class UserWithClientCreate(BaseModel):
+    email: EmailStr
+    password: str
+    full_name: str
+    user_type: UserType = "client"
+    client_type: ClientType
+    organization: Optional[str] = None
+    specialization: Optional[str] = None
+
+class UserWithClientRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    email: str
+    full_name: str
+    user_type: UserType
+    is_active: bool
+    created_at: datetime
+    client: Optional[ClientRead] = None
 
 class Token(BaseModel):
     access_token: str

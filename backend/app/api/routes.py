@@ -3,12 +3,12 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select
 from datetime import timedelta
 from app.db.session import get_db
-from app.models.models import Module, Topic, Subtopic, ContentBlock, Tag, SubtopicTag, StudyGroup, SubtopicStudyGroup, User
+from app.models.models import Module, Topic, Subtopic, ContentBlock, Tag, SubtopicTag, StudyGroup, SubtopicStudyGroup, User, Client
 from app.schemas.schemas import (
     ModuleCreate, ModuleRead, TopicCreate, TopicRead,
     SubtopicCreate, SubtopicRead, ContentBlockCreate, ContentBlockRead,
     TagCreate, TagRead, StudyGroupRead, UserCreate, UserLogin, UserRead, Token,
-    UserUpdate, UserStats
+    UserUpdate, UserStats, ClientCreate, ClientRead, ClientUpdate, UserWithClientCreate, UserWithClientRead
 )
 from typing import List
 from app.core.auth import (
@@ -23,8 +23,8 @@ def health():
     return {"status": "ok"}
 
 # --- Authentication ---
-@router.post("/auth/signup", response_model=UserRead, status_code=201)
-def signup(user_data: UserCreate, db: Session = Depends(get_db)):
+@router.post("/auth/signup", response_model=UserWithClientRead, status_code=201)
+def signup(user_data: UserWithClientCreate, db: Session = Depends(get_db)):
     # Check if user already exists
     existing_user = get_user_by_email(db, user_data.email)
     if existing_user:
@@ -51,6 +51,18 @@ def signup(user_data: UserCreate, db: Session = Depends(get_db)):
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
+    
+    # Create client record
+    db_client = Client(
+        user_id=db_user.id,
+        client_type=user_data.client_type,
+        organization=user_data.organization,
+        specialization=user_data.specialization
+    )
+    db.add(db_client)
+    db.commit()
+    db.refresh(db_client)
+    
     return db_user
 
 @router.post("/auth/login", response_model=Token)
@@ -85,9 +97,9 @@ def get_current_user_info(current_user: User = Depends(get_current_active_user))
     return current_user
 
 # Super admin only route to create admin users
-@router.post("/auth/create-user", response_model=UserRead, status_code=201)
+@router.post("/auth/create-user", response_model=UserWithClientRead, status_code=201)
 def create_user_by_super_admin(
-    user_data: UserCreate, 
+    user_data: UserWithClientCreate, 
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_super_admin_user)
 ):
@@ -110,6 +122,19 @@ def create_user_by_super_admin(
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
+    
+    # Create client record if user is a client
+    if user_data.user_type == "client":
+        db_client = Client(
+            user_id=db_user.id,
+            client_type=user_data.client_type,
+            organization=user_data.organization,
+            specialization=user_data.specialization
+        )
+        db.add(db_client)
+        db.commit()
+        db.refresh(db_client)
+    
     return db_user
 
 @router.get("/auth/stats", response_model=UserStats)
@@ -134,7 +159,7 @@ def get_user_stats(
     )
 
 # List all users (Super Admin only)
-@router.get("/auth/users", response_model=List[UserRead])
+@router.get("/auth/users", response_model=List[UserWithClientRead])
 def list_users(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_super_admin_user)
@@ -196,6 +221,46 @@ def activate_user(
     user.is_active = True
     db.commit()
     return {"message": "User activated successfully"}
+
+# Client management routes
+@router.get("/auth/clients", response_model=List[ClientRead])
+def list_clients(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    clients = db.execute(select(Client).order_by(Client.created_at.desc())).scalars().all()
+    return clients
+
+@router.get("/auth/clients/{client_id}", response_model=ClientRead)
+def get_client(
+    client_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    client = db.get(Client, client_id)
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+    return client
+
+@router.put("/auth/clients/{client_id}", response_model=ClientRead)
+def update_client(
+    client_id: int,
+    client_update: ClientUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    client = db.get(Client, client_id)
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+    
+    # Update only provided fields
+    update_data = client_update.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(client, field, value)
+    
+    db.commit()
+    db.refresh(client)
+    return client
 
 @router.get("/modules", response_model=list[ModuleRead])
 def list_modules(
