@@ -1,14 +1,22 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import select
 from datetime import timedelta
 from app.db.session import get_db
-from app.models.models import Module, Topic, Subtopic, ContentBlock, Tag, SubtopicTag, StudyGroup, SubtopicStudyGroup, User, Client
+from app.models.models import (
+    Module, Topic, Subtopic, ContentBlock, Tag, SubtopicTag, StudyGroup, SubtopicStudyGroup, User, Client,
+    FiberClass, FiberSubtype, SyntheticType, PolymerizationType, Fiber
+)
 from app.schemas.schemas import (
     ModuleCreate, ModuleRead, TopicCreate, TopicRead,
     SubtopicCreate, SubtopicRead, ContentBlockCreate, ContentBlockRead,
     TagCreate, TagRead, StudyGroupRead, UserCreate, UserLogin, UserRead, Token,
-    UserUpdate, UserStats, ClientCreate, ClientRead, ClientUpdate, UserWithClientCreate, UserWithClientRead
+    UserUpdate, UserStats, ClientCreate, ClientRead, ClientUpdate, UserWithClientCreate, UserWithClientRead,
+    FiberClassCreate, FiberClassRead, FiberClassUpdate,
+    FiberSubtypeCreate, FiberSubtypeRead, FiberSubtypeUpdate,
+    SyntheticTypeCreate, SyntheticTypeRead, SyntheticTypeUpdate,
+    PolymerizationTypeCreate, PolymerizationTypeRead, PolymerizationTypeUpdate,
+    FiberCreate, FiberRead, FiberUpdate, FiberSummaryRead
 )
 from typing import List
 from app.core.auth import (
@@ -444,3 +452,457 @@ def attach_group(
     db.merge(SubtopicStudyGroup(subtopic_id=subtopic_id, group_code=code))
     db.commit()
     return
+
+# ===== FIBER DATABASE MANAGEMENT ROUTES =====
+# These routes allow admin and super admin users to manage the fiber database
+
+# --- Fiber Classes ---
+@router.get("/fiber/classes", response_model=List[FiberClassRead])
+def list_fiber_classes(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    classes = db.execute(select(FiberClass).order_by(FiberClass.name)).scalars().all()
+    return classes
+
+@router.post("/fiber/classes", response_model=FiberClassRead, status_code=201)
+def create_fiber_class(
+    payload: FiberClassCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    fiber_class = FiberClass(**payload.model_dump())
+    db.add(fiber_class)
+    try:
+        db.commit()
+        db.refresh(fiber_class)
+        return fiber_class
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Fiber class with this name may already exist")
+
+@router.put("/fiber/classes/{class_id}", response_model=FiberClassRead)
+def update_fiber_class(
+    class_id: int,
+    payload: FiberClassUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    fiber_class = db.get(FiberClass, class_id)
+    if not fiber_class:
+        raise HTTPException(status_code=404, detail="Fiber class not found")
+
+    update_data = payload.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(fiber_class, field, value)
+
+    try:
+        db.commit()
+        db.refresh(fiber_class)
+        return fiber_class
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Update failed - name may already exist")
+
+@router.delete("/fiber/classes/{class_id}")
+def delete_fiber_class(
+    class_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    fiber_class = db.get(FiberClass, class_id)
+    if not fiber_class:
+        raise HTTPException(status_code=404, detail="Fiber class not found")
+
+    try:
+        db.delete(fiber_class)
+        db.commit()
+        return {"message": "Fiber class deleted successfully"}
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Cannot delete - fiber class may be in use")
+
+# --- Fiber Subtypes ---
+@router.get("/fiber/subtypes", response_model=List[FiberSubtypeRead])
+def list_fiber_subtypes(
+    class_id: int = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    query = select(FiberSubtype).options(
+        joinedload(FiberSubtype.fiber_class)
+    ).order_by(FiberSubtype.name)
+    if class_id:
+        query = query.where(FiberSubtype.class_id == class_id)
+    subtypes = db.execute(query).scalars().all()
+    return subtypes
+
+@router.post("/fiber/subtypes", response_model=FiberSubtypeRead, status_code=201)
+def create_fiber_subtype(
+    payload: FiberSubtypeCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    # Check if fiber class exists
+    if not db.get(FiberClass, payload.class_id):
+        raise HTTPException(status_code=400, detail="Fiber class not found")
+
+    fiber_subtype = FiberSubtype(**payload.model_dump())
+    db.add(fiber_subtype)
+    try:
+        db.commit()
+        db.refresh(fiber_subtype)
+        return fiber_subtype
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Subtype with this name may already exist for this class")
+
+@router.put("/fiber/subtypes/{subtype_id}", response_model=FiberSubtypeRead)
+def update_fiber_subtype(
+    subtype_id: int,
+    payload: FiberSubtypeUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    fiber_subtype = db.get(FiberSubtype, subtype_id)
+    if not fiber_subtype:
+        raise HTTPException(status_code=404, detail="Fiber subtype not found")
+
+    update_data = payload.model_dump(exclude_unset=True)
+
+    # Check if new class_id exists
+    if 'class_id' in update_data and not db.get(FiberClass, update_data['class_id']):
+        raise HTTPException(status_code=400, detail="Fiber class not found")
+
+    for field, value in update_data.items():
+        setattr(fiber_subtype, field, value)
+
+    try:
+        db.commit()
+        db.refresh(fiber_subtype)
+        return fiber_subtype
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Update failed - name may already exist for this class")
+
+@router.delete("/fiber/subtypes/{subtype_id}")
+def delete_fiber_subtype(
+    subtype_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    fiber_subtype = db.get(FiberSubtype, subtype_id)
+    if not fiber_subtype:
+        raise HTTPException(status_code=404, detail="Fiber subtype not found")
+
+    try:
+        db.delete(fiber_subtype)
+        db.commit()
+        return {"message": "Fiber subtype deleted successfully"}
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Cannot delete - subtype may be in use")
+
+# --- Synthetic Types ---
+@router.get("/fiber/synthetic-types", response_model=List[SyntheticTypeRead])
+def list_synthetic_types(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    types = db.execute(select(SyntheticType).order_by(SyntheticType.name)).scalars().all()
+    return types
+
+@router.post("/fiber/synthetic-types", response_model=SyntheticTypeRead, status_code=201)
+def create_synthetic_type(
+    payload: SyntheticTypeCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    synthetic_type = SyntheticType(**payload.model_dump())
+    db.add(synthetic_type)
+    try:
+        db.commit()
+        db.refresh(synthetic_type)
+        return synthetic_type
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Synthetic type with this name may already exist")
+
+@router.put("/fiber/synthetic-types/{type_id}", response_model=SyntheticTypeRead)
+def update_synthetic_type(
+    type_id: int,
+    payload: SyntheticTypeUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    synthetic_type = db.get(SyntheticType, type_id)
+    if not synthetic_type:
+        raise HTTPException(status_code=404, detail="Synthetic type not found")
+
+    update_data = payload.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(synthetic_type, field, value)
+
+    try:
+        db.commit()
+        db.refresh(synthetic_type)
+        return synthetic_type
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Update failed - name may already exist")
+
+@router.delete("/fiber/synthetic-types/{type_id}")
+def delete_synthetic_type(
+    type_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    synthetic_type = db.get(SyntheticType, type_id)
+    if not synthetic_type:
+        raise HTTPException(status_code=404, detail="Synthetic type not found")
+
+    try:
+        db.delete(synthetic_type)
+        db.commit()
+        return {"message": "Synthetic type deleted successfully"}
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Cannot delete - type may be in use")
+
+# --- Polymerization Types ---
+@router.get("/fiber/polymerization-types", response_model=List[PolymerizationTypeRead])
+def list_polymerization_types(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    types = db.execute(select(PolymerizationType).order_by(PolymerizationType.name)).scalars().all()
+    return types
+
+@router.post("/fiber/polymerization-types", response_model=PolymerizationTypeRead, status_code=201)
+def create_polymerization_type(
+    payload: PolymerizationTypeCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    polymerization_type = PolymerizationType(**payload.model_dump())
+    db.add(polymerization_type)
+    try:
+        db.commit()
+        db.refresh(polymerization_type)
+        return polymerization_type
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Polymerization type with this name may already exist")
+
+@router.put("/fiber/polymerization-types/{type_id}", response_model=PolymerizationTypeRead)
+def update_polymerization_type(
+    type_id: int,
+    payload: PolymerizationTypeUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    polymerization_type = db.get(PolymerizationType, type_id)
+    if not polymerization_type:
+        raise HTTPException(status_code=404, detail="Polymerization type not found")
+
+    update_data = payload.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(polymerization_type, field, value)
+
+    try:
+        db.commit()
+        db.refresh(polymerization_type)
+        return polymerization_type
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Update failed - name may already exist")
+
+@router.delete("/fiber/polymerization-types/{type_id}")
+def delete_polymerization_type(
+    type_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    polymerization_type = db.get(PolymerizationType, type_id)
+    if not polymerization_type:
+        raise HTTPException(status_code=404, detail="Polymerization type not found")
+
+    try:
+        db.delete(polymerization_type)
+        db.commit()
+        return {"message": "Polymerization type deleted successfully"}
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Cannot delete - type may be in use")
+
+# --- Fibers ---
+@router.get("/fiber/fibers", response_model=List[FiberSummaryRead])
+def list_fibers(
+    skip: int = 0,
+    limit: int = 100,
+    search: str = None,
+    class_id: int = None,
+    subtype_id: int = None,
+    is_active: bool = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    query = select(Fiber).options(
+        joinedload(Fiber.fiber_class),
+        joinedload(Fiber.subtype)
+    ).order_by(Fiber.name)
+
+    if search:
+        query = query.where(Fiber.name.ilike(f"%{search}%"))
+    if class_id:
+        query = query.where(Fiber.class_id == class_id)
+    if subtype_id:
+        query = query.where(Fiber.subtype_id == subtype_id)
+    if is_active is not None:
+        query = query.where(Fiber.is_active == is_active)
+
+    query = query.offset(skip).limit(limit)
+    fibers = db.execute(query).scalars().all()
+
+    # Convert to proper FiberSummaryRead format to avoid validation errors
+    result = []
+    for fiber in fibers:
+        fiber_summary = {
+            "id": fiber.id,
+            "fiber_id": fiber.fiber_id,
+            "name": fiber.name,
+            "fiber_class": fiber.fiber_class,
+            "subtype": fiber.subtype,
+            "applications": fiber.applications or [],
+            "created_at": fiber.created_at,
+            "is_active": fiber.is_active
+        }
+        result.append(fiber_summary)
+
+    return result
+
+@router.get("/fiber/fibers/{fiber_id}", response_model=FiberRead)
+def get_fiber(
+    fiber_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    query = select(Fiber).options(
+        joinedload(Fiber.fiber_class),
+        joinedload(Fiber.subtype),
+        joinedload(Fiber.synthetic_type),
+        joinedload(Fiber.polymerization_type)
+    ).where(Fiber.id == fiber_id)
+
+    fiber = db.execute(query).scalar_one_or_none()
+    if not fiber:
+        raise HTTPException(status_code=404, detail="Fiber not found")
+    return fiber
+
+@router.post("/fiber/fibers", response_model=FiberRead, status_code=201)
+def create_fiber(
+    payload: FiberCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    # Validate foreign key references
+    if payload.class_id and not db.get(FiberClass, payload.class_id):
+        raise HTTPException(status_code=400, detail="Fiber class not found")
+    if payload.subtype_id and not db.get(FiberSubtype, payload.subtype_id):
+        raise HTTPException(status_code=400, detail="Fiber subtype not found")
+    if payload.synthetic_type_id and not db.get(SyntheticType, payload.synthetic_type_id):
+        raise HTTPException(status_code=400, detail="Synthetic type not found")
+    if payload.polymerization_type_id and not db.get(PolymerizationType, payload.polymerization_type_id):
+        raise HTTPException(status_code=400, detail="Polymerization type not found")
+
+    fiber = Fiber(**payload.model_dump())
+    db.add(fiber)
+    try:
+        db.commit()
+        db.refresh(fiber)
+        return fiber
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Fiber with this fiber_id may already exist")
+
+@router.put("/fiber/fibers/{fiber_id}", response_model=FiberRead)
+def update_fiber(
+    fiber_id: int,
+    payload: FiberUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    fiber = db.get(Fiber, fiber_id)
+    if not fiber:
+        raise HTTPException(status_code=404, detail="Fiber not found")
+
+    update_data = payload.model_dump(exclude_unset=True)
+
+    # Validate foreign key references if being updated
+    if 'class_id' in update_data and update_data['class_id'] and not db.get(FiberClass, update_data['class_id']):
+        raise HTTPException(status_code=400, detail="Fiber class not found")
+    if 'subtype_id' in update_data and update_data['subtype_id'] and not db.get(FiberSubtype, update_data['subtype_id']):
+        raise HTTPException(status_code=400, detail="Fiber subtype not found")
+    if 'synthetic_type_id' in update_data and update_data['synthetic_type_id'] and not db.get(SyntheticType, update_data['synthetic_type_id']):
+        raise HTTPException(status_code=400, detail="Synthetic type not found")
+    if 'polymerization_type_id' in update_data and update_data['polymerization_type_id'] and not db.get(PolymerizationType, update_data['polymerization_type_id']):
+        raise HTTPException(status_code=400, detail="Polymerization type not found")
+
+    for field, value in update_data.items():
+        setattr(fiber, field, value)
+
+    try:
+        db.commit()
+        db.refresh(fiber)
+        return fiber
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Update failed - fiber_id may already exist")
+
+@router.delete("/fiber/fibers/{fiber_id}")
+def delete_fiber(
+    fiber_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    fiber = db.get(Fiber, fiber_id)
+    if not fiber:
+        raise HTTPException(status_code=404, detail="Fiber not found")
+
+    try:
+        db.delete(fiber)
+        db.commit()
+        return {"message": "Fiber deleted successfully"}
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Cannot delete fiber")
+
+# Soft delete (deactivate) fiber
+@router.patch("/fiber/fibers/{fiber_id}/deactivate")
+def deactivate_fiber(
+    fiber_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    fiber = db.get(Fiber, fiber_id)
+    if not fiber:
+        raise HTTPException(status_code=404, detail="Fiber not found")
+
+    fiber.is_active = False
+    db.commit()
+    return {"message": "Fiber deactivated successfully"}
+
+# Activate fiber
+@router.patch("/fiber/fibers/{fiber_id}/activate")
+def activate_fiber(
+    fiber_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    fiber = db.get(Fiber, fiber_id)
+    if not fiber:
+        raise HTTPException(status_code=404, detail="Fiber not found")
+
+    fiber.is_active = True
+    db.commit()
+    return {"message": "Fiber activated successfully"}
