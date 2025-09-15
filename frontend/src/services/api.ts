@@ -136,4 +136,296 @@ export const clientApi = {
   },
 };
 
+// Fiber Database Types
+export interface FiberClass {
+  id: number;
+  name: string;
+  description?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FiberSubtype {
+  id: number;
+  class_id: number;
+  name: string;
+  description?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SyntheticType {
+  id: number;
+  name: string;
+  description?: string;
+  created_at: string;
+}
+
+export interface PolymerizationType {
+  id: number;
+  name: string;
+  description?: string;
+  created_at: string;
+}
+
+export interface Fiber {
+  id: number;
+  fiber_id: string;
+  name: string;
+  class_id?: number;
+  subtype_id?: number;
+  synthetic_type_id?: number;
+  polymerization_type_id?: number;
+  trade_names?: string[];
+  sources?: string[];
+  applications?: string[];
+  manufacturing_process?: string[];
+  spinning_method?: string[];
+  post_treatments?: string[];
+  functional_groups?: string[];
+  dye_affinity?: string[];
+  density_g_cm3?: number;
+  fineness_min_um?: number;
+  fineness_max_um?: number;
+  staple_length_min_mm?: number;
+  staple_length_max_mm?: number;
+  tenacity_min_cn_tex?: number;
+  tenacity_max_cn_tex?: number;
+  elongation_min_percent?: number;
+  elongation_max_percent?: number;
+  moisture_regain_percent?: number;
+  absorption_capacity_percent?: number;
+  polymer_composition?: string;
+  degree_of_polymerization?: string;
+  acid_resistance?: string;
+  alkali_resistance?: string;
+  microbial_resistance?: string;
+  thermal_properties?: string;
+  glass_transition_temp_c?: number;
+  melting_point_c?: number;
+  decomposition_temp_c?: number;
+  repeating_unit?: string;
+  molecular_structure_smiles?: string;
+  biodegradability?: boolean;
+  sustainability_notes?: string;
+  environmental_impact_score?: number;
+  identification_methods?: string;
+  property_analysis_methods?: string;
+  data_source: string;
+  data_quality_score: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FiberSummary {
+  id: number;
+  fiber_id: string;
+  name: string;
+  fiber_class?: FiberClass;
+  subtype?: FiberSubtype;
+  applications?: string[];
+  created_at: string;
+  is_active: boolean;
+}
+
+export interface FiberClassCreate {
+  name: string;
+  description?: string;
+}
+
+export interface FiberSubtypeCreate {
+  class_id: number;
+  name: string;
+  description?: string;
+}
+
+export interface SyntheticTypeCreate {
+  name: string;
+  description?: string;
+}
+
+export interface PolymerizationTypeCreate {
+  name: string;
+  description?: string;
+}
+
+export interface FiberCreate {
+  fiber_id: string;
+  name: string;
+  class_id?: number;
+  subtype_id?: number;
+  synthetic_type_id?: number;
+  polymerization_type_id?: number;
+  trade_names?: string[];
+  sources?: string[];
+  applications?: string[];
+  manufacturing_process?: string[];
+  spinning_method?: string[];
+  post_treatments?: string[];
+  functional_groups?: string[];
+  dye_affinity?: string[];
+  density_g_cm3?: number;
+  fineness_min_um?: number;
+  fineness_max_um?: number;
+  staple_length_min_mm?: number;
+  staple_length_max_mm?: number;
+  tenacity_min_cn_tex?: number;
+  tenacity_max_cn_tex?: number;
+  elongation_min_percent?: number;
+  elongation_max_percent?: number;
+  moisture_regain_percent?: number;
+  absorption_capacity_percent?: number;
+  polymer_composition?: string;
+  degree_of_polymerization?: string;
+  acid_resistance?: string;
+  alkali_resistance?: string;
+  microbial_resistance?: string;
+  thermal_properties?: string;
+  glass_transition_temp_c?: number;
+  melting_point_c?: number;
+  decomposition_temp_c?: number;
+  repeating_unit?: string;
+  molecular_structure_smiles?: string;
+  biodegradability?: boolean;
+  sustainability_notes?: string;
+  environmental_impact_score?: number;
+  identification_methods?: string;
+  property_analysis_methods?: string;
+  data_source?: string;
+  data_quality_score?: number;
+  is_active?: boolean;
+}
+
+// Fiber Database API
+export const fiberApi = {
+  // Fiber Classes
+  getFiberClasses: async (): Promise<FiberClass[]> => {
+    const response = await api.get('/fiber/classes');
+    return response.data;
+  },
+
+  createFiberClass: async (data: FiberClassCreate): Promise<FiberClass> => {
+    const response = await api.post('/fiber/classes', data);
+    return response.data;
+  },
+
+  updateFiberClass: async (classId: number, data: Partial<FiberClassCreate>): Promise<FiberClass> => {
+    const response = await api.put(`/fiber/classes/${classId}`, data);
+    return response.data;
+  },
+
+  deleteFiberClass: async (classId: number): Promise<{ message: string }> => {
+    const response = await api.delete(`/fiber/classes/${classId}`);
+    return response.data;
+  },
+
+  // Fiber Subtypes
+  getFiberSubtypes: async (classId?: number): Promise<FiberSubtype[]> => {
+    const params = classId ? { class_id: classId } : {};
+    const response = await api.get('/fiber/subtypes', { params });
+    return response.data;
+  },
+
+  createFiberSubtype: async (data: FiberSubtypeCreate): Promise<FiberSubtype> => {
+    const response = await api.post('/fiber/subtypes', data);
+    return response.data;
+  },
+
+  updateFiberSubtype: async (subtypeId: number, data: Partial<FiberSubtypeCreate>): Promise<FiberSubtype> => {
+    const response = await api.put(`/fiber/subtypes/${subtypeId}`, data);
+    return response.data;
+  },
+
+  deleteFiberSubtype: async (subtypeId: number): Promise<{ message: string }> => {
+    const response = await api.delete(`/fiber/subtypes/${subtypeId}`);
+    return response.data;
+  },
+
+  // Synthetic Types
+  getSyntheticTypes: async (): Promise<SyntheticType[]> => {
+    const response = await api.get('/fiber/synthetic-types');
+    return response.data;
+  },
+
+  createSyntheticType: async (data: SyntheticTypeCreate): Promise<SyntheticType> => {
+    const response = await api.post('/fiber/synthetic-types', data);
+    return response.data;
+  },
+
+  updateSyntheticType: async (typeId: number, data: Partial<SyntheticTypeCreate>): Promise<SyntheticType> => {
+    const response = await api.put(`/fiber/synthetic-types/${typeId}`, data);
+    return response.data;
+  },
+
+  deleteSyntheticType: async (typeId: number): Promise<{ message: string }> => {
+    const response = await api.delete(`/fiber/synthetic-types/${typeId}`);
+    return response.data;
+  },
+
+  // Polymerization Types
+  getPolymerizationTypes: async (): Promise<PolymerizationType[]> => {
+    const response = await api.get('/fiber/polymerization-types');
+    return response.data;
+  },
+
+  createPolymerizationType: async (data: PolymerizationTypeCreate): Promise<PolymerizationType> => {
+    const response = await api.post('/fiber/polymerization-types', data);
+    return response.data;
+  },
+
+  updatePolymerizationType: async (typeId: number, data: Partial<PolymerizationTypeCreate>): Promise<PolymerizationType> => {
+    const response = await api.put(`/fiber/polymerization-types/${typeId}`, data);
+    return response.data;
+  },
+
+  deletePolymerizationType: async (typeId: number): Promise<{ message: string }> => {
+    const response = await api.delete(`/fiber/polymerization-types/${typeId}`);
+    return response.data;
+  },
+
+  // Fibers
+  getFibers: async (params?: {
+    skip?: number;
+    limit?: number;
+    search?: string;
+    class_id?: number;
+    subtype_id?: number;
+    is_active?: boolean;
+  }): Promise<FiberSummary[]> => {
+    const response = await api.get('/fiber/fibers', { params });
+    return response.data;
+  },
+
+  getFiber: async (fiberId: number): Promise<Fiber> => {
+    const response = await api.get(`/fiber/fibers/${fiberId}`);
+    return response.data;
+  },
+
+  createFiber: async (data: FiberCreate): Promise<Fiber> => {
+    const response = await api.post('/fiber/fibers', data);
+    return response.data;
+  },
+
+  updateFiber: async (fiberId: number, data: Partial<FiberCreate>): Promise<Fiber> => {
+    const response = await api.put(`/fiber/fibers/${fiberId}`, data);
+    return response.data;
+  },
+
+  deleteFiber: async (fiberId: number): Promise<{ message: string }> => {
+    const response = await api.delete(`/fiber/fibers/${fiberId}`);
+    return response.data;
+  },
+
+  deactivateFiber: async (fiberId: number): Promise<{ message: string }> => {
+    const response = await api.patch(`/fiber/fibers/${fiberId}/deactivate`);
+    return response.data;
+  },
+
+  activateFiber: async (fiberId: number): Promise<{ message: string }> => {
+    const response = await api.patch(`/fiber/fibers/${fiberId}/activate`);
+    return response.data;
+  },
+};
+
 export default api;

@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import CreateAdminForm from './CreateAdminForm';
 import UserManagement from './UserManagement';
 import ContentManagement from './ContentManagement';
+import FiberDatabaseManagement from './FiberDatabaseManagement';
 import { authApi, type UserStats } from '../services/api';
 
 const SuperAdminDashboard: React.FC = () => {
@@ -10,6 +11,7 @@ const SuperAdminDashboard: React.FC = () => {
   const [showCreateAdminModal, setShowCreateAdminModal] = useState(false);
   const [showUserManageModal, setShowUserManageModal] = useState(false);
   const [showContentManagement, setShowContentManagement] = useState(false);
+  const [showFiberDatabaseManagement, setShowFiberDatabaseManagement] = useState(false);
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -173,13 +175,16 @@ const SuperAdminDashboard: React.FC = () => {
               <p className="text-sm text-gray-500 mt-1">Security configurations</p>
             </div>
           </div>
-          <div className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow duration-200 cursor-pointer">
+          <div
+            onClick={() => setShowFiberDatabaseManagement(true)}
+            className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow duration-200 cursor-pointer"
+          >
             <div className="text-center">
               <div className="w-12 h-12 bg-green-100 rounded-lg mx-auto mb-3 flex items-center justify-center">
-                <span className="text-green-600 text-xl">💾</span>
+                <span className="text-green-600 text-xl">🧵</span>
               </div>
-              <p className="font-medium text-gray-900">Database</p>
-              <p className="text-sm text-gray-500 mt-1">Database management</p>
+              <p className="font-medium text-gray-900">Fiber Database</p>
+              <p className="text-sm text-gray-500 mt-1">Manage fiber database entries</p>
             </div>
           </div>
         </div>
@@ -234,11 +239,20 @@ const SuperAdminDashboard: React.FC = () => {
       {/* Content Management Modal */}
       {showContentManagement && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <ContentManagement 
+          <ContentManagement
             onClose={() => setShowContentManagement(false)}
             onContentUpdated={() => {
               // Could refresh content statistics here if needed
             }}
+          />
+        </div>
+      )}
+
+      {/* Fiber Database Management Modal */}
+      {showFiberDatabaseManagement && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <FiberDatabaseManagement
+            onClose={() => setShowFiberDatabaseManagement(false)}
           />
         </div>
       )}

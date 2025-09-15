@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import ContentManagement from './ContentManagement';
+import FiberDatabaseManagement from './FiberDatabaseManagement';
 
 const AdminDashboard: React.FC = () => {
   const { user, logout } = useAuth();
   const [showContentManagement, setShowContentManagement] = useState(false);
+  const [showFiberDatabaseManagement, setShowFiberDatabaseManagement] = useState(false);
 
   if (!user || user.user_type !== 'admin') {
     return <div className="loading">Access denied...</div>;
@@ -132,13 +134,16 @@ const AdminDashboard: React.FC = () => {
               <p className="text-sm text-gray-500 mt-1">Organize content structure</p>
             </div>
           </div>
-          <div className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow duration-200 cursor-pointer">
+          <div
+            onClick={() => setShowFiberDatabaseManagement(true)}
+            className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow duration-200 cursor-pointer"
+          >
             <div className="text-center">
               <div className="w-12 h-12 bg-purple-100 rounded-lg mx-auto mb-3 flex items-center justify-center">
-                <span className="text-purple-600 text-xl">📋</span>
+                <span className="text-purple-600 text-xl">🧵</span>
               </div>
-              <p className="font-medium text-gray-900">Content Reports</p>
-              <p className="text-sm text-gray-500 mt-1">Generate content reports</p>
+              <p className="font-medium text-gray-900">Fiber Database</p>
+              <p className="text-sm text-gray-500 mt-1">Manage fiber database entries</p>
             </div>
           </div>
         </div>
@@ -168,11 +173,20 @@ const AdminDashboard: React.FC = () => {
       {/* Content Management Modal */}
       {showContentManagement && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <ContentManagement 
+          <ContentManagement
             onClose={() => setShowContentManagement(false)}
             onContentUpdated={() => {
               // Could refresh any content statistics here if needed
             }}
+          />
+        </div>
+      )}
+
+      {/* Fiber Database Management Modal */}
+      {showFiberDatabaseManagement && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <FiberDatabaseManagement
+            onClose={() => setShowFiberDatabaseManagement(false)}
           />
         </div>
       )}
