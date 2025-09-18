@@ -6,7 +6,7 @@ import {
   type SyntheticType,
   type PolymerizationType,
   type FiberSummary,
-  type Fiber,
+  type FiberDetail,
   type FiberClassCreate,
   type FiberSubtypeCreate,
   type SyntheticTypeCreate,
@@ -37,7 +37,7 @@ const FiberDatabaseManagement: React.FC<FiberDatabaseManagementProps> = ({ onClo
   // Form states
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
-  const [selectedFiber, setSelectedFiber] = useState<Fiber | null>(null);
+  const [selectedFiber, setSelectedFiber] = useState<FiberDetail | null>(null);
 
   // Search and filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -658,36 +658,327 @@ const FiberDatabaseManagement: React.FC<FiberDatabaseManagementProps> = ({ onClo
                 ×
               </button>
             </div>
-            <div className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Fiber ID</label>
-                  <p className="text-gray-900">{selectedFiber.fiber_id}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Name</label>
-                  <p className="text-gray-900">{selectedFiber.name}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Density (g/cm³)</label>
-                  <p className="text-gray-900">{selectedFiber.density_g_cm3 || 'N/A'}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Biodegradable</label>
-                  <p className="text-gray-900">{selectedFiber.biodegradability === null ? 'N/A' : selectedFiber.biodegradability ? 'Yes' : 'No'}</p>
-                </div>
-                {selectedFiber.applications && selectedFiber.applications.length > 0 && (
-                  <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700">Applications</label>
-                    <div className="flex flex-wrap gap-2 mt-1">
-                      {selectedFiber.applications.map((app, index) => (
-                        <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded">
-                          {app}
-                        </span>
-                      ))}
-                    </div>
+            <div className="p-6 space-y-6 max-h-96 overflow-y-auto">
+              {/* Basic Information */}
+              <div>
+                <h4 className="text-lg font-medium text-gray-900 mb-3">Basic Information</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Fiber ID</label>
+                    <p className="text-gray-900">{selectedFiber.fiber_id}</p>
                   </div>
-                )}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Name</label>
+                    <p className="text-gray-900">{selectedFiber.name}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Classifications */}
+              <div>
+                <h4 className="text-lg font-medium text-gray-900 mb-3">Classifications</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Fiber Class</label>
+                    <p className="text-gray-900">{selectedFiber.fiber_class?.name || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Subtype</label>
+                    <p className="text-gray-900">{selectedFiber.subtype?.name || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Synthetic Type</label>
+                    <p className="text-gray-900">{selectedFiber.synthetic_type?.name || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Polymerization Type</label>
+                    <p className="text-gray-900">{selectedFiber.polymerization_type?.name || 'N/A'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Physical Properties */}
+              <div>
+                <h4 className="text-lg font-medium text-gray-900 mb-3">Physical Properties</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Density (g/cm³)</label>
+                    <p className="text-gray-900">{selectedFiber.density_g_cm3 || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Moisture Regain (%)</label>
+                    <p className="text-gray-900">{selectedFiber.moisture_regain_percent || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Absorption Capacity (%)</label>
+                    <p className="text-gray-900">{selectedFiber.absorption_capacity_percent || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Fineness Range (µm)</label>
+                    <p className="text-gray-900">
+                      {selectedFiber.fineness_min_um && selectedFiber.fineness_max_um ?
+                        `${selectedFiber.fineness_min_um} - ${selectedFiber.fineness_max_um}` :
+                        selectedFiber.fineness_min_um || selectedFiber.fineness_max_um || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Staple Length Range (mm)</label>
+                    <p className="text-gray-900">
+                      {selectedFiber.staple_length_min_mm && selectedFiber.staple_length_max_mm ?
+                        `${selectedFiber.staple_length_min_mm} - ${selectedFiber.staple_length_max_mm}` :
+                        selectedFiber.staple_length_min_mm || selectedFiber.staple_length_max_mm || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Tenacity Range (cN/tex)</label>
+                    <p className="text-gray-900">
+                      {selectedFiber.tenacity_min_cn_tex && selectedFiber.tenacity_max_cn_tex ?
+                        `${selectedFiber.tenacity_min_cn_tex} - ${selectedFiber.tenacity_max_cn_tex}` :
+                        selectedFiber.tenacity_min_cn_tex || selectedFiber.tenacity_max_cn_tex || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Elongation Range (%)</label>
+                    <p className="text-gray-900">
+                      {selectedFiber.elongation_min_percent && selectedFiber.elongation_max_percent ?
+                        `${selectedFiber.elongation_min_percent} - ${selectedFiber.elongation_max_percent}` :
+                        selectedFiber.elongation_min_percent || selectedFiber.elongation_max_percent || 'N/A'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Chemical Properties */}
+              <div>
+                <h4 className="text-lg font-medium text-gray-900 mb-3">Chemical Properties</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Polymer Composition</label>
+                    <p className="text-gray-900">{selectedFiber.polymer_composition || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Degree of Polymerization</label>
+                    <p className="text-gray-900">{selectedFiber.degree_of_polymerization || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Acid Resistance</label>
+                    <p className="text-gray-900">{selectedFiber.acid_resistance || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Alkali Resistance</label>
+                    <p className="text-gray-900">{selectedFiber.alkali_resistance || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Microbial Resistance</label>
+                    <p className="text-gray-900">{selectedFiber.microbial_resistance || 'N/A'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Thermal Properties */}
+              <div>
+                <h4 className="text-lg font-medium text-gray-900 mb-3">Thermal Properties</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Glass Transition Temperature (°C)</label>
+                    <p className="text-gray-900">{selectedFiber.glass_transition_temp_c || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Melting Point (°C)</label>
+                    <p className="text-gray-900">{selectedFiber.melting_point_c || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Decomposition Temperature (°C)</label>
+                    <p className="text-gray-900">{selectedFiber.decomposition_temp_c || 'N/A'}</p>
+                  </div>
+                  {selectedFiber.thermal_properties && (
+                    <div className="col-span-2">
+                      <label className="block text-sm font-medium text-gray-700">Thermal Properties</label>
+                      <p className="text-gray-900">{selectedFiber.thermal_properties}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Structure */}
+              <div>
+                <h4 className="text-lg font-medium text-gray-900 mb-3">Structure</h4>
+                <div className="space-y-4">
+                  {selectedFiber.repeating_unit && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Repeating Unit</label>
+                      <p className="text-gray-900">{selectedFiber.repeating_unit}</p>
+                    </div>
+                  )}
+                  {selectedFiber.molecular_structure_smiles && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Molecular Structure (SMILES)</label>
+                      <p className="text-gray-900 font-mono text-sm break-all">{selectedFiber.molecular_structure_smiles}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Arrays */}
+              <div>
+                <h4 className="text-lg font-medium text-gray-900 mb-3">Categories & Properties</h4>
+                <div className="space-y-4">
+                  {selectedFiber.trade_names && selectedFiber.trade_names.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Trade Names</label>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {selectedFiber.trade_names.map((name, index) => (
+                          <span key={index} className="px-2 py-1 bg-purple-100 text-purple-800 text-sm rounded">
+                            {name}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {selectedFiber.sources && selectedFiber.sources.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Sources</label>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {selectedFiber.sources.map((source, index) => (
+                          <span key={index} className="px-2 py-1 bg-green-100 text-green-800 text-sm rounded">
+                            {source}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {selectedFiber.applications && selectedFiber.applications.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Applications</label>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {selectedFiber.applications.map((app, index) => (
+                          <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded">
+                            {app}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {selectedFiber.manufacturing_process && selectedFiber.manufacturing_process.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Manufacturing Process</label>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {selectedFiber.manufacturing_process.map((process, index) => (
+                          <span key={index} className="px-2 py-1 bg-orange-100 text-orange-800 text-sm rounded">
+                            {process}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {selectedFiber.spinning_method && selectedFiber.spinning_method.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Spinning Method</label>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {selectedFiber.spinning_method.map((method, index) => (
+                          <span key={index} className="px-2 py-1 bg-yellow-100 text-yellow-800 text-sm rounded">
+                            {method}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {selectedFiber.post_treatments && selectedFiber.post_treatments.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Post Treatments</label>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {selectedFiber.post_treatments.map((treatment, index) => (
+                          <span key={index} className="px-2 py-1 bg-indigo-100 text-indigo-800 text-sm rounded">
+                            {treatment}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {selectedFiber.functional_groups && selectedFiber.functional_groups.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Functional Groups</label>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {selectedFiber.functional_groups.map((group, index) => (
+                          <span key={index} className="px-2 py-1 bg-pink-100 text-pink-800 text-sm rounded">
+                            {group}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {selectedFiber.dye_affinity && selectedFiber.dye_affinity.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Dye Affinity</label>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {selectedFiber.dye_affinity.map((affinity, index) => (
+                          <span key={index} className="px-2 py-1 bg-teal-100 text-teal-800 text-sm rounded">
+                            {affinity}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Sustainability */}
+              <div>
+                <h4 className="text-lg font-medium text-gray-900 mb-3">Sustainability</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Biodegradable</label>
+                    <p className="text-gray-900">{selectedFiber.biodegradability === null ? 'N/A' : selectedFiber.biodegradability ? 'Yes' : 'No'}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Environmental Impact Score</label>
+                    <p className="text-gray-900">{selectedFiber.environmental_impact_score || 'N/A'}</p>
+                  </div>
+                  {selectedFiber.sustainability_notes && (
+                    <div className="col-span-2">
+                      <label className="block text-sm font-medium text-gray-700">Sustainability Notes</label>
+                      <p className="text-gray-900">{selectedFiber.sustainability_notes}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Identification & Testing */}
+              <div>
+                <h4 className="text-lg font-medium text-gray-900 mb-3">Identification & Testing</h4>
+                <div className="space-y-4">
+                  {selectedFiber.identification_methods && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Identification Methods</label>
+                      <p className="text-gray-900">{selectedFiber.identification_methods}</p>
+                    </div>
+                  )}
+                  {selectedFiber.property_analysis_methods && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Property Analysis Methods</label>
+                      <p className="text-gray-900">{selectedFiber.property_analysis_methods}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Metadata */}
+              <div>
+                <h4 className="text-lg font-medium text-gray-900 mb-3">Metadata</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Data Quality Score</label>
+                    <p className="text-gray-900">{selectedFiber.data_quality_score || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Created At</label>
+                    <p className="text-gray-900">{new Date(selectedFiber.created_at).toLocaleDateString()}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Updated At</label>
+                    <p className="text-gray-900">{new Date(selectedFiber.updated_at).toLocaleDateString()}</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

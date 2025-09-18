@@ -218,6 +218,72 @@ export interface Fiber {
   updated_at: string;
 }
 
+export interface FiberDetail {
+  id: number;
+  fiber_id: string;
+  name: string;
+
+  // Classifications
+  fiber_class?: FiberClass;
+  subtype?: FiberSubtype;
+  synthetic_type?: SyntheticType;
+  polymerization_type?: PolymerizationType;
+
+  // Arrays
+  trade_names?: string[];
+  sources?: string[];
+  applications?: string[];
+  manufacturing_process?: string[];
+  spinning_method?: string[];
+  post_treatments?: string[];
+  functional_groups?: string[];
+  dye_affinity?: string[];
+
+  // Physical Properties
+  density_g_cm3?: number;
+  fineness_min_um?: number;
+  fineness_max_um?: number;
+  staple_length_min_mm?: number;
+  staple_length_max_mm?: number;
+  tenacity_min_cn_tex?: number;
+  tenacity_max_cn_tex?: number;
+  elongation_min_percent?: number;
+  elongation_max_percent?: number;
+  moisture_regain_percent?: number;
+  absorption_capacity_percent?: number;
+
+  // Chemical Properties
+  polymer_composition?: string;
+  degree_of_polymerization?: string;
+  acid_resistance?: string;
+  alkali_resistance?: string;
+  microbial_resistance?: string;
+
+  // Thermal Properties
+  thermal_properties?: string;
+  glass_transition_temp_c?: number;
+  melting_point_c?: number;
+  decomposition_temp_c?: number;
+
+  // Structure
+  repeating_unit?: string;
+  molecular_structure_smiles?: string;
+
+  // Sustainability
+  biodegradability?: boolean;
+  sustainability_notes?: string;
+  environmental_impact_score?: number;
+
+  // Identification
+  identification_methods?: string;
+  property_analysis_methods?: string;
+
+  // Metadata
+  data_quality_score?: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface FiberSummary {
   id: number;
   fiber_id: string;
@@ -397,7 +463,7 @@ export const fiberApi = {
     return response.data;
   },
 
-  getFiber: async (fiberId: number): Promise<Fiber> => {
+  getFiber: async (fiberId: number): Promise<FiberDetail> => {
     const response = await api.get(`/fiber/fibers/${fiberId}`);
     return response.data;
   },
