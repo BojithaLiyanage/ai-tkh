@@ -3,24 +3,31 @@ import { useAuth } from '../contexts/AuthContext';
 import CreateAdminForm from './CreateAdminForm';
 import UserManagement from './UserManagement';
 import ContentManagement from './ContentManagement';
+import ContentLibrary from './ContentLibrary';
 import FiberDatabaseManagement from './FiberDatabaseManagement';
-import { authApi, type UserStats } from '../services/api';
+import { authApi, contentApi, type UserStats, type ContentStats } from '../services/api';
 
 const SuperAdminDashboard: React.FC = () => {
   const { user, logout } = useAuth();
   const [showCreateAdminModal, setShowCreateAdminModal] = useState(false);
   const [showUserManageModal, setShowUserManageModal] = useState(false);
   const [showContentManagement, setShowContentManagement] = useState(false);
+  const [showContentLibrary, setShowContentLibrary] = useState(false);
   const [showFiberDatabaseManagement, setShowFiberDatabaseManagement] = useState(false);
   const [stats, setStats] = useState<UserStats | null>(null);
+  const [contentStats, setContentStats] = useState<ContentStats | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchStats = async () => {
     try {
-      const userStats = await authApi.getUserStats();
+      const [userStats, contentStatsData] = await Promise.all([
+        authApi.getUserStats(),
+        contentApi.getContentStats()
+      ]);
       setStats(userStats);
+      setContentStats(contentStatsData);
     } catch (error) {
-      console.error('Failed to fetch user stats:', error);
+      console.error('Failed to fetch stats:', error);
     } finally {
       setLoading(false);
     }
@@ -55,7 +62,7 @@ const SuperAdminDashboard: React.FC = () => {
       </div>
 
       {/* Super Admin Features Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         {/* System Overview */}
         <div className="bg-white p-8 rounded-xl shadow-lg border border-gray-200">
           <h2 className="text-gray-900 text-2xl font-semibold mb-5 flex items-center">
@@ -90,6 +97,34 @@ const SuperAdminDashboard: React.FC = () => {
             <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
               <span className="text-gray-600">System Status</span>
               <span className="font-semibold text-green-600">Online</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Content Overview */}
+        <div className="bg-white p-8 rounded-xl shadow-lg border border-gray-200">
+          <h2 className="text-gray-900 text-2xl font-semibold mb-5 flex items-center">
+            <span className="w-3 h-3 bg-blue-500 rounded-full mr-3"></span>
+            Content Overview
+          </h2>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+              <span className="text-gray-600">Total Modules</span>
+              <span className="font-semibold text-gray-900">
+                {loading ? 'Loading...' : contentStats?.total_modules || 0}
+              </span>
+            </div>
+            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+              <span className="text-gray-600">Total Topics</span>
+              <span className="font-semibold text-gray-900">
+                {loading ? 'Loading...' : contentStats?.total_topics || 0}
+              </span>
+            </div>
+            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+              <span className="text-gray-600">Total Subtopics</span>
+              <span className="font-semibold text-blue-600">
+                {loading ? 'Loading...' : contentStats?.total_subtopics || 0}
+              </span>
             </div>
           </div>
         </div>
@@ -145,16 +180,28 @@ const SuperAdminDashboard: React.FC = () => {
           System Administration
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div 
+          <div
             onClick={() => setShowContentManagement(true)}
             className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow duration-200 cursor-pointer"
           >
             <div className="text-center">
               <div className="w-12 h-12 bg-indigo-100 rounded-lg mx-auto mb-3 flex items-center justify-center">
-                <span className="text-indigo-600 text-xl">📚</span>
+                <span className="text-indigo-600 text-xl">📝</span>
               </div>
               <p className="font-medium text-gray-900">Content Management</p>
-              <p className="text-sm text-gray-500 mt-1">Manage educational content</p>
+              <p className="text-sm text-gray-500 mt-1">Create educational content</p>
+            </div>
+          </div>
+          <div
+            onClick={() => setShowContentLibrary(true)}
+            className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow duration-200 cursor-pointer"
+          >
+            <div className="text-center">
+              <div className="w-12 h-12 bg-blue-100 rounded-lg mx-auto mb-3 flex items-center justify-center">
+                <span className="text-blue-600 text-xl">📚</span>
+              </div>
+              <p className="font-medium text-gray-900">Content Library</p>
+              <p className="text-sm text-gray-500 mt-1">View and manage content</p>
             </div>
           </div>
           {/* <div className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow duration-200 cursor-pointer">
@@ -242,8 +289,17 @@ const SuperAdminDashboard: React.FC = () => {
           <ContentManagement
             onClose={() => setShowContentManagement(false)}
             onContentUpdated={() => {
-              // Could refresh content statistics here if needed
+              fetchStats(); // Refresh content statistics when content is updated
             }}
+          />
+        </div>
+      )}
+
+      {/* Content Library Modal */}
+      {showContentLibrary && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <ContentLibrary
+            onClose={() => setShowContentLibrary(false)}
           />
         </div>
       )}

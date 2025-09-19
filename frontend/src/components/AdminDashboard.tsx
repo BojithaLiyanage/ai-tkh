@@ -1,14 +1,34 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import ContentManagement from './ContentManagement';
+import ContentLibrary from './ContentLibrary';
 import FiberDatabaseManagement from './FiberDatabaseManagement';
 import UserManagement from './UserManagement';
+import { contentApi, type ContentStats } from '../services/api';
 
 const AdminDashboard: React.FC = () => {
   const { user, logout } = useAuth();
   const [showContentManagement, setShowContentManagement] = useState(false);
+  const [showContentLibrary, setShowContentLibrary] = useState(false);
   const [showFiberDatabaseManagement, setShowFiberDatabaseManagement] = useState(false);
   const [showUserManagement, setShowUserManagement] = useState(false);
+  const [contentStats, setContentStats] = useState<ContentStats | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchContentStats = async () => {
+    try {
+      const stats = await contentApi.getContentStats();
+      setContentStats(stats);
+    } catch (error) {
+      console.error('Failed to fetch content stats:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchContentStats();
+  }, []);
 
   if (!user || user.user_type !== 'admin') {
     return <div className="loading">Access denied...</div>;
@@ -45,15 +65,21 @@ const AdminDashboard: React.FC = () => {
           <div className="space-y-4">
             <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
               <span className="text-gray-600">Total Modules</span>
-              <span className="font-semibold text-gray-900">-</span>
+              <span className="font-semibold text-gray-900">
+                {loading ? 'Loading...' : contentStats?.total_modules || 0}
+              </span>
             </div>
             <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
               <span className="text-gray-600">Topics Created</span>
-              <span className="font-semibold text-gray-900">-</span>
+              <span className="font-semibold text-gray-900">
+                {loading ? 'Loading...' : contentStats?.total_topics || 0}
+              </span>
             </div>
             <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
               <span className="text-gray-600">Subtopics</span>
-              <span className="font-semibold text-blue-600">-</span>
+              <span className="font-semibold text-blue-600">
+                {loading ? 'Loading...' : contentStats?.total_subtopics || 0}
+              </span>
             </div>
           </div>
         </div>
@@ -109,13 +135,16 @@ const AdminDashboard: React.FC = () => {
           Admin Tools
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          <div className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow duration-200 cursor-pointer">
+          <div
+            onClick={() => setShowContentLibrary(true)}
+            className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow duration-200 cursor-pointer"
+          >
             <div className="text-center">
               <div className="w-12 h-12 bg-blue-100 rounded-lg mx-auto mb-3 flex items-center justify-center">
                 <span className="text-blue-600 text-xl">📚</span>
               </div>
               <p className="font-medium text-gray-900">Content Library</p>
-              <p className="text-sm text-gray-500 mt-1">Manage educational content</p>
+              <p className="text-sm text-gray-500 mt-1">View and manage educational content</p>
             </div>
           </div>
           {/* <div className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow duration-200 cursor-pointer">
@@ -190,7 +219,7 @@ const AdminDashboard: React.FC = () => {
           <ContentManagement
             onClose={() => setShowContentManagement(false)}
             onContentUpdated={() => {
-              // Could refresh any content statistics here if needed
+              fetchContentStats(); // Refresh content statistics when content is updated
             }}
           />
         </div>
@@ -204,6 +233,15 @@ const AdminDashboard: React.FC = () => {
             onUserUpdated={() => {
               // Could refresh any user statistics here if needed
             }}
+          />
+        </div>
+      )}
+
+      {/* Content Library Modal */}
+      {showContentLibrary && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <ContentLibrary
+            onClose={() => setShowContentLibrary(false)}
           />
         </div>
       )}

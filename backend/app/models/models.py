@@ -1,5 +1,5 @@
 from sqlalchemy import (
-    BigInteger, Integer, String, Text, ForeignKey, CheckConstraint, UniqueConstraint, JSON, text, CHAR, Boolean, DateTime, 
+    BigInteger, Integer, String, Text, ForeignKey, CheckConstraint, UniqueConstraint, text, CHAR, Boolean, DateTime,
     Column, DECIMAL, ARRAY, Index, func
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -54,9 +54,9 @@ class Module(Base):
     name: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text)
     order_index: Mapped[int] = mapped_column(Integer, server_default=text("0"))
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
     # slug is a STORED generated column in DB; we just read it - exclude from mapped columns
-    # created_at / updated_at exist in DB; include as readable columns (optional)
-    # You can add them as mapped fields if you want to read them.
 
     topics: Mapped[list["Topic"]] = relationship("Topic", back_populates="module", cascade="all,delete")
 
@@ -70,6 +70,8 @@ class Topic(Base):
     name: Mapped[str] = mapped_column(Text, nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text)
     order_index: Mapped[int] = mapped_column(Integer, server_default=text("0"))
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
 
     module: Mapped["Module"] = relationship("Module", back_populates="topics")
     subtopics: Mapped[list["Subtopic"]] = relationship("Subtopic", back_populates="topic", cascade="all,delete")
@@ -90,6 +92,8 @@ class Subtopic(Base):
     notes: Mapped[Optional[str]] = mapped_column(Text)
     difficulty_level: Mapped[str] = mapped_column(Text, server_default=text("'basic'"))
     order_index: Mapped[int] = mapped_column(Integer, server_default=text("0"))
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
 
     topic: Mapped["Topic"] = relationship("Topic", back_populates="subtopics")
     blocks: Mapped[list["ContentBlock"]] = relationship("ContentBlock", back_populates="subtopic", cascade="all,delete")
@@ -114,7 +118,9 @@ class ContentBlock(Base):
     block_type: Mapped[str] = mapped_column(Text, nullable=False)
     body: Mapped[dict] = mapped_column(JSONB, nullable=False)
     position: Mapped[int] = mapped_column(Integer, server_default=text("0"))
-    meta_data : Mapped[dict] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
+    meta_data: Mapped[dict] = mapped_column("metadata", JSONB, server_default=text("'{}'::jsonb"))
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
 
     subtopic: Mapped["Subtopic"] = relationship("Subtopic", back_populates="blocks")
 

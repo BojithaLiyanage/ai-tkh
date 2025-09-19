@@ -105,6 +105,8 @@ class ModuleRead(BaseModel):
     name: str
     description: Optional[str] = None
     order_index: int
+    created_at: datetime
+    updated_at: datetime
 
 # ---- topics
 class TopicCreate(BaseModel):
@@ -120,6 +122,8 @@ class TopicRead(BaseModel):
     description: Optional[str] = None
     order_index: int
     module_id: int
+    created_at: datetime
+    updated_at: datetime
 
 # ---- subtopics
 Difficulty = Literal["intro","basic","intermediate","advanced"]
@@ -141,6 +145,8 @@ class SubtopicRead(BaseModel):
     difficulty_level: Difficulty
     order_index: int
     topic_id: int
+    created_at: datetime
+    updated_at: datetime
 
 # ---- content blocks
 BlockType = Literal["text","image","list","quote","table","link","html","code"]
@@ -149,7 +155,7 @@ class ContentBlockCreate(BaseModel):
     block_type: BlockType
     body: dict
     position: int = 0
-    metadata: dict = Field(default_factory=dict)
+    meta_data: dict = Field(default_factory=dict)
 
 class ContentBlockRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -158,7 +164,9 @@ class ContentBlockRead(BaseModel):
     block_type: BlockType
     body: dict
     position: int
-    metadata: dict
+    meta_data: dict
+    created_at: datetime
+    updated_at: datetime
 
 # ---- tags
 class TagCreate(BaseModel):

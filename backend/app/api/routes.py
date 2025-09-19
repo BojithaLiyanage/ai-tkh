@@ -321,7 +321,7 @@ def list_modules(
 
 @router.post("/modules", response_model=ModuleRead, status_code=201)
 def create_module(
-    payload: ModuleCreate, 
+    payload: ModuleCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_admin_user)
 ):
@@ -330,10 +330,42 @@ def create_module(
     if order_index == 0:
         max_order = db.execute(select(Module.order_index).order_by(Module.order_index.desc())).first()
         order_index = (max_order[0] + 1) if max_order and max_order[0] is not None else 1
-    
+
     m = Module(name=payload.name, description=payload.description, order_index=order_index)
     db.add(m); db.commit(); db.refresh(m)
     return m
+
+@router.put("/modules/{module_id}", response_model=ModuleRead)
+def update_module(
+    module_id: int,
+    payload: ModuleCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    module = db.get(Module, module_id)
+    if not module:
+        raise HTTPException(404, "Module not found")
+
+    module.name = payload.name
+    module.description = payload.description
+    module.order_index = payload.order_index
+    db.commit()
+    db.refresh(module)
+    return module
+
+@router.delete("/modules/{module_id}", status_code=204)
+def delete_module(
+    module_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    module = db.get(Module, module_id)
+    if not module:
+        raise HTTPException(404, "Module not found")
+
+    db.delete(module)
+    db.commit()
+    return
 
 @router.get("/modules/{module_id}/topics", response_model=list[TopicRead])
 def list_topics(
@@ -369,6 +401,38 @@ def create_topic(
     t = Topic(module_id=module_id, name=payload.name, description=payload.description, order_index=order_index)
     db.add(t); db.commit(); db.refresh(t)
     return t
+
+@router.put("/topics/{topic_id}", response_model=TopicRead)
+def update_topic(
+    topic_id: int,
+    payload: TopicCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    topic = db.get(Topic, topic_id)
+    if not topic:
+        raise HTTPException(404, "Topic not found")
+
+    topic.name = payload.name
+    topic.description = payload.description
+    topic.order_index = payload.order_index
+    db.commit()
+    db.refresh(topic)
+    return topic
+
+@router.delete("/topics/{topic_id}", status_code=204)
+def delete_topic(
+    topic_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    topic = db.get(Topic, topic_id)
+    if not topic:
+        raise HTTPException(404, "Topic not found")
+
+    db.delete(topic)
+    db.commit()
+    return
 
 @router.get("/topics/{topic_id}/subtopics", response_model=list[SubtopicRead])
 def list_subtopics(
@@ -407,6 +471,40 @@ def create_subtopic(
     s = Subtopic(topic_id=topic_id, **subtopic_data)
     db.add(s); db.commit(); db.refresh(s)
     return s
+
+@router.put("/subtopics/{subtopic_id}", response_model=SubtopicRead)
+def update_subtopic(
+    subtopic_id: int,
+    payload: SubtopicCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    subtopic = db.get(Subtopic, subtopic_id)
+    if not subtopic:
+        raise HTTPException(404, "Subtopic not found")
+
+    subtopic.name = payload.name
+    subtopic.definition = payload.definition
+    subtopic.notes = payload.notes
+    subtopic.difficulty_level = payload.difficulty_level
+    subtopic.order_index = payload.order_index
+    db.commit()
+    db.refresh(subtopic)
+    return subtopic
+
+@router.delete("/subtopics/{subtopic_id}", status_code=204)
+def delete_subtopic(
+    subtopic_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    subtopic = db.get(Subtopic, subtopic_id)
+    if not subtopic:
+        raise HTTPException(404, "Subtopic not found")
+
+    db.delete(subtopic)
+    db.commit()
+    return
 
 @router.get("/subtopics/{subtopic_id}/blocks", response_model=list[ContentBlockRead])
 def list_blocks(

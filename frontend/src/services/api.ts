@@ -81,6 +81,12 @@ export interface UserStats {
   super_admin_users: number;
 }
 
+export interface ContentStats {
+  total_modules: number;
+  total_topics: number;
+  total_subtopics: number;
+}
+
 export const authApi = {
   login: async (data: LoginData): Promise<TokenResponse> => {
     const response = await api.post('/auth/login', data);
@@ -130,6 +136,43 @@ export const authApi = {
   adminUpdateUser: async (userId: number, userData: AdminUserUpdate): Promise<User> => {
     const response = await api.put(`/auth/users/${userId}/admin-update`, userData);
     return response.data;
+  },
+};
+
+export const contentApi = {
+  getContentStats: async (): Promise<ContentStats> => {
+    const [modulesResponse, topicsResponse, subtopicsResponse] = await Promise.all([
+      api.get('/modules'),
+      // We'll need to aggregate topics from all modules
+      api.get('/modules').then(async (res) => {
+        const modules = res.data;
+        let totalTopics = 0;
+        for (const module of modules) {
+          const topicsRes = await api.get(`/modules/${module.id}/topics`);
+          totalTopics += topicsRes.data.length;
+        }
+        return { data: { total: totalTopics } };
+      }),
+      // We'll need to aggregate subtopics from all topics
+      api.get('/modules').then(async (res) => {
+        const modules = res.data;
+        let totalSubtopics = 0;
+        for (const module of modules) {
+          const topicsRes = await api.get(`/modules/${module.id}/topics`);
+          for (const topic of topicsRes.data) {
+            const subtopicsRes = await api.get(`/topics/${topic.id}/subtopics`);
+            totalSubtopics += subtopicsRes.data.length;
+          }
+        }
+        return { data: { total: totalSubtopics } };
+      }),
+    ]);
+
+    return {
+      total_modules: modulesResponse.data.length,
+      total_topics: topicsResponse.data.total,
+      total_subtopics: subtopicsResponse.data.total,
+    };
   },
 };
 
