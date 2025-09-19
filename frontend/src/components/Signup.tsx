@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
-import { ClientType } from '../services/api';
+import type { ClientType } from '../services/api';
 
 const Signup: React.FC = () => {
   const [email, setEmail] = useState('');

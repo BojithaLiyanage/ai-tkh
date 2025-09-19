@@ -816,6 +816,26 @@ const FiberDatabaseManagement: React.FC<FiberDatabaseManagementProps> = ({ onClo
                       <p className="text-gray-900 font-mono text-sm break-all">{selectedFiber.molecular_structure_smiles}</p>
                     </div>
                   )}
+                  {selectedFiber.structure_image_url && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Structure Image</label>
+                      <div className="border border-gray-300 rounded-lg p-2 bg-gray-50">
+                        <img
+                          src={selectedFiber.structure_image_url}
+                          alt="Molecular structure"
+                          className="max-w-full h-auto max-h-64 mx-auto rounded"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                            const container = target.parentElement;
+                            if (container) {
+                              container.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">Image could not be loaded</p>';
+                            }
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 

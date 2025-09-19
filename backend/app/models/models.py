@@ -260,6 +260,8 @@ class Fiber(Base):
     # Structure
     repeating_unit = Column(Text)
     molecular_structure_smiles = Column(Text)
+    structure_image_cms_id = Column(String(255))
+    structure_image_url = Column(Text)
     
     # Sustainability
     biodegradability = Column(Boolean)
@@ -531,6 +533,8 @@ class FiberDetailResponse(BaseModel):
     # Structure
     repeating_unit: Optional[str] = None
     molecular_structure_smiles: Optional[str] = None
+    structure_image_cms_id: Optional[str] = None
+    structure_image_url: Optional[str] = None
     
     # Sustainability
     biodegradability: Optional[bool] = None

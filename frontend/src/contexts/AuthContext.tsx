@@ -65,7 +65,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     specialization?: string
   ) => {
     try {
-      const user = await authApi.signup({ 
+      await authApi.signup({ 
         email, 
         password, 
         full_name: fullName, 

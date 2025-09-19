@@ -206,6 +206,8 @@ export interface Fiber {
   decomposition_temp_c?: number;
   repeating_unit?: string;
   molecular_structure_smiles?: string;
+  structure_image_cms_id?: string;
+  structure_image_url?: string;
   biodegradability?: boolean;
   sustainability_notes?: string;
   environmental_impact_score?: number;
@@ -268,6 +270,8 @@ export interface FiberDetail {
   // Structure
   repeating_unit?: string;
   molecular_structure_smiles?: string;
+  structure_image_cms_id?: string;
+  structure_image_url?: string;
 
   // Sustainability
   biodegradability?: boolean;
@@ -353,6 +357,8 @@ export interface FiberCreate {
   decomposition_temp_c?: number;
   repeating_unit?: string;
   molecular_structure_smiles?: string;
+  structure_image_cms_id?: string;
+  structure_image_url?: string;
   biodegradability?: boolean;
   sustainability_notes?: string;
   environmental_impact_score?: number;

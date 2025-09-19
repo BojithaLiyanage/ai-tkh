@@ -23,6 +23,7 @@ from app.core.auth import (
     get_password_hash, verify_password, create_access_token, get_user_by_email,
     get_current_active_user, get_current_admin_user, get_current_super_admin_user
 )
+from app.services.cloudinary import cloudinary_service
 
 router = APIRouter()
 
@@ -906,3 +907,20 @@ def activate_fiber(
     fiber.is_active = True
     db.commit()
     return {"message": "Fiber activated successfully"}
+
+# --- Cloudinary ---
+@router.delete("/cloudinary/delete")
+def delete_cloudinary_image(
+    request: dict,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Delete an image from Cloudinary"""
+    public_id = request.get("public_id")
+    if not public_id:
+        raise HTTPException(status_code=400, detail="public_id is required")
+
+    try:
+        result = cloudinary_service.delete_image(public_id)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

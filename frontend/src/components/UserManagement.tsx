@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { authApi, type User, type UserUpdate, type ClientType } from '../services/api';
+import { authApi, type User, type UserUpdate } from '../services/api';
 
 interface UserManagementProps {
   onClose?: () => void;

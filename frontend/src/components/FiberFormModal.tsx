@@ -4,13 +4,7 @@ import {
   type FiberClass,
   type FiberSubtype,
   type SyntheticType,
-  type PolymerizationType,
-  type FiberDetail,
-  type FiberClassCreate,
-  type FiberSubtypeCreate,
-  type SyntheticTypeCreate,
-  type PolymerizationTypeCreate,
-  type FiberCreate
+  type PolymerizationType
 } from '../services/api';
 
 type TabType = 'fibers' | 'classes' | 'subtypes' | 'synthetic' | 'polymerization';
@@ -91,7 +85,16 @@ const FiberFormModal: React.FC<FiberFormModalProps> = ({
           'environmental_impact_score'
         ];
 
+        // Handle string fields that should be empty strings if null
+        const stringFields: string[] = [];
+
         numericFields.forEach(field => {
+          if (processedData[field] === null || processedData[field] === undefined) {
+            processedData[field] = '';
+          }
+        });
+
+        stringFields.forEach(field => {
           if (processedData[field] === null || processedData[field] === undefined) {
             processedData[field] = '';
           }
@@ -797,6 +800,7 @@ const FiberFormModal: React.FC<FiberFormModalProps> = ({
                     placeholder="Enter SMILES notation"
                   />
                 </div>
+
               </div>
             </div>
 

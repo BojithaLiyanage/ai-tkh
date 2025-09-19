@@ -271,6 +271,8 @@ class FiberCreate(BaseModel):
     decomposition_temp_c: Optional[float] = None
     repeating_unit: Optional[str] = None
     molecular_structure_smiles: Optional[str] = None
+    structure_image_cms_id: Optional[str] = None
+    structure_image_url: Optional[str] = None
     biodegradability: Optional[bool] = None
     sustainability_notes: Optional[str] = None
     environmental_impact_score: Optional[int] = None
@@ -289,6 +291,10 @@ class FiberRead(BaseModel):
     subtype_id: Optional[int] = None
     synthetic_type_id: Optional[int] = None
     polymerization_type_id: Optional[int] = None
+    fiber_class: Optional[FiberClassRead] = None
+    subtype: Optional[FiberSubtypeRead] = None
+    synthetic_type: Optional[SyntheticTypeRead] = None
+    polymerization_type: Optional[PolymerizationTypeRead] = None
     trade_names: Optional[List[str]] = []
     sources: Optional[List[str]] = []
     applications: Optional[List[str]] = []
@@ -319,6 +325,8 @@ class FiberRead(BaseModel):
     decomposition_temp_c: Optional[float] = None
     repeating_unit: Optional[str] = None
     molecular_structure_smiles: Optional[str] = None
+    structure_image_cms_id: Optional[str] = None
+    structure_image_url: Optional[str] = None
     biodegradability: Optional[bool] = None
     sustainability_notes: Optional[str] = None
     environmental_impact_score: Optional[int] = None
@@ -367,6 +375,8 @@ class FiberUpdate(BaseModel):
     decomposition_temp_c: Optional[float] = None
     repeating_unit: Optional[str] = None
     molecular_structure_smiles: Optional[str] = None
+    structure_image_cms_id: Optional[str] = None
+    structure_image_url: Optional[str] = None
     biodegradability: Optional[bool] = None
     sustainability_notes: Optional[str] = None
     environmental_impact_score: Optional[int] = None
