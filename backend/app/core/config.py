@@ -11,6 +11,11 @@ class Settings(BaseSettings):
     ENV: str = "local"
     API_V1_STR: str = "/api"
 
+    # Cloudinary Configuration
+    CLOUDINARY_CLOUD_NAME: str = ""
+    CLOUDINARY_API_KEY: str = ""
+    CLOUDINARY_API_SECRET: str = ""
+
     model_config = SettingsConfigDict(
         env_file = (
             ".env.local" if Path(".env.local").exists() else ".env"

@@ -6,6 +6,7 @@ import {
   type SyntheticType,
   type PolymerizationType
 } from '../services/api';
+import ImageUploadComponent from './ImageUploadComponent';
 
 type TabType = 'fibers' | 'classes' | 'subtypes' | 'synthetic' | 'polymerization';
 
@@ -86,7 +87,7 @@ const FiberFormModal: React.FC<FiberFormModalProps> = ({
         ];
 
         // Handle string fields that should be empty strings if null
-        const stringFields: string[] = [];
+        const stringFields = ['structure_image_url', 'structure_image_id'];
 
         numericFields.forEach(field => {
           if (processedData[field] === null || processedData[field] === undefined) {
@@ -159,6 +160,8 @@ const FiberFormModal: React.FC<FiberFormModalProps> = ({
             decomposition_temp_c: '',
             repeating_unit: '',
             molecular_structure_smiles: '',
+            structure_image_url: '',
+            structure_image_id: '',
             biodegradability: null,
             sustainability_notes: '',
             environmental_impact_score: '',
@@ -255,6 +258,14 @@ const FiberFormModal: React.FC<FiberFormModalProps> = ({
         // Handle biodegradability
         if (submitData.biodegradability === '') {
           submitData.biodegradability = null;
+        }
+
+        // Handle image fields - convert empty strings to null
+        if (submitData.structure_image_url === '') {
+          submitData.structure_image_url = null;
+        }
+        if (submitData.structure_image_id === '') {
+          submitData.structure_image_id = null;
         }
       }
 
@@ -798,6 +809,19 @@ const FiberFormModal: React.FC<FiberFormModalProps> = ({
                     onChange={(e) => handleInputChange('molecular_structure_smiles', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Enter SMILES notation"
+                  />
+                </div>
+
+                <div>
+                  <ImageUploadComponent
+                    value={formData.structure_image_url || null}
+                    publicId={formData.structure_image_id || null}
+                    onChange={(imageUrl, publicId) => {
+                      handleInputChange('structure_image_url', imageUrl || '');
+                      handleInputChange('structure_image_id', publicId || '');
+                    }}
+                    label="Structure Image"
+                    disabled={loading}
                   />
                 </div>
 

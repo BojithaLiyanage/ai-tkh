@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import select
 from datetime import timedelta
@@ -23,7 +23,7 @@ from app.core.auth import (
     get_password_hash, verify_password, create_access_token, get_user_by_email,
     get_current_active_user, get_current_admin_user, get_current_super_admin_user
 )
-from app.services.cloudinary import cloudinary_service
+from app.services.cloudinary import get_cloudinary_service
 
 router = APIRouter()
 
@@ -909,6 +909,19 @@ def activate_fiber(
     return {"message": "Fiber activated successfully"}
 
 # --- Cloudinary ---
+@router.post("/upload/image")
+def upload_image(
+    file: UploadFile = File(...),
+    folder: str = "fibers",
+    current_user: User = Depends(get_current_active_user)
+):
+    """Upload an image to Cloudinary"""
+    try:
+        result = get_cloudinary_service().upload_image(file, folder)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.delete("/cloudinary/delete")
 def delete_cloudinary_image(
     request: dict,
@@ -920,7 +933,7 @@ def delete_cloudinary_image(
         raise HTTPException(status_code=400, detail="public_id is required")
 
     try:
-        result = cloudinary_service.delete_image(public_id)
+        result = get_cloudinary_service().delete_image(public_id)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
