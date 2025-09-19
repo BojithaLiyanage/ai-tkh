@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { authApi, type User, type UserUpdate } from '../services/api';
+import { authApi, type User, type AdminUserUpdate, type ClientType } from '../services/api';
 
 interface UserManagementProps {
   onClose?: () => void;
   onUserUpdated?: () => void;
 }
 
-interface EditUserData extends UserUpdate {
+interface EditUserData extends AdminUserUpdate {
   id: number;
 }
 
@@ -40,7 +40,10 @@ const UserManagement: React.FC<UserManagementProps> = ({ onClose, onUserUpdated 
       id: user.id,
       full_name: user.full_name,
       user_type: user.user_type,
-      is_active: user.is_active
+      is_active: user.is_active,
+      client_type: user.client?.client_type,
+      organization: user.client?.organization || '',
+      specialization: user.client?.specialization || ''
     });
   };
 
@@ -50,7 +53,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ onClose, onUserUpdated 
     try {
       setActionLoading(editingUser.id);
       const { id, ...updateData } = editingUser;
-      await authApi.updateUser(id, updateData);
+      await authApi.adminUpdateUser(id, updateData);
       await fetchUsers();
       setEditingUser(null);
       if (onUserUpdated) onUserUpdated();
@@ -243,6 +246,55 @@ const UserManagement: React.FC<UserManagementProps> = ({ onClose, onUserUpdated 
                   <option value="admin">Admin</option>
                 </select>
               </div>
+
+              {editingUser.user_type === 'client' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Client Type
+                    </label>
+                    <select
+                      value={editingUser.client_type || 'student'}
+                      onChange={(e) => setEditingUser({
+                        ...editingUser,
+                        client_type: e.target.value as ClientType
+                      })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="researcher">Researcher</option>
+                      <option value="industry_expert">Industry Expert</option>
+                      <option value="student">Student</option>
+                      <option value="undergraduate">Undergraduate</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Organization
+                    </label>
+                    <input
+                      type="text"
+                      value={editingUser.organization || ''}
+                      onChange={(e) => setEditingUser({...editingUser, organization: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Enter organization (optional)"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Specialization
+                    </label>
+                    <input
+                      type="text"
+                      value={editingUser.specialization || ''}
+                      onChange={(e) => setEditingUser({...editingUser, specialization: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Enter specialization (optional)"
+                    />
+                  </div>
+                </>
+              )}
 
               <div>
                 <label className="flex items-center space-x-2">

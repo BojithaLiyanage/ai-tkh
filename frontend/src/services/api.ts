@@ -64,6 +64,15 @@ export interface UserUpdate {
   is_active?: boolean;
 }
 
+export interface AdminUserUpdate {
+  full_name?: string;
+  user_type?: 'super_admin' | 'admin' | 'client';
+  is_active?: boolean;
+  client_type?: ClientType;
+  organization?: string;
+  specialization?: string;
+}
+
 export interface UserStats {
   total_users: number;
   active_users: number;
@@ -115,6 +124,11 @@ export const authApi = {
 
   activateUser: async (userId: number): Promise<{ message: string }> => {
     const response = await api.patch(`/auth/users/${userId}/activate`);
+    return response.data;
+  },
+
+  adminUpdateUser: async (userId: number, userData: AdminUserUpdate): Promise<User> => {
+    const response = await api.put(`/auth/users/${userId}/admin-update`, userData);
     return response.data;
   },
 };

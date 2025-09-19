@@ -107,8 +107,8 @@ const SuperAdminDashboard: React.FC = () => {
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-medium text-blue-900">Create Admin User</p>
-                  <p className="text-sm text-blue-600">Add new administrative accounts</p>
+                  <p className="font-medium text-blue-900">Create User</p>
+                  <p className="text-sm text-blue-600">Add new accounts</p>
                 </div>
                 <span className="text-blue-500 text-lg">→</span>
               </div>
@@ -125,7 +125,7 @@ const SuperAdminDashboard: React.FC = () => {
                 <span className="text-green-500 text-lg">→</span>
               </div>
             </button>
-            <button className="w-full p-4 text-left bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors duration-200">
+            {/* <button className="w-full p-4 text-left bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors duration-200">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium text-purple-900">System Permissions</p>
@@ -133,7 +133,7 @@ const SuperAdminDashboard: React.FC = () => {
                 </div>
                 <span className="text-purple-500 text-lg">→</span>
               </div>
-            </button>
+            </button> */}
           </div>
         </div>
       </div>
@@ -157,7 +157,7 @@ const SuperAdminDashboard: React.FC = () => {
               <p className="text-sm text-gray-500 mt-1">Manage educational content</p>
             </div>
           </div>
-          <div className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow duration-200 cursor-pointer">
+          {/* <div className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow duration-200 cursor-pointer">
             <div className="text-center">
               <div className="w-12 h-12 bg-orange-100 rounded-lg mx-auto mb-3 flex items-center justify-center">
                 <span className="text-orange-600 text-xl">📊</span>
@@ -165,8 +165,8 @@ const SuperAdminDashboard: React.FC = () => {
               <p className="font-medium text-gray-900">Analytics</p>
               <p className="text-sm text-gray-500 mt-1">View system analytics</p>
             </div>
-          </div>
-          <div className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow duration-200 cursor-pointer">
+          </div> */}
+          {/* <div className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow duration-200 cursor-pointer">
             <div className="text-center">
               <div className="w-12 h-12 bg-red-100 rounded-lg mx-auto mb-3 flex items-center justify-center">
                 <span className="text-red-600 text-xl">🔒</span>
@@ -174,7 +174,7 @@ const SuperAdminDashboard: React.FC = () => {
               <p className="font-medium text-gray-900">Security</p>
               <p className="text-sm text-gray-500 mt-1">Security configurations</p>
             </div>
-          </div>
+          </div> */}
           <div
             onClick={() => setShowFiberDatabaseManagement(true)}
             className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow duration-200 cursor-pointer"

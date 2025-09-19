@@ -77,6 +77,14 @@ class UserWithClientRead(BaseModel):
     created_at: datetime
     client: Optional[ClientRead] = None
 
+class AdminUserUpdate(BaseModel):
+    full_name: Optional[str] = None
+    user_type: Optional[UserType] = None
+    is_active: Optional[bool] = None
+    client_type: Optional[ClientType] = None
+    organization: Optional[str] = None
+    specialization: Optional[str] = None
+
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"

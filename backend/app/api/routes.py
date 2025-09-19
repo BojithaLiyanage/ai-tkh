@@ -11,7 +11,7 @@ from app.schemas.schemas import (
     ModuleCreate, ModuleRead, TopicCreate, TopicRead,
     SubtopicCreate, SubtopicRead, ContentBlockCreate, ContentBlockRead,
     TagCreate, TagRead, StudyGroupRead, UserCreate, UserLogin, UserRead, Token,
-    UserUpdate, UserStats, ClientCreate, ClientRead, ClientUpdate, UserWithClientCreate, UserWithClientRead,
+    UserUpdate, UserStats, ClientCreate, ClientRead, ClientUpdate, UserWithClientCreate, UserWithClientRead, AdminUserUpdate,
     FiberClassCreate, FiberClassRead, FiberClassUpdate,
     FiberSubtypeCreate, FiberSubtypeRead, FiberSubtypeUpdate,
     SyntheticTypeCreate, SyntheticTypeRead, SyntheticTypeUpdate,
@@ -187,12 +187,52 @@ def update_user(
     user = db.get(User, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
+
     # Update only provided fields
     update_data = user_update.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(user, field, value)
-    
+
+    db.commit()
+    db.refresh(user)
+    return user
+
+# Update user with client data (Admin and Super Admin)
+@router.put("/auth/users/{user_id}/admin-update", response_model=UserWithClientRead)
+def admin_update_user(
+    user_id: int,
+    user_update: AdminUserUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Update user fields
+    user_fields = {'full_name', 'user_type', 'is_active'}
+    update_data = user_update.model_dump(exclude_unset=True)
+
+    for field, value in update_data.items():
+        if field in user_fields:
+            setattr(user, field, value)
+
+    # Handle client data
+    client_fields = {'client_type', 'organization', 'specialization'}
+    client_data = {k: v for k, v in update_data.items() if k in client_fields}
+
+    if client_data:
+        # Get or create client record
+        client = user.client
+        if not client and user.user_type == "client":
+            # Create client record if user is client but no client record exists
+            client = Client(user_id=user.id)
+            db.add(client)
+
+        if client:
+            for field, value in client_data.items():
+                setattr(client, field, value)
+
     db.commit()
     db.refresh(user)
     return user

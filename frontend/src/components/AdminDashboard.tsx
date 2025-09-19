@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import ContentManagement from './ContentManagement';
 import FiberDatabaseManagement from './FiberDatabaseManagement';
+import UserManagement from './UserManagement';
 
 const AdminDashboard: React.FC = () => {
   const { user, logout } = useAuth();
   const [showContentManagement, setShowContentManagement] = useState(false);
   const [showFiberDatabaseManagement, setShowFiberDatabaseManagement] = useState(false);
+  const [showUserManagement, setShowUserManagement] = useState(false);
 
   if (!user || user.user_type !== 'admin') {
     return <div className="loading">Access denied...</div>;
@@ -106,7 +108,7 @@ const AdminDashboard: React.FC = () => {
           <span className="w-3 h-3 bg-indigo-500 rounded-full mr-3"></span>
           Admin Tools
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <div className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow duration-200 cursor-pointer">
             <div className="text-center">
               <div className="w-12 h-12 bg-blue-100 rounded-lg mx-auto mb-3 flex items-center justify-center">
@@ -132,6 +134,18 @@ const AdminDashboard: React.FC = () => {
               </div>
               <p className="font-medium text-gray-900">Tags & Categories</p>
               <p className="text-sm text-gray-500 mt-1">Organize content structure</p>
+            </div>
+          </div>
+          <div
+            onClick={() => setShowUserManagement(true)}
+            className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow duration-200 cursor-pointer"
+          >
+            <div className="text-center">
+              <div className="w-12 h-12 bg-indigo-100 rounded-lg mx-auto mb-3 flex items-center justify-center">
+                <span className="text-indigo-600 text-xl">👥</span>
+              </div>
+              <p className="font-medium text-gray-900">User Management</p>
+              <p className="text-sm text-gray-500 mt-1">Manage users and clients</p>
             </div>
           </div>
           <div
@@ -177,6 +191,18 @@ const AdminDashboard: React.FC = () => {
             onClose={() => setShowContentManagement(false)}
             onContentUpdated={() => {
               // Could refresh any content statistics here if needed
+            }}
+          />
+        </div>
+      )}
+
+      {/* User Management Modal */}
+      {showUserManagement && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <UserManagement
+            onClose={() => setShowUserManagement(false)}
+            onUserUpdated={() => {
+              // Could refresh any user statistics here if needed
             }}
           />
         </div>
