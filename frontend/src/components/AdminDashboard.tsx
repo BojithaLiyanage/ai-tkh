@@ -77,7 +77,7 @@ const AdminDashboard: React.FC = () => {
                 <span className="text-blue-500 text-lg">→</span>
               </div>
             </button>
-            <button 
+            {/* <button 
               onClick={() => setShowContentManagement(true)}
               className="w-full p-4 text-left bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors duration-200"
             >
@@ -88,8 +88,8 @@ const AdminDashboard: React.FC = () => {
                 </div>
                 <span className="text-green-500 text-lg">→</span>
               </div>
-            </button>
-            <button className="w-full p-4 text-left bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors duration-200">
+            </button> */}
+            {/* <button className="w-full p-4 text-left bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors duration-200">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium text-purple-900">Content Analytics</p>
@@ -97,7 +97,7 @@ const AdminDashboard: React.FC = () => {
                 </div>
                 <span className="text-purple-500 text-lg">→</span>
               </div>
-            </button>
+            </button> */}
           </div>
         </div>
       </div>
@@ -118,7 +118,7 @@ const AdminDashboard: React.FC = () => {
               <p className="text-sm text-gray-500 mt-1">Manage educational content</p>
             </div>
           </div>
-          <div className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow duration-200 cursor-pointer">
+          {/* <div className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow duration-200 cursor-pointer">
             <div className="text-center">
               <div className="w-12 h-12 bg-green-100 rounded-lg mx-auto mb-3 flex items-center justify-center">
                 <span className="text-green-600 text-xl">📊</span>
@@ -126,8 +126,8 @@ const AdminDashboard: React.FC = () => {
               <p className="font-medium text-gray-900">Content Analytics</p>
               <p className="text-sm text-gray-500 mt-1">View learning metrics</p>
             </div>
-          </div>
-          <div className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow duration-200 cursor-pointer">
+          </div> */}
+          {/* <div className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow duration-200 cursor-pointer">
             <div className="text-center">
               <div className="w-12 h-12 bg-orange-100 rounded-lg mx-auto mb-3 flex items-center justify-center">
                 <span className="text-orange-600 text-xl">🏷️</span>
@@ -135,8 +135,8 @@ const AdminDashboard: React.FC = () => {
               <p className="font-medium text-gray-900">Tags & Categories</p>
               <p className="text-sm text-gray-500 mt-1">Organize content structure</p>
             </div>
-          </div>
-          <div
+          </div> */}
+          {/* <div
             onClick={() => setShowUserManagement(true)}
             className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow duration-200 cursor-pointer"
           >
@@ -147,7 +147,7 @@ const AdminDashboard: React.FC = () => {
               <p className="font-medium text-gray-900">User Management</p>
               <p className="text-sm text-gray-500 mt-1">Manage users and clients</p>
             </div>
-          </div>
+          </div> */}
           <div
             onClick={() => setShowFiberDatabaseManagement(true)}
             className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow duration-200 cursor-pointer"
