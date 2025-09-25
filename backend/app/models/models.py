@@ -45,6 +45,21 @@ class Client(Base):
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, onupdate=lambda: datetime.now(timezone.utc))
 
     user: Mapped["User"] = relationship("User", back_populates="client")
+    onboarding: Mapped[Optional["ClientOnboarding"]] = relationship("ClientOnboarding", back_populates="client", uselist=False)
+
+# --- client onboarding ---
+class ClientOnboarding(Base):
+    __tablename__ = "client_onboarding"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    client_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("clients.id", ondelete="CASCADE"), unique=True, nullable=False)
+    answers: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    knowledge_level: Mapped[str] = mapped_column(String(20), nullable=False)
+    is_completed: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, onupdate=lambda: datetime.now(timezone.utc))
+
+    client: Mapped["Client"] = relationship("Client", back_populates="onboarding")
 
 # --- modules ---
 class Module(Base):

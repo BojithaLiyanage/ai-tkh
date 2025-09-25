@@ -85,6 +85,30 @@ class AdminUserUpdate(BaseModel):
     organization: Optional[str] = None
     specialization: Optional[str] = None
 
+# ---- client onboarding
+class OnboardingAnswer(BaseModel):
+    question: str
+    answer: str
+    score: Optional[int] = None
+
+class ClientOnboardingCreate(BaseModel):
+    answers: List[OnboardingAnswer]
+    knowledge_level: str
+
+class ClientOnboardingRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    client_id: int
+    answers: List[OnboardingAnswer]
+    knowledge_level: str
+    is_completed: bool
+    created_at: datetime
+
+class ClientOnboardingUpdate(BaseModel):
+    answers: Optional[List[OnboardingAnswer]] = None
+    knowledge_level: Optional[str] = None
+    is_completed: Optional[bool] = None
+
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"

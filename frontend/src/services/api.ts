@@ -176,6 +176,23 @@ export const contentApi = {
   },
 };
 
+export interface OnboardingAnswer {
+  question: string;
+  answer: string;
+  score?: number;
+}
+
+export interface OnboardingData {
+  answers: OnboardingAnswer[];
+  knowledge_level: string;
+}
+
+export interface OnboardingStatus {
+  is_completed: boolean;
+  needs_onboarding: boolean;
+  knowledge_level?: string;
+}
+
 export const clientApi = {
   getAllClients: async (): Promise<Client[]> => {
     const response = await api.get('/auth/clients');
@@ -189,6 +206,22 @@ export const clientApi = {
 
   updateClient: async (clientId: number, clientData: Partial<Client>): Promise<Client> => {
     const response = await api.put(`/auth/clients/${clientId}`, clientData);
+    return response.data;
+  },
+
+  // Onboarding functions
+  submitOnboarding: async (data: OnboardingData): Promise<any> => {
+    const response = await api.post('/auth/onboarding', data);
+    return response.data;
+  },
+
+  getOnboardingStatus: async (): Promise<OnboardingStatus> => {
+    const response = await api.get('/auth/onboarding/status');
+    return response.data;
+  },
+
+  getOnboarding: async (): Promise<any> => {
+    const response = await api.get('/auth/onboarding');
     return response.data;
   },
 };

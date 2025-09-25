@@ -4,7 +4,7 @@ from sqlalchemy import select
 from datetime import timedelta
 from app.db.session import get_db
 from app.models.models import (
-    Module, Topic, Subtopic, ContentBlock, Tag, SubtopicTag, StudyGroup, SubtopicStudyGroup, User, Client,
+    Module, Topic, Subtopic, ContentBlock, Tag, SubtopicTag, StudyGroup, SubtopicStudyGroup, User, Client, ClientOnboarding,
     FiberClass, FiberSubtype, SyntheticType, PolymerizationType, Fiber
 )
 from app.schemas.schemas import (
@@ -12,6 +12,7 @@ from app.schemas.schemas import (
     SubtopicCreate, SubtopicRead, ContentBlockCreate, ContentBlockRead,
     TagCreate, TagRead, StudyGroupRead, UserCreate, UserLogin, UserRead, Token,
     UserUpdate, UserStats, ClientCreate, ClientRead, ClientUpdate, UserWithClientCreate, UserWithClientRead, AdminUserUpdate,
+    ClientOnboardingCreate, ClientOnboardingRead, ClientOnboardingUpdate,
     FiberClassCreate, FiberClassRead, FiberClassUpdate,
     FiberSubtypeCreate, FiberSubtypeRead, FiberSubtypeUpdate,
     SyntheticTypeCreate, SyntheticTypeRead, SyntheticTypeUpdate,
@@ -591,6 +592,90 @@ def attach_group(
     db.merge(SubtopicStudyGroup(subtopic_id=subtopic_id, group_code=code))
     db.commit()
     return
+
+# --- Client Onboarding ---
+@router.post("/auth/onboarding", response_model=ClientOnboardingRead, status_code=201)
+def create_onboarding(
+    payload: ClientOnboardingCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    # Ensure user is a client and has client record
+    if current_user.user_type != "client" or not current_user.client:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only clients can complete onboarding"
+        )
+
+    # Check if onboarding already exists
+    existing_onboarding = db.execute(
+        select(ClientOnboarding).where(ClientOnboarding.client_id == current_user.client.id)
+    ).scalar_one_or_none()
+
+    if existing_onboarding:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Onboarding already completed"
+        )
+
+    # Create new onboarding record
+    onboarding_data = payload.model_dump()
+    onboarding_data['client_id'] = current_user.client.id
+    onboarding_data['is_completed'] = True
+
+    onboarding = ClientOnboarding(**onboarding_data)
+    db.add(onboarding)
+
+    try:
+        db.commit()
+        db.refresh(onboarding)
+        return onboarding
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Failed to save onboarding data")
+
+@router.get("/auth/onboarding", response_model=ClientOnboardingRead)
+def get_onboarding(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    # Ensure user is a client and has client record
+    if current_user.user_type != "client" or not current_user.client:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only clients can access onboarding data"
+        )
+
+    onboarding = db.execute(
+        select(ClientOnboarding).where(ClientOnboarding.client_id == current_user.client.id)
+    ).scalar_one_or_none()
+
+    if not onboarding:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Onboarding not found"
+        )
+
+    return onboarding
+
+@router.get("/auth/onboarding/status")
+def get_onboarding_status(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    # Ensure user is a client and has client record
+    if current_user.user_type != "client" or not current_user.client:
+        return {"is_completed": False, "needs_onboarding": False}
+
+    onboarding = db.execute(
+        select(ClientOnboarding).where(ClientOnboarding.client_id == current_user.client.id)
+    ).scalar_one_or_none()
+
+    return {
+        "is_completed": onboarding.is_completed if onboarding else False,
+        "needs_onboarding": not (onboarding and onboarding.is_completed),
+        "knowledge_level": onboarding.knowledge_level if onboarding else None
+    }
 
 # ===== FIBER DATABASE MANAGEMENT ROUTES =====
 # These routes allow admin and super admin users to manage the fiber database

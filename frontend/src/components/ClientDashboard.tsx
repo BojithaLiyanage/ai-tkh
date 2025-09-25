@@ -1,11 +1,47 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { clientApi, OnboardingStatus } from '../services/api';
+import ClientOnboarding from './ClientOnboarding';
 
 const ClientDashboard: React.FC = () => {
   const { user, logout } = useAuth();
+  const [onboardingStatus, setOnboardingStatus] = useState<OnboardingStatus | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const checkOnboardingStatus = async () => {
+      if (user && user.user_type === 'client') {
+        try {
+          const status = await clientApi.getOnboardingStatus();
+          setOnboardingStatus(status);
+        } catch (error) {
+          console.error('Error checking onboarding status:', error);
+        }
+      }
+      setLoading(false);
+    };
+
+    checkOnboardingStatus();
+  }, [user]);
 
   if (!user || user.user_type !== 'client') {
     return <div className="loading">Access denied...</div>;
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show onboarding if needed
+  if (onboardingStatus?.needs_onboarding) {
+    return <ClientOnboarding />;
   }
 
   return (
