@@ -6,9 +6,15 @@ from pathlib import Path
 class Settings(BaseSettings):
     PROJECT_NAME: str = "AI-TKH"
     DATABASE_URL: str
+    SECRET_KEY: str = "your-secret-key-change-in-production"
     BACKEND_CORS_ORIGINS: str = "http://localhost:5173"
     ENV: str = "local"
     API_V1_STR: str = "/api"
+
+    # Cloudinary Configuration
+    CLOUDINARY_CLOUD_NAME: str = ""
+    CLOUDINARY_API_KEY: str = ""
+    CLOUDINARY_API_SECRET: str = ""
 
     model_config = SettingsConfigDict(
         env_file = (
