@@ -1326,10 +1326,9 @@ def get_chat_history(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    """Get chatbot conversation history for the current user"""
+    """Get chatbot conversation history for the current user (including active ones)"""
     query = select(ChatbotConversation).where(
-        ChatbotConversation.user_id == current_user.id,
-        ChatbotConversation.is_active == False  # Only show completed conversations
+        ChatbotConversation.user_id == current_user.id
     ).order_by(ChatbotConversation.created_at.desc()).limit(limit)
 
     conversations = db.execute(query).scalars().all()

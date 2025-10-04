@@ -56,74 +56,33 @@ const ClientDashboard: React.FC = () => {
     }
   };
 
-  const handleStartConversation = async () => {
+  const handleNewChat = async () => {
     try {
       const response = await chatbotApi.startConversation();
       setConversationId(response.conversation_id);
       setIsConversationActive(true);
       setMessages([{ role: 'ai', content: 'Hello! How can I assist you with textile and fiber questions today?' }]);
+      // Refresh history to show new chat
+      fetchConversationHistory();
     } catch (error) {
       console.error('Error starting conversation:', error);
       alert('Failed to start conversation. Please try again.');
     }
   };
 
-  const handleEndConversation = async () => {
-    if (!conversationId) return;
+  const loadConversation = async (conversation: ChatbotConversationRead) => {
+    // Set the conversation as active or inactive based on its state
+    setConversationId(conversation.id);
+    setIsConversationActive(conversation.is_active);
 
-    try {
-      await chatbotApi.endConversation(conversationId);
-      setIsConversationActive(false);
-      setConversationId(null);
-      setMessages([]);
-      setInputMessage('');
-      // Refresh conversation history
-      fetchConversationHistory();
-    } catch (error) {
-      console.error('Error ending conversation:', error);
-      alert('Failed to end conversation. Please try again.');
-    }
-  };
-
-  const loadPastConversation = (conversation: ChatbotConversationRead) => {
-    if (isConversationActive) {
-      alert('Please end the current conversation first');
-      return;
-    }
-
-    // Load the past conversation messages
+    // Load the conversation messages
     setMessages(conversation.messages.map(msg => ({
       role: msg.role as 'user' | 'ai',
       content: msg.content
     })));
-  };
 
-  const continuePastConversation = async (conversation: ChatbotConversationRead) => {
-    if (isConversationActive) {
-      alert('Please end the current conversation first');
-      return;
-    }
-
-    try {
-      // Reactivate the conversation on backend
-      await chatbotApi.continueConversation(conversation.id);
-
-      // Set the conversation as active
-      setConversationId(conversation.id);
-      setIsConversationActive(true);
-
-      // Load the conversation messages
-      setMessages(conversation.messages.map(msg => ({
-        role: msg.role as 'user' | 'ai',
-        content: msg.content
-      })));
-
-      // Refresh history to remove this from the list
-      fetchConversationHistory();
-    } catch (error) {
-      console.error('Error continuing conversation:', error);
-      alert('Failed to continue conversation. Please try again.');
-    }
+    // If it's an inactive conversation, reactivate it when user starts typing
+    // This will be handled in handleSendMessage
   };
 
   const handleSendMessage = async () => {
@@ -137,8 +96,18 @@ const ClientDashboard: React.FC = () => {
     setIsSending(true);
 
     try {
+      // If conversation is inactive, reactivate it first
+      if (!isConversationActive) {
+        await chatbotApi.continueConversation(conversationId);
+        setIsConversationActive(true);
+        fetchConversationHistory(); // Refresh to update active status
+      }
+
       const response = await chatbotApi.sendMessage(userMessage, conversationId);
       setMessages(prev => [...prev, { role: 'ai', content: response.response }]);
+
+      // Refresh history to show updated message count
+      fetchConversationHistory();
     } catch (error) {
       console.error('Error sending message:', error);
       setMessages(prev => [...prev, { role: 'ai', content: 'Sorry, I encountered an error. Please try again.' }]);
@@ -221,7 +190,15 @@ const ClientDashboard: React.FC = () => {
             <div className="flex gap-6">
               {/* Side Panel - Conversation History */}
               <div className="w-80 bg-white border border-gray-200 rounded-lg p-4 max-h-[600px] overflow-y-auto">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Past Conversations</h3>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Chats</h3>
+                  <button
+                    onClick={handleNewChat}
+                    className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    + New Chat
+                  </button>
+                </div>
                 {loadingHistory ? (
                   <div className="text-center py-8">
                     <p className="text-gray-500">Loading...</p>
@@ -235,36 +212,32 @@ const ClientDashboard: React.FC = () => {
                     {conversationHistory.map((conversation) => (
                       <div
                         key={conversation.id}
-                        className="p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                        onClick={() => loadConversation(conversation)}
+                        className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                          conversationId === conversation.id
+                            ? 'border-blue-500 bg-blue-50'
+                            : 'border-gray-200 hover:bg-gray-50'
+                        }`}
                       >
-                        <div
-                          onClick={() => loadPastConversation(conversation)}
-                          className="cursor-pointer"
-                        >
-                          <div className="flex justify-between items-start mb-2">
-                            <span className="text-sm font-medium text-gray-900">
-                              {new Date(conversation.started_at).toLocaleDateString()}
-                            </span>
+                        <div className="flex justify-between items-start mb-2">
+                          <span className="text-sm font-medium text-gray-900">
+                            {new Date(conversation.started_at).toLocaleDateString()}
+                          </span>
+                          <div className="flex items-center gap-2">
                             <span className="text-xs text-gray-500">
                               {conversation.messages.length} msgs
                             </span>
+                            {conversation.is_active && (
+                              <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                            )}
                           </div>
-                          <p className="text-xs text-gray-600 truncate">
-                            {conversation.messages[0]?.content || 'Empty conversation'}
-                          </p>
-                          <p className="text-xs text-gray-400 mt-1">
-                            {new Date(conversation.started_at).toLocaleTimeString()}
-                          </p>
                         </div>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            continuePastConversation(conversation);
-                          }}
-                          className="w-full mt-2 px-3 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
-                        >
-                          Continue Chat
-                        </button>
+                        <p className="text-xs text-gray-600 truncate">
+                          {conversation.messages[0]?.content || 'New conversation'}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          {new Date(conversation.started_at).toLocaleTimeString()}
+                        </p>
                       </div>
                     ))}
                   </div>
@@ -273,30 +246,15 @@ const ClientDashboard: React.FC = () => {
 
               {/* Main Chat Area */}
               <div className="flex-1 space-y-4">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-2xl font-semibold text-gray-900">AI Chatbot</h2>
-                  {!isConversationActive ? (
-                    <button
-                      onClick={handleStartConversation}
-                      className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 font-medium"
-                    >
-                      Start Conversation
-                    </button>
-                  ) : (
-                    <button
-                      onClick={handleEndConversation}
-                      className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200 font-medium"
-                    >
-                      End Conversation
-                    </button>
-                  )}
-                </div>
+                <h2 className="text-2xl font-semibold text-gray-900 mb-4">
+                  {conversationId ? 'Chat' : 'AI Chatbot'}
+                </h2>
 
-                {!isConversationActive && messages.length === 0 ? (
+                {!conversationId || messages.length === 0 ? (
                   <div className="bg-gray-50 rounded-lg p-12 text-center min-h-[400px] flex items-center justify-center">
                     <div>
-                      <p className="text-gray-500 text-lg mb-4">Click "Start Conversation" to begin chatting with the AI assistant</p>
-                      <p className="text-gray-400 text-sm">All conversations are saved automatically when you end them</p>
+                      <p className="text-gray-500 text-lg mb-4">Click "+ New Chat" to start a conversation</p>
+                      <p className="text-gray-400 text-sm">Or select a past conversation from the left panel</p>
                     </div>
                   </div>
                 ) : (
@@ -336,27 +294,25 @@ const ClientDashboard: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Chat Input */}
-                  {isConversationActive && (
-                    <div className="flex space-x-3">
-                      <input
-                        type="text"
-                        value={inputMessage}
-                        onChange={(e) => setInputMessage(e.target.value)}
-                        onKeyPress={handleKeyPress}
-                        placeholder="Type your message..."
-                        className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        disabled={isSending}
-                      />
-                      <button
-                        onClick={handleSendMessage}
-                        disabled={isSending || !inputMessage.trim()}
-                        className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
-                      >
-                        {isSending ? 'Sending...' : 'Send'}
-                      </button>
-                    </div>
-                  )}
+                  {/* Chat Input - Always show when conversation is loaded */}
+                  <div className="flex space-x-3">
+                    <input
+                      type="text"
+                      value={inputMessage}
+                      onChange={(e) => setInputMessage(e.target.value)}
+                      onKeyPress={handleKeyPress}
+                      placeholder={isConversationActive ? "Type your message..." : "Type to continue this conversation..."}
+                      className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={isSending}
+                    />
+                    <button
+                      onClick={handleSendMessage}
+                      disabled={isSending || !inputMessage.trim()}
+                      className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    >
+                      {isSending ? 'Sending...' : 'Send'}
+                    </button>
+                  </div>
                 </>
               )}
               </div>
