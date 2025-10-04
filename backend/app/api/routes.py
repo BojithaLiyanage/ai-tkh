@@ -17,7 +17,8 @@ from app.schemas.schemas import (
     FiberSubtypeCreate, FiberSubtypeRead, FiberSubtypeUpdate,
     SyntheticTypeCreate, SyntheticTypeRead, SyntheticTypeUpdate,
     PolymerizationTypeCreate, PolymerizationTypeRead, PolymerizationTypeUpdate,
-    FiberCreate, FiberRead, FiberUpdate, FiberSummaryRead
+    FiberCreate, FiberRead, FiberUpdate, FiberSummaryRead,
+    ChatMessage, ChatResponse
 )
 from typing import List
 from app.core.auth import (
@@ -1160,3 +1161,30 @@ def delete_cloudinary_image(
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# --- Chatbot ---
+@router.post("/chatbot/message", response_model=ChatResponse)
+async def chat_with_bot(
+    payload: ChatMessage,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Send a message to the AI chatbot and get a response"""
+    try:
+        from openai import OpenAI
+
+        client = OpenAI(api_key=settings.OPENAI_API_KEY)
+
+        response = client.chat.completions.create(
+            model=settings.OPENAI_MODEL,
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant for textile and fiber knowledge. Provide clear, concise answers to questions about textiles, fibers, and related topics."},
+                {"role": "user", "content": payload.message}
+            ],
+            max_tokens=settings.OPENAI_MAX_TOKENS,
+            temperature=settings.OPENAI_TEMPERATURE
+        )
+
+        bot_response = response.choices[0].message.content
+        return ChatResponse(response=bot_response)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error communicating with chatbot: {str(e)}")

@@ -1,13 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { clientApi, OnboardingStatus } from '../services/api';
+import { clientApi, OnboardingStatus, chatbotApi } from '../services/api';
 import ClientOnboarding from './ClientOnboarding';
+
+interface Message {
+  role: 'user' | 'ai';
+  content: string;
+}
 
 const ClientDashboard: React.FC = () => {
   const { user, logout } = useAuth();
   const [onboardingStatus, setOnboardingStatus] = useState<OnboardingStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'chatbot' | 'assessments'>('chatbot');
+  const [messages, setMessages] = useState<Message[]>([
+    { role: 'ai', content: 'Hello! How can I assist you today?' }
+  ]);
+  const [inputMessage, setInputMessage] = useState('');
+  const [isSending, setIsSending] = useState(false);
 
   useEffect(() => {
     const checkOnboardingStatus = async () => {
@@ -24,6 +34,34 @@ const ClientDashboard: React.FC = () => {
 
     checkOnboardingStatus();
   }, [user]);
+
+  const handleSendMessage = async () => {
+    if (!inputMessage.trim() || isSending) return;
+
+    const userMessage = inputMessage.trim();
+    setInputMessage('');
+
+    // Add user message to chat
+    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    setIsSending(true);
+
+    try {
+      const response = await chatbotApi.sendMessage(userMessage);
+      setMessages(prev => [...prev, { role: 'ai', content: response.response }]);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      setMessages(prev => [...prev, { role: 'ai', content: 'Sorry, I encountered an error. Please try again.' }]);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
 
   if (!user || user.user_type !== 'client') {
     return <div className="loading">Access denied...</div>;
@@ -94,43 +132,56 @@ const ClientDashboard: React.FC = () => {
 
               {/* Chat Messages */}
               <div className="bg-gray-50 rounded-lg p-6 space-y-4 min-h-[400px] max-h-[500px] overflow-y-auto">
-                <div className="flex items-start space-x-3">
-                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm">
-                    AI
+                {messages.map((msg, index) => (
+                  msg.role === 'ai' ? (
+                    <div key={index} className="flex items-start space-x-3">
+                      <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm">
+                        AI
+                      </div>
+                      <div className="bg-white p-4 rounded-lg shadow-sm max-w-md">
+                        <p className="text-gray-800">{msg.content}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div key={index} className="flex items-start space-x-3 justify-end">
+                      <div className="bg-blue-600 text-white p-4 rounded-lg shadow-sm max-w-md">
+                        <p>{msg.content}</p>
+                      </div>
+                      <div className="w-8 h-8 bg-gray-500 rounded-full flex items-center justify-center text-white text-sm">
+                        {user.full_name?.charAt(0).toUpperCase()}
+                      </div>
+                    </div>
+                  )
+                ))}
+                {isSending && (
+                  <div className="flex items-start space-x-3">
+                    <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm">
+                      AI
+                    </div>
+                    <div className="bg-white p-4 rounded-lg shadow-sm max-w-md">
+                      <p className="text-gray-500">Typing...</p>
+                    </div>
                   </div>
-                  <div className="bg-white p-4 rounded-lg shadow-sm max-w-md">
-                    <p className="text-gray-800">Hello! How can I assist you today?</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start space-x-3 justify-end">
-                  <div className="bg-blue-600 text-white p-4 rounded-lg shadow-sm max-w-md">
-                    <p>I need help with my account</p>
-                  </div>
-                  <div className="w-8 h-8 bg-gray-500 rounded-full flex items-center justify-center text-white text-sm">
-                    {user.full_name?.charAt(0).toUpperCase()}
-                  </div>
-                </div>
-
-                <div className="flex items-start space-x-3">
-                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm">
-                    AI
-                  </div>
-                  <div className="bg-white p-4 rounded-lg shadow-sm max-w-md">
-                    <p className="text-gray-800">I'd be happy to help you with your account. What specific information do you need?</p>
-                  </div>
-                </div>
+                )}
               </div>
 
               {/* Chat Input */}
               <div className="flex space-x-3">
                 <input
                   type="text"
+                  value={inputMessage}
+                  onChange={(e) => setInputMessage(e.target.value)}
+                  onKeyPress={handleKeyPress}
                   placeholder="Type your message..."
                   className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={isSending}
                 />
-                <button className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium">
-                  Send
+                <button
+                  onClick={handleSendMessage}
+                  disabled={isSending || !inputMessage.trim()}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                  {isSending ? 'Sending...' : 'Send'}
                 </button>
               </div>
             </div>

@@ -590,4 +590,20 @@ export const fiberApi = {
   },
 };
 
+// Chatbot API
+export interface ChatMessage {
+  message: string;
+}
+
+export interface ChatResponse {
+  response: string;
+}
+
+export const chatbotApi = {
+  sendMessage: async (message: string): Promise<ChatResponse> => {
+    const response = await api.post('/chatbot/message', { message });
+    return response.data;
+  },
+};
+
 export default api;

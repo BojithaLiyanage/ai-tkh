@@ -436,3 +436,10 @@ class FiberSummaryRead(BaseModel):
     applications: Optional[List[str]] = []
     created_at: datetime
     is_active: bool
+
+# ---- chatbot
+class ChatMessage(BaseModel):
+    message: str
+
+class ChatResponse(BaseModel):
+    response: str
