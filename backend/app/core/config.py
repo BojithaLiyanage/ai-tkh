@@ -16,6 +16,12 @@ class Settings(BaseSettings):
     CLOUDINARY_API_KEY: str = ""
     CLOUDINARY_API_SECRET: str = ""
 
+    # OpenAI Configuration
+    OPENAI_API_KEY: str = ""
+    OPENAI_MODEL: str = "gpt-4"
+    OPENAI_MAX_TOKENS: int = 1000
+    OPENAI_TEMPERATURE: float = 0.7
+
     model_config = SettingsConfigDict(
         env_file = (
             ".env.local" if Path(".env.local").exists() else ".env"
