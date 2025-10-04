@@ -591,34 +591,39 @@ export const fiberApi = {
 };
 
 // Chatbot API
+export interface MessageInConversation {
+  role: string;
+  content: string;
+}
+
 export interface ChatMessage {
   message: string;
-  session_id?: string;
+  conversation_id: number;
 }
 
 export interface ChatResponse {
   response: string;
-  session_id: string;
+  conversation_id: number;
 }
 
 export interface ChatbotConversationRead {
   id: number;
   user_id: number;
-  session_id: string;
-  question: string;
-  answer: string;
+  messages: MessageInConversation[];
   model_used?: string;
-  response_time_ms?: number;
+  is_active: boolean;
+  started_at: string;
+  ended_at?: string;
   created_at: string;
 }
 
 export interface StartConversationResponse {
-  session_id: string;
+  conversation_id: number;
   message: string;
 }
 
 export interface EndConversationResponse {
-  session_id: string;
+  conversation_id: number;
   message: string;
   total_messages: number;
 }
@@ -629,21 +634,21 @@ export const chatbotApi = {
     return response.data;
   },
 
-  continueConversation: async (sessionId: string): Promise<StartConversationResponse> => {
-    const response = await api.post(`/chatbot/continue/${sessionId}`);
+  continueConversation: async (conversationId: number): Promise<StartConversationResponse> => {
+    const response = await api.post(`/chatbot/continue/${conversationId}`);
     return response.data;
   },
 
-  sendMessage: async (message: string, sessionId: string): Promise<ChatResponse> => {
+  sendMessage: async (message: string, conversationId: number): Promise<ChatResponse> => {
     const response = await api.post('/chatbot/message', {
       message,
-      session_id: sessionId
+      conversation_id: conversationId
     });
     return response.data;
   },
 
-  endConversation: async (sessionId: string): Promise<EndConversationResponse> => {
-    const response = await api.post(`/chatbot/end/${sessionId}`);
+  endConversation: async (conversationId: number): Promise<EndConversationResponse> => {
+    const response = await api.post(`/chatbot/end/${conversationId}`);
     return response.data;
   },
 

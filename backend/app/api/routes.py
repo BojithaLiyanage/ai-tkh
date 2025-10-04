@@ -1184,9 +1184,10 @@ def start_conversation(
     )
     db.add(conversation)
     db.commit()
+    db.refresh(conversation)
 
     return StartConversationResponse(
-        session_id=session_id,
+        conversation_id=conversation.id,
         message="Conversation started"
     )
 
@@ -1200,10 +1201,10 @@ async def chat_with_bot(
     try:
         from openai import OpenAI
 
-        # Get the active conversation
+        # Get the active conversation by ID
         conversation = db.execute(
             select(ChatbotConversation).where(
-                ChatbotConversation.session_id == payload.session_id,
+                ChatbotConversation.id == payload.conversation_id,
                 ChatbotConversation.user_id == current_user.id,
                 ChatbotConversation.is_active == True
             )
@@ -1253,16 +1254,16 @@ async def chat_with_bot(
         db.commit()
         db.refresh(conversation)
 
-        return ChatResponse(response=bot_response, session_id=payload.session_id)
+        return ChatResponse(response=bot_response, conversation_id=conversation.id)
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error communicating with chatbot: {str(e)}")
 
-@router.post("/chatbot/end/{session_id}", response_model=EndConversationResponse)
+@router.post("/chatbot/end/{conversation_id}", response_model=EndConversationResponse)
 def end_conversation(
-    session_id: str,
+    conversation_id: int,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
@@ -1271,7 +1272,7 @@ def end_conversation(
 
     conversation = db.execute(
         select(ChatbotConversation).where(
-            ChatbotConversation.session_id == session_id,
+            ChatbotConversation.id == conversation_id,
             ChatbotConversation.user_id == current_user.id,
             ChatbotConversation.is_active == True
         )
@@ -1286,21 +1287,21 @@ def end_conversation(
     db.commit()
 
     return EndConversationResponse(
-        session_id=session_id,
+        conversation_id=conversation.id,
         message="Conversation ended",
         total_messages=len(conversation.messages) if conversation.messages else 0
     )
 
-@router.post("/chatbot/continue/{session_id}", response_model=StartConversationResponse)
+@router.post("/chatbot/continue/{conversation_id}", response_model=StartConversationResponse)
 def continue_conversation(
-    session_id: str,
+    conversation_id: int,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Reactivate a past conversation to continue chatting"""
     conversation = db.execute(
         select(ChatbotConversation).where(
-            ChatbotConversation.session_id == session_id,
+            ChatbotConversation.id == conversation_id,
             ChatbotConversation.user_id == current_user.id,
             ChatbotConversation.is_active == False
         )
@@ -1315,7 +1316,7 @@ def continue_conversation(
     db.commit()
 
     return StartConversationResponse(
-        session_id=session_id,
+        conversation_id=conversation.id,
         message="Conversation resumed"
     )
 

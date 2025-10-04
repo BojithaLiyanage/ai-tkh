@@ -16,7 +16,7 @@ const ClientDashboard: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [conversationId, setConversationId] = useState<number | null>(null);
   const [isConversationActive, setIsConversationActive] = useState(false);
   const [conversationHistory, setConversationHistory] = useState<ChatbotConversationRead[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -59,7 +59,7 @@ const ClientDashboard: React.FC = () => {
   const handleStartConversation = async () => {
     try {
       const response = await chatbotApi.startConversation();
-      setSessionId(response.session_id);
+      setConversationId(response.conversation_id);
       setIsConversationActive(true);
       setMessages([{ role: 'ai', content: 'Hello! How can I assist you with textile and fiber questions today?' }]);
     } catch (error) {
@@ -69,12 +69,12 @@ const ClientDashboard: React.FC = () => {
   };
 
   const handleEndConversation = async () => {
-    if (!sessionId) return;
+    if (!conversationId) return;
 
     try {
-      await chatbotApi.endConversation(sessionId);
+      await chatbotApi.endConversation(conversationId);
       setIsConversationActive(false);
-      setSessionId(null);
+      setConversationId(null);
       setMessages([]);
       setInputMessage('');
       // Refresh conversation history
@@ -106,10 +106,10 @@ const ClientDashboard: React.FC = () => {
 
     try {
       // Reactivate the conversation on backend
-      await chatbotApi.continueConversation(conversation.session_id);
+      await chatbotApi.continueConversation(conversation.id);
 
-      // Set the session as active
-      setSessionId(conversation.session_id);
+      // Set the conversation as active
+      setConversationId(conversation.id);
       setIsConversationActive(true);
 
       // Load the conversation messages
@@ -127,7 +127,7 @@ const ClientDashboard: React.FC = () => {
   };
 
   const handleSendMessage = async () => {
-    if (!inputMessage.trim() || isSending || !sessionId) return;
+    if (!inputMessage.trim() || isSending || !conversationId) return;
 
     const userMessage = inputMessage.trim();
     setInputMessage('');
@@ -137,7 +137,7 @@ const ClientDashboard: React.FC = () => {
     setIsSending(true);
 
     try {
-      const response = await chatbotApi.sendMessage(userMessage, sessionId);
+      const response = await chatbotApi.sendMessage(userMessage, conversationId);
       setMessages(prev => [...prev, { role: 'ai', content: response.response }]);
     } catch (error) {
       console.error('Error sending message:', error);
