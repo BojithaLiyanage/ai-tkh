@@ -652,6 +652,11 @@ export const chatbotApi = {
     return response.data;
   },
 
+  deleteConversation: async (conversationId: number): Promise<{ message: string }> => {
+    const response = await api.delete(`/chatbot/delete/${conversationId}`);
+    return response.data;
+  },
+
   getHistory: async (limit: number = 50): Promise<ChatbotConversationRead[]> => {
     const response = await api.get('/chatbot/history', { params: { limit } });
     return response.data;

@@ -1320,6 +1320,28 @@ def continue_conversation(
         message="Conversation resumed"
     )
 
+@router.delete("/chatbot/delete/{conversation_id}")
+def delete_conversation(
+    conversation_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Delete a chatbot conversation"""
+    conversation = db.execute(
+        select(ChatbotConversation).where(
+            ChatbotConversation.id == conversation_id,
+            ChatbotConversation.user_id == current_user.id
+        )
+    ).scalar_one_or_none()
+
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    db.delete(conversation)
+    db.commit()
+
+    return {"message": "Conversation deleted successfully"}
+
 @router.get("/chatbot/history", response_model=List[ChatbotConversationRead])
 def get_chat_history(
     limit: int = 50,

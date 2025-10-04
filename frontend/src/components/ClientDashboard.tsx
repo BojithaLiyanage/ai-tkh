@@ -20,6 +20,8 @@ const ClientDashboard: React.FC = () => {
   const [isConversationActive, setIsConversationActive] = useState(false);
   const [conversationHistory, setConversationHistory] = useState<ChatbotConversationRead[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [conversationToDelete, setConversationToDelete] = useState<number | null>(null);
 
   useEffect(() => {
     const checkOnboardingStatus = async () => {
@@ -83,6 +85,40 @@ const ClientDashboard: React.FC = () => {
 
     // If it's an inactive conversation, reactivate it when user starts typing
     // This will be handled in handleSendMessage
+  };
+
+  const openDeleteModal = (deleteId: number, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent selecting the conversation when clicking delete
+    setConversationToDelete(deleteId);
+    setShowDeleteModal(true);
+  };
+
+  const closeDeleteModal = () => {
+    setShowDeleteModal(false);
+    setConversationToDelete(null);
+  };
+
+  const confirmDelete = async () => {
+    if (!conversationToDelete) return;
+
+    try {
+      await chatbotApi.deleteConversation(conversationToDelete);
+
+      // If the deleted conversation was currently active, clear the chat
+      if (conversationToDelete === conversationId) {
+        setConversationId(null);
+        setMessages([]);
+        setIsConversationActive(false);
+      }
+
+      // Refresh history
+      fetchConversationHistory();
+      closeDeleteModal();
+    } catch (error) {
+      console.error('Error deleting conversation:', error);
+      alert('Failed to delete conversation. Please try again.');
+      closeDeleteModal();
+    }
   };
 
   const handleSendMessage = async () => {
@@ -213,7 +249,7 @@ const ClientDashboard: React.FC = () => {
                       <div
                         key={conversation.id}
                         onClick={() => loadConversation(conversation)}
-                        className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                        className={`p-3 border rounded-lg cursor-pointer transition-colors relative group ${
                           conversationId === conversation.id
                             ? 'border-blue-500 bg-blue-50'
                             : 'border-gray-200 hover:bg-gray-50'
@@ -230,6 +266,15 @@ const ClientDashboard: React.FC = () => {
                             {conversation.is_active && (
                               <span className="w-2 h-2 bg-green-500 rounded-full"></span>
                             )}
+                            <button
+                              onClick={(e) => openDeleteModal(conversation.id, e)}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity ml-1 text-red-500 hover:text-red-700"
+                              title="Delete conversation"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                              </svg>
+                            </button>
                           </div>
                         </div>
                         <p className="text-xs text-gray-600 truncate">
@@ -371,6 +416,51 @@ const ClientDashboard: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden animate-fadeIn">
+            {/* Modal Header */}
+            <div className="bg-red-50 px-6 py-4 border-b border-red-100">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Delete Conversation</h3>
+                  <p className="text-sm text-gray-600">This action cannot be undone</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="px-6 py-5">
+              <p className="text-gray-700 text-base">
+                Are you sure you want to delete this conversation? All messages and chat history will be permanently removed.
+              </p>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3">
+              <button
+                onClick={closeDeleteModal}
+                className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium shadow-sm"
+              >
+                Delete Conversation
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
