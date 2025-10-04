@@ -449,18 +449,16 @@ class UserInteraction(Base):
 
 class ChatbotConversation(Base):
     __tablename__ = "chatbot_conversations"
-    
+    __table_args__ = {'extend_existing': True}
+
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer)
-    session_id = Column(String(100), nullable=False)
-    question = Column(Text, nullable=False)
-    answer = Column(Text, nullable=False)
-    context_fibers = Column(ARRAY(Integer))  # Array of fiber IDs
-    confidence_score = Column(DECIMAL(3, 2))
+    user_id = Column(Integer, nullable=False)
+    session_id = Column(String(100), nullable=False, unique=True)
+    messages = Column(JSONB, nullable=False, default=[])  # Array of {role: 'user'|'ai', content: string}
     model_used = Column(String(100))
-    response_time_ms = Column(Integer)
-    feedback_rating = Column(Integer)
-    feedback_text = Column(Text)
+    is_active = Column(Boolean, default=True)  # True if conversation is ongoing
+    started_at = Column(DateTime, default=func.current_timestamp())
+    ended_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=func.current_timestamp())
 
 

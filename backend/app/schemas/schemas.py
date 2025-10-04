@@ -438,8 +438,35 @@ class FiberSummaryRead(BaseModel):
     is_active: bool
 
 # ---- chatbot
+class MessageInConversation(BaseModel):
+    role: str  # 'user' or 'ai'
+    content: str
+
 class ChatMessage(BaseModel):
     message: str
+    session_id: str
 
 class ChatResponse(BaseModel):
     response: str
+    session_id: str
+
+class StartConversationResponse(BaseModel):
+    session_id: str
+    message: str
+
+class EndConversationResponse(BaseModel):
+    session_id: str
+    message: str
+    total_messages: int
+
+class ChatbotConversationRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    user_id: int
+    session_id: str
+    messages: List[MessageInConversation]
+    model_used: Optional[str] = None
+    is_active: bool
+    started_at: datetime
+    ended_at: Optional[datetime] = None
+    created_at: datetime

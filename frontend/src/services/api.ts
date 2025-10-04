@@ -593,15 +593,62 @@ export const fiberApi = {
 // Chatbot API
 export interface ChatMessage {
   message: string;
+  session_id?: string;
 }
 
 export interface ChatResponse {
   response: string;
+  session_id: string;
+}
+
+export interface ChatbotConversationRead {
+  id: number;
+  user_id: number;
+  session_id: string;
+  question: string;
+  answer: string;
+  model_used?: string;
+  response_time_ms?: number;
+  created_at: string;
+}
+
+export interface StartConversationResponse {
+  session_id: string;
+  message: string;
+}
+
+export interface EndConversationResponse {
+  session_id: string;
+  message: string;
+  total_messages: number;
 }
 
 export const chatbotApi = {
-  sendMessage: async (message: string): Promise<ChatResponse> => {
-    const response = await api.post('/chatbot/message', { message });
+  startConversation: async (): Promise<StartConversationResponse> => {
+    const response = await api.post('/chatbot/start');
+    return response.data;
+  },
+
+  continueConversation: async (sessionId: string): Promise<StartConversationResponse> => {
+    const response = await api.post(`/chatbot/continue/${sessionId}`);
+    return response.data;
+  },
+
+  sendMessage: async (message: string, sessionId: string): Promise<ChatResponse> => {
+    const response = await api.post('/chatbot/message', {
+      message,
+      session_id: sessionId
+    });
+    return response.data;
+  },
+
+  endConversation: async (sessionId: string): Promise<EndConversationResponse> => {
+    const response = await api.post(`/chatbot/end/${sessionId}`);
+    return response.data;
+  },
+
+  getHistory: async (limit: number = 50): Promise<ChatbotConversationRead[]> => {
+    const response = await api.get('/chatbot/history', { params: { limit } });
     return response.data;
   },
 };

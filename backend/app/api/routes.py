@@ -5,7 +5,7 @@ from datetime import timedelta
 from app.db.session import get_db
 from app.models.models import (
     Module, Topic, Subtopic, ContentBlock, Tag, SubtopicTag, StudyGroup, SubtopicStudyGroup, User, Client, ClientOnboarding,
-    FiberClass, FiberSubtype, SyntheticType, PolymerizationType, Fiber
+    FiberClass, FiberSubtype, SyntheticType, PolymerizationType, Fiber, ChatbotConversation
 )
 from app.schemas.schemas import (
     ModuleCreate, ModuleRead, TopicCreate, TopicRead,
@@ -18,7 +18,7 @@ from app.schemas.schemas import (
     SyntheticTypeCreate, SyntheticTypeRead, SyntheticTypeUpdate,
     PolymerizationTypeCreate, PolymerizationTypeRead, PolymerizationTypeUpdate,
     FiberCreate, FiberRead, FiberUpdate, FiberSummaryRead,
-    ChatMessage, ChatResponse
+    ChatMessage, ChatResponse, ChatbotConversationRead, StartConversationResponse, EndConversationResponse
 )
 from typing import List
 from app.core.auth import (
@@ -1164,28 +1164,172 @@ def delete_cloudinary_image(
         raise HTTPException(status_code=500, detail=str(e))
 
 # --- Chatbot ---
+@router.post("/chatbot/start", response_model=StartConversationResponse)
+def start_conversation(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Start a new chatbot conversation"""
+    import uuid
+
+    session_id = str(uuid.uuid4())
+
+    # Create new conversation record
+    conversation = ChatbotConversation(
+        user_id=current_user.id,
+        session_id=session_id,
+        messages=[],
+        model_used=settings.OPENAI_MODEL,
+        is_active=True
+    )
+    db.add(conversation)
+    db.commit()
+
+    return StartConversationResponse(
+        session_id=session_id,
+        message="Conversation started"
+    )
+
 @router.post("/chatbot/message", response_model=ChatResponse)
 async def chat_with_bot(
     payload: ChatMessage,
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
 ):
     """Send a message to the AI chatbot and get a response"""
     try:
         from openai import OpenAI
 
+        # Get the active conversation
+        conversation = db.execute(
+            select(ChatbotConversation).where(
+                ChatbotConversation.session_id == payload.session_id,
+                ChatbotConversation.user_id == current_user.id,
+                ChatbotConversation.is_active == True
+            )
+        ).scalar_one_or_none()
+
+        if not conversation:
+            raise HTTPException(status_code=404, detail="Active conversation not found. Please start a new conversation.")
+
+        # Add user message to conversation
+        messages = conversation.messages or []
+        messages.append({"role": "user", "content": payload.message})
+
+        # Build message history for OpenAI
+        openai_messages = [
+            {"role": "system", "content": "You are a helpful assistant for textile and fiber knowledge. Provide clear, concise answers to questions about textiles, fibers, and related topics."}
+        ]
+
+        # Add conversation history
+        for msg in messages:
+            openai_messages.append({
+                "role": "user" if msg["role"] == "user" else "assistant",
+                "content": msg["content"]
+            })
+
         client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
         response = client.chat.completions.create(
             model=settings.OPENAI_MODEL,
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant for textile and fiber knowledge. Provide clear, concise answers to questions about textiles, fibers, and related topics."},
-                {"role": "user", "content": payload.message}
-            ],
+            messages=openai_messages,
             max_tokens=settings.OPENAI_MAX_TOKENS,
             temperature=settings.OPENAI_TEMPERATURE
         )
 
         bot_response = response.choices[0].message.content
-        return ChatResponse(response=bot_response)
+
+        # Add AI response to conversation
+        messages.append({"role": "ai", "content": bot_response})
+
+        # Update conversation in database
+        # Need to create a new list to trigger SQLAlchemy's change detection
+        conversation.messages = list(messages)
+
+        # Mark the column as modified to ensure it's persisted
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(conversation, "messages")
+
+        db.commit()
+        db.refresh(conversation)
+
+        return ChatResponse(response=bot_response, session_id=payload.session_id)
+    except HTTPException:
+        raise
     except Exception as e:
+        db.rollback()
         raise HTTPException(status_code=500, detail=f"Error communicating with chatbot: {str(e)}")
+
+@router.post("/chatbot/end/{session_id}", response_model=EndConversationResponse)
+def end_conversation(
+    session_id: str,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """End an active chatbot conversation"""
+    from datetime import datetime, timezone
+
+    conversation = db.execute(
+        select(ChatbotConversation).where(
+            ChatbotConversation.session_id == session_id,
+            ChatbotConversation.user_id == current_user.id,
+            ChatbotConversation.is_active == True
+        )
+    ).scalar_one_or_none()
+
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Active conversation not found")
+
+    # Mark conversation as ended
+    conversation.is_active = False
+    conversation.ended_at = datetime.now(timezone.utc)
+    db.commit()
+
+    return EndConversationResponse(
+        session_id=session_id,
+        message="Conversation ended",
+        total_messages=len(conversation.messages) if conversation.messages else 0
+    )
+
+@router.post("/chatbot/continue/{session_id}", response_model=StartConversationResponse)
+def continue_conversation(
+    session_id: str,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Reactivate a past conversation to continue chatting"""
+    conversation = db.execute(
+        select(ChatbotConversation).where(
+            ChatbotConversation.session_id == session_id,
+            ChatbotConversation.user_id == current_user.id,
+            ChatbotConversation.is_active == False
+        )
+    ).scalar_one_or_none()
+
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found or already active")
+
+    # Reactivate the conversation
+    conversation.is_active = True
+    conversation.ended_at = None
+    db.commit()
+
+    return StartConversationResponse(
+        session_id=session_id,
+        message="Conversation resumed"
+    )
+
+@router.get("/chatbot/history", response_model=List[ChatbotConversationRead])
+def get_chat_history(
+    limit: int = 50,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Get chatbot conversation history for the current user"""
+    query = select(ChatbotConversation).where(
+        ChatbotConversation.user_id == current_user.id,
+        ChatbotConversation.is_active == False  # Only show completed conversations
+    ).order_by(ChatbotConversation.created_at.desc()).limit(limit)
+
+    conversations = db.execute(query).scalars().all()
+    return conversations
