@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Tooltip } from 'antd';
 import { useAuth } from '../contexts/AuthContext';
 import { clientApi, OnboardingStatus, chatbotApi, ChatbotConversationRead } from '../services/api';
 import ClientOnboarding from './ClientOnboarding';
@@ -22,6 +23,7 @@ const ClientDashboard: React.FC = () => {
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [conversationToDelete, setConversationToDelete] = useState<number | null>(null);
+  const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
 
   useEffect(() => {
     const checkOnboardingStatus = async () => {
@@ -224,70 +226,113 @@ const ClientDashboard: React.FC = () => {
         <div className="p-8">
           {activeTab === 'chatbot' && (
             <div className="flex gap-6">
-              {/* Side Panel - Conversation History */}
-              <div className="w-80 bg-white border border-gray-200 rounded-lg p-4 max-h-[600px] overflow-y-auto">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Chats</h3>
-                  <button
-                    onClick={handleNewChat}
-                    className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    + New Chat
-                  </button>
+              {/* Collapsed Panel - Floating Button */}
+              {isPanelCollapsed && (
+                <div className="flex flex-col gap-2">
+                  <Tooltip title="Show History" placement="bottom">
+                    <button
+                      onClick={() => setIsPanelCollapsed(false)}
+                      className="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all shadow-md flex items-center justify-center"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                      </svg>
+                    </button>
+                  </Tooltip>
+                  <Tooltip title="New Chat" placement="bottom">
+                    <button
+                      onClick={handleNewChat}
+                      className="w-8 h-8 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all shadow-lg flex items-center justify-center"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                    </button>
+                  </Tooltip>
                 </div>
-                {loadingHistory ? (
-                  <div className="text-center py-8">
-                    <p className="text-gray-500">Loading...</p>
-                  </div>
-                ) : conversationHistory.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-gray-500 text-sm">No past conversations yet</p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {conversationHistory.map((conversation) => (
-                      <div
-                        key={conversation.id}
-                        onClick={() => loadConversation(conversation)}
-                        className={`p-3 border rounded-lg cursor-pointer transition-colors relative group ${
-                          conversationId === conversation.id
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-gray-200 hover:bg-gray-50'
-                        }`}
+              )}
+
+              {/* Side Panel - Conversation History */}
+              {!isPanelCollapsed && (
+                <div className="w-80 bg-white border border-gray-200 rounded-lg p-4 max-h-[600px] overflow-y-auto relative">
+                  <Tooltip title="Hide Panel" placement="bottom">
+                    <button
+                      onClick={() => setIsPanelCollapsed(true)}
+                      className="absolute top-4 right-3 w-8 h-8 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </Tooltip>
+                  <div className="flex justify-between items-center mb-4 pr-10">
+                    <h3 className="text-lg font-semibold text-gray-900">Chats</h3>
+                    <Tooltip title="Start new conversation" placement="bottom">
+                      <button
+                        onClick={handleNewChat}
+                        className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
                       >
-                        <div className="flex justify-between items-start mb-2">
-                          <span className="text-sm font-medium text-gray-900">
-                            {new Date(conversation.started_at).toLocaleDateString()}
-                          </span>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-gray-500">
-                              {conversation.messages.length} msgs
-                            </span>
-                            {conversation.is_active && (
-                              <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                            )}
-                            <button
-                              onClick={(e) => openDeleteModal(conversation.id, e)}
-                              className="opacity-0 group-hover:opacity-100 transition-opacity ml-1 text-red-500 hover:text-red-700"
-                              title="Delete conversation"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                              </svg>
-                            </button>
-                          </div>
-                        </div>
-                        <p className="text-xs text-gray-600 truncate">
-                          {conversation.messages[0]?.content || 'New conversation'}
-                        </p>
-                        <p className="text-xs text-gray-400 mt-1">
-                          {new Date(conversation.started_at).toLocaleTimeString()}
-                        </p>
-                      </div>
-                    ))}
+                        + New Chat
+                      </button>
+                    </Tooltip>
                   </div>
-                )}
-              </div>
+                  {loadingHistory ? (
+                    <div className="text-center py-8">
+                      <p className="text-gray-500">Loading...</p>
+                    </div>
+                  ) : conversationHistory.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-gray-500 text-sm">No past conversations yet</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {conversationHistory.map((conversation) => (
+                        <div
+                          key={conversation.id}
+                          onClick={() => loadConversation(conversation)}
+                          className={`p-3 border rounded-lg cursor-pointer transition-colors relative group ${
+                            conversationId === conversation.id
+                              ? 'border-blue-500 bg-blue-50'
+                              : 'border-gray-200 hover:bg-gray-50'
+                          }`}
+                        >
+                          <div className="flex justify-between items-start mb-2">
+                            <span className="text-sm font-medium text-gray-900">
+                              {new Date(conversation.started_at).toLocaleDateString()}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-500">
+                                {conversation.messages.length} msgs
+                              </span>
+                              {conversation.is_active && (
+                                <Tooltip title="Active chat" placement="bottom">
+                                  <span className="w-2 h-2 bg-green-500 rounded-full block"></span>
+                                </Tooltip>
+                              )}
+                              <Tooltip title="Delete chat" placement="bottom">
+                                <button
+                                  onClick={(e) => openDeleteModal(conversation.id, e)}
+                                  className="opacity-0 group-hover:opacity-100 transition-opacity ml-1 text-red-500 hover:text-red-700"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                                  </svg>
+                                </button>
+                              </Tooltip>
+                            </div>
+                          </div>
+                          <p className="text-xs text-gray-600 truncate">
+                            {conversation.messages[0]?.content || 'New conversation'}
+                          </p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            {new Date(conversation.started_at).toLocaleTimeString()}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Main Chat Area */}
               <div className="flex-1 space-y-4">
