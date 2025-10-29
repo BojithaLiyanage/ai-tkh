@@ -590,4 +590,88 @@ export const fiberApi = {
   },
 };
 
+// Chatbot API
+export interface MessageInConversation {
+  role: string;
+  content: string;
+}
+
+export interface ChatMessage {
+  message: string;
+  conversation_id: number;
+}
+
+export interface FiberCard {
+  name: string;
+  fiber_class?: string;
+  subtype?: string;
+  description?: string;
+  applications?: string[];
+  trade_names?: string[];
+  key_properties?: Record<string, string>;
+}
+
+export interface ChatResponse {
+  response: string;
+  conversation_id: number;
+  fiber_cards?: FiberCard[];
+}
+
+export interface ChatbotConversationRead {
+  id: number;
+  user_id: number;
+  messages: MessageInConversation[];
+  model_used?: string;
+  is_active: boolean;
+  started_at: string;
+  ended_at?: string;
+  created_at: string;
+}
+
+export interface StartConversationResponse {
+  conversation_id: number;
+  message: string;
+}
+
+export interface EndConversationResponse {
+  conversation_id: number;
+  message: string;
+  total_messages: number;
+}
+
+export const chatbotApi = {
+  startConversation: async (): Promise<StartConversationResponse> => {
+    const response = await api.post('/chatbot/start');
+    return response.data;
+  },
+
+  continueConversation: async (conversationId: number): Promise<StartConversationResponse> => {
+    const response = await api.post(`/chatbot/continue/${conversationId}`);
+    return response.data;
+  },
+
+  sendMessage: async (message: string, conversationId: number): Promise<ChatResponse> => {
+    const response = await api.post('/chatbot/message', {
+      message,
+      conversation_id: conversationId
+    });
+    return response.data;
+  },
+
+  endConversation: async (conversationId: number): Promise<EndConversationResponse> => {
+    const response = await api.post(`/chatbot/end/${conversationId}`);
+    return response.data;
+  },
+
+  deleteConversation: async (conversationId: number): Promise<{ message: string }> => {
+    const response = await api.delete(`/chatbot/delete/${conversationId}`);
+    return response.data;
+  },
+
+  getHistory: async (limit: number = 50): Promise<ChatbotConversationRead[]> => {
+    const response = await api.get('/chatbot/history', { params: { limit } });
+    return response.data;
+  },
+};
+
 export default api;

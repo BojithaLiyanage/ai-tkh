@@ -5,7 +5,7 @@ from datetime import timedelta
 from app.db.session import get_db
 from app.models.models import (
     Module, Topic, Subtopic, ContentBlock, Tag, SubtopicTag, StudyGroup, SubtopicStudyGroup, User, Client, ClientOnboarding,
-    FiberClass, FiberSubtype, SyntheticType, PolymerizationType, Fiber
+    FiberClass, FiberSubtype, SyntheticType, PolymerizationType, Fiber, ChatbotConversation
 )
 from app.schemas.schemas import (
     ModuleCreate, ModuleRead, TopicCreate, TopicRead,
@@ -17,7 +17,8 @@ from app.schemas.schemas import (
     FiberSubtypeCreate, FiberSubtypeRead, FiberSubtypeUpdate,
     SyntheticTypeCreate, SyntheticTypeRead, SyntheticTypeUpdate,
     PolymerizationTypeCreate, PolymerizationTypeRead, PolymerizationTypeUpdate,
-    FiberCreate, FiberRead, FiberUpdate, FiberSummaryRead
+    FiberCreate, FiberRead, FiberUpdate, FiberSummaryRead,
+    ChatMessage, ChatResponse, ChatbotConversationRead, StartConversationResponse, EndConversationResponse
 )
 from typing import List
 from app.core.auth import (
@@ -25,6 +26,7 @@ from app.core.auth import (
     get_current_active_user, get_current_admin_user, get_current_super_admin_user
 )
 from app.services.cloudinary import get_cloudinary_service
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -1160,3 +1162,372 @@ def delete_cloudinary_image(
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# --- Chatbot ---
+@router.post("/chatbot/start", response_model=StartConversationResponse)
+def start_conversation(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Start a new chatbot conversation"""
+    import uuid
+
+    session_id = str(uuid.uuid4())
+
+    # Create new conversation record
+    conversation = ChatbotConversation(
+        user_id=current_user.id,
+        session_id=session_id,
+        messages=[],
+        model_used=settings.OPENAI_MODEL,
+        is_active=True
+    )
+    db.add(conversation)
+    db.commit()
+    db.refresh(conversation)
+
+    return StartConversationResponse(
+        conversation_id=conversation.id,
+        message="Conversation started"
+    )
+
+@router.post("/chatbot/message", response_model=ChatResponse)
+async def chat_with_bot(
+    payload: ChatMessage,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Send a message to the AI chatbot and get a response with fiber database integration"""
+    try:
+        from openai import OpenAI
+        from app.services.fiber_service import get_fiber_service
+
+        # Get the active conversation by ID
+        conversation = db.execute(
+            select(ChatbotConversation).where(
+                ChatbotConversation.id == payload.conversation_id,
+                ChatbotConversation.user_id == current_user.id,
+                ChatbotConversation.is_active == True
+            )
+        ).scalar_one_or_none()
+
+        if not conversation:
+            raise HTTPException(status_code=404, detail="Active conversation not found. Please start a new conversation.")
+
+        # Initialize fiber search service
+        fiber_service = get_fiber_service(db)
+
+        # Get conversation history to help with follow-up questions
+        messages = conversation.messages or []
+        conversation_context = " ".join([msg["content"] for msg in messages[-6:]])  # Last 3 exchanges
+
+        # Detect query intent and search for relevant fibers
+        intent = fiber_service.detect_query_intent(payload.message)
+        print(f"\n{'='*60}")
+        print(f"DEBUG: User Query: {payload.message}")
+        print(f"DEBUG: Detected Intent: {intent}")
+        if conversation_context:
+            print(f"DEBUG: Recent Conversation: {conversation_context[:150]}...")
+        print(f"{'='*60}\n")
+
+        fiber_context = ""
+
+        if intent["requires_search"]:
+            # Use extracted search terms or fallback to full query
+            search_query = intent["search_terms"][0] if intent["search_terms"] else payload.message
+
+            # Check if this is a categorical query (class, subtype, synthetic type, etc.)
+            query_lower = payload.message.lower()
+            is_listing_query = any(word in query_lower for word in ['all', 'list', 'example', 'examples', 'what are', 'show', 'which'])
+
+            # Try generic category search first if it looks like a listing query
+            category_result = None
+            if is_listing_query:
+                print(f"DEBUG: Detected listing query, trying category search...")
+                category_result = fiber_service.search_fibers_by_category(payload.message, limit=20)
+
+            if category_result and category_result['fibers']:
+                # Use category-based results
+                search_results = [{"fiber": fiber, "similarity": 1.0, "content_type": f"{category_result['category_type']}_match"} for fiber in category_result['fibers']]
+                print(f"DEBUG: Found {len(search_results)} fibers using category search ({category_result['category_type']}: {category_result['category_name']})")
+            else:
+                # Fall back to semantic/keyword search
+                # For follow-up questions (no fiber name detected but has conversation history)
+                if not intent.get("entities", {}).get("fiber_name") and conversation_context:
+                    print(f"DEBUG: No fiber name in current query, checking conversation history...")
+                    historical_intent = fiber_service.detect_query_intent(conversation_context)
+                    if historical_intent.get("entities", {}).get("fiber_name"):
+                        fiber_from_history = historical_intent['entities']['fiber_name']
+                        print(f"DEBUG: Found fiber in history: {fiber_from_history}")
+                        # Enhance search query with historical context
+                        search_query = f"{fiber_from_history} {payload.message}"
+                        print(f"DEBUG: Enhanced search query with history: {search_query}")
+
+                print(f"DEBUG: Final Search Query: {search_query}")
+
+                # Try semantic search first (uses embeddings), fallback to keyword search
+                # Using moderate threshold (0.45) and higher limit for comprehensive results
+                search_results = fiber_service.semantic_search(
+                    query=search_query,
+                    limit=15,
+                    similarity_threshold=0.45
+                )
+
+            print(f"DEBUG: Search Results Count: {len(search_results)}")
+
+            # If semantic search yields no or few results, also try keyword search (skip for category-based queries)
+            if not (category_result and category_result['fibers']) and len(search_results) < 8:
+                print(f"DEBUG: Limited semantic results ({len(search_results)}), trying keyword search...")
+                keyword_results = fiber_service.keyword_search(
+                    query=search_query,
+                    limit=15
+                )
+                print(f"DEBUG: Keyword Search Results Count: {len(keyword_results)}")
+
+                # Combine results, avoiding duplicates
+                existing_fiber_ids = {r['fiber'].id for r in search_results if isinstance(r, dict) and 'fiber' in r}
+                for fiber in keyword_results:
+                    if fiber.id not in existing_fiber_ids:
+                        search_results.append({"fiber": fiber, "similarity": 0.75, "content_type": "keyword_match"})
+                        existing_fiber_ids.add(fiber.id)
+
+                print(f"DEBUG: Combined Results Count: {len(search_results)}")
+
+            # Print detailed fiber information
+            if search_results:
+                print(f"\nDEBUG: Found {len(search_results)} fiber(s) from database:")
+                for idx, result in enumerate(search_results, 1):
+                    fiber = result['fiber'] if isinstance(result, dict) else result
+                    print(f"\n  Fiber {idx}:")
+                    print(f"    - ID: {fiber.id}")
+                    print(f"    - Fiber ID: {fiber.fiber_id}")
+                    print(f"    - Name: {fiber.name}")
+                    print(f"    - Class: {fiber.fiber_class.name if fiber.fiber_class else 'N/A'}")
+                    print(f"    - Subtype: {fiber.subtype.name if fiber.subtype else 'N/A'}")
+                    print(f"    - Applications: {fiber.applications if fiber.applications else 'N/A'}")
+                    print(f"    - Sources: {fiber.sources if fiber.sources else 'N/A'}")
+                    print(f"    - Density: {fiber.density_g_cm3 if fiber.density_g_cm3 else 'N/A'} g/cm³")
+                    print(f"    - Moisture Regain: {fiber.moisture_regain_percent if fiber.moisture_regain_percent else 'N/A'}%")
+                    print(f"    - Polymer Composition: {fiber.polymer_composition[:100] if fiber.polymer_composition else 'N/A'}...")
+                    print(f"    - Biodegradable: {fiber.biodegradability if fiber.biodegradability is not None else 'N/A'}")
+                    if isinstance(result, dict) and 'similarity' in result:
+                        print(f"    - Similarity Score: {result['similarity']:.3f}")
+                print(f"\n{'='*60}\n")
+            else:
+                print(f"DEBUG: No fibers found in database for query: {search_query}")
+                print(f"{'='*60}\n")
+
+            # Build context from search results
+            if search_results:
+                fiber_context = fiber_service.build_fiber_context(search_results)
+                print(f"DEBUG: Context Built (length: {len(fiber_context)} chars)")
+                print(f"DEBUG: Context Preview:\n{fiber_context[:500]}...\n")
+                print(f"{'='*60}\n")
+        else:
+            print(f"DEBUG: Intent does not require search, skipping database query")
+            print(f"{'='*60}\n")
+
+        # Build enhanced system prompt with emphasis on using ONLY database info
+        system_prompt = """You are an expert textile and fiber knowledge assistant with comprehensive knowledge about fibers and their properties.
+
+**CRITICAL RULES:**
+- You MUST use ONLY the information provided in the "FIBER KNOWLEDGE BASE" below
+- DO NOT use your general knowledge about fibers unless NO context is provided
+- Present information authoritatively and naturally, as if it's your own expertise
+- NEVER use phrases like "according to the database", "based on the database", "the database shows", or similar meta-references
+- Simply state facts directly (e.g., "Cotton has a density of 1.52 g/cm³" NOT "According to the database, cotton has...")
+- When users ask follow-up questions, refer back to the fibers mentioned in the conversation history
+
+**Your Role:**
+- Provide accurate, authoritative information as a textile expert
+- Compare fibers using specific values and properties
+- Suggest fibers based on their characteristics and applications
+- Remember fibers discussed earlier in the conversation
+
+**Guidelines:**
+- Present specific numerical values naturally (e.g., "Polyester melts at 260°C" not "The database indicates polyester melts at 260°C")
+- If no information is available for a query, state: "I don't have specific information about that."
+- For follow-up questions, remember which fibers were discussed previously
+- If asked about non-textile topics, respond: "I'm a textile and fiber expert. Please ask questions related to textiles, fibers, or related materials."
+
+**Response Format - VERY IMPORTANT:**
+- **BE CONCISE BY DEFAULT**: Keep answers brief (1-3 sentences maximum)
+- For "what is" questions: Give a 1-2 sentence definition only (e.g., "Linen is a natural cellulose bast fiber derived from the flax plant, known for its strength and absorbency.")
+- For "which fibers", "list", "all", or "examples" questions: List ALL relevant fiber names found in the knowledge base (e.g., "The fibers made from wood pulp are: Lyocell, Viscose, Modal, Polynosic, Acetate, Triacetate, and Cuprammonium rayon.")
+- **IMPORTANT**: When user asks for "all examples" or uses words like "all", "list", or "examples", you MUST include ALL fibers from the context that match the criteria
+- **DO NOT include properties, specifications, classes, subtypes, applications, or technical details UNLESS explicitly asked**
+- ONLY expand with details when user explicitly uses words like: "more details", "tell me more", "properties", "specifications", "characteristics", "how", "why"
+- Avoid bullet points and long lists in initial responses
+- One fact per fiber maximum, unless details are requested
+- Speak naturally and authoritatively without referencing your knowledge source
+"""
+
+        # Build message history for OpenAI with conversation context
+        openai_messages = [
+            {"role": "system", "content": system_prompt}
+        ]
+
+        # Add fiber context RIGHT AFTER system prompt (so it's always visible)
+        if fiber_context:
+            openai_messages.append({
+                "role": "system",
+                "content": f"===== FIBER KNOWLEDGE BASE =====\n{fiber_context}\n\n**CRITICAL:** Use ONLY this information to answer. Present facts naturally and authoritatively without mentioning the source. Be CONCISE - only provide basic facts unless user asks for details."
+            })
+            print(f"DEBUG: Fiber context injected ({len(fiber_context)} chars)")
+        else:
+            print(f"DEBUG: No fiber context for this query")
+
+        # Add conversation history
+        for msg in messages:
+            openai_messages.append({
+                "role": "user" if msg["role"] == "user" else "assistant",
+                "content": msg["content"]
+            })
+
+        # Add the current user message
+        openai_messages.append({
+            "role": "user",
+            "content": payload.message
+        })
+
+        # Add current user message to conversation storage
+        messages.append({"role": "user", "content": payload.message})
+
+        # Debug: Show message structure
+        print(f"\nDEBUG: OpenAI Message Structure:")
+        for idx, msg in enumerate(openai_messages):
+            role = msg['role']
+            content_preview = msg['content'][:150] if len(msg['content']) > 150 else msg['content']
+            print(f"  [{idx}] {role}: {content_preview}...")
+        print(f"DEBUG: Total messages to OpenAI: {len(openai_messages)}\n")
+
+        client = OpenAI(api_key=settings.OPENAI_API_KEY)
+
+        response = client.chat.completions.create(
+            model=settings.OPENAI_MODEL,
+            messages=openai_messages,
+            max_tokens=settings.OPENAI_MAX_TOKENS,
+            temperature=settings.OPENAI_TEMPERATURE
+        )
+
+        bot_response = response.choices[0].message.content
+
+        # Add AI response to conversation
+        messages.append({"role": "ai", "content": bot_response})
+
+        # Update conversation in database
+        # Need to create a new list to trigger SQLAlchemy's change detection
+        conversation.messages = list(messages)
+
+        # Mark the column as modified to ensure it's persisted
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(conversation, "messages")
+
+        db.commit()
+        db.refresh(conversation)
+
+        return ChatResponse(
+            response=bot_response,
+            conversation_id=conversation.id,
+            fiber_cards=[]
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error communicating with chatbot: {str(e)}")
+
+@router.post("/chatbot/end/{conversation_id}", response_model=EndConversationResponse)
+def end_conversation(
+    conversation_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """End an active chatbot conversation"""
+    from datetime import datetime, timezone
+
+    conversation = db.execute(
+        select(ChatbotConversation).where(
+            ChatbotConversation.id == conversation_id,
+            ChatbotConversation.user_id == current_user.id,
+            ChatbotConversation.is_active == True
+        )
+    ).scalar_one_or_none()
+
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Active conversation not found")
+
+    # Mark conversation as ended
+    conversation.is_active = False
+    conversation.ended_at = datetime.now(timezone.utc)
+    db.commit()
+
+    return EndConversationResponse(
+        conversation_id=conversation.id,
+        message="Conversation ended",
+        total_messages=len(conversation.messages) if conversation.messages else 0
+    )
+
+@router.post("/chatbot/continue/{conversation_id}", response_model=StartConversationResponse)
+def continue_conversation(
+    conversation_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Reactivate a past conversation to continue chatting"""
+    conversation = db.execute(
+        select(ChatbotConversation).where(
+            ChatbotConversation.id == conversation_id,
+            ChatbotConversation.user_id == current_user.id,
+            ChatbotConversation.is_active == False
+        )
+    ).scalar_one_or_none()
+
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found or already active")
+
+    # Reactivate the conversation
+    conversation.is_active = True
+    conversation.ended_at = None
+    db.commit()
+
+    return StartConversationResponse(
+        conversation_id=conversation.id,
+        message="Conversation resumed"
+    )
+
+@router.delete("/chatbot/delete/{conversation_id}")
+def delete_conversation(
+    conversation_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Delete a chatbot conversation"""
+    conversation = db.execute(
+        select(ChatbotConversation).where(
+            ChatbotConversation.id == conversation_id,
+            ChatbotConversation.user_id == current_user.id
+        )
+    ).scalar_one_or_none()
+
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    db.delete(conversation)
+    db.commit()
+
+    return {"message": "Conversation deleted successfully"}
+
+@router.get("/chatbot/history", response_model=List[ChatbotConversationRead])
+def get_chat_history(
+    limit: int = 50,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Get chatbot conversation history for the current user (including active ones)"""
+    query = select(ChatbotConversation).where(
+        ChatbotConversation.user_id == current_user.id
+    ).order_by(ChatbotConversation.created_at.desc()).limit(limit)
+
+    conversations = db.execute(query).scalars().all()
+    return conversations

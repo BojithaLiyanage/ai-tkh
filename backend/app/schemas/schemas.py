@@ -436,3 +436,48 @@ class FiberSummaryRead(BaseModel):
     applications: Optional[List[str]] = []
     created_at: datetime
     is_active: bool
+
+# ---- chatbot
+class MessageInConversation(BaseModel):
+    role: str  # 'user' or 'ai'
+    content: str
+
+class ChatMessage(BaseModel):
+    message: str
+    conversation_id: int
+
+class FiberCard(BaseModel):
+    """Concise fiber card for display"""
+    name: str
+    fiber_class: Optional[str] = None
+    subtype: Optional[str] = None
+    description: Optional[str] = None  # Short 1-2 sentence description
+    applications: Optional[List[str]] = None  # Top 3-5 applications
+    trade_names: Optional[List[str]] = None  # Top 3 trade names
+    key_properties: Optional[dict] = None  # {property_name: value} - only key ones
+
+class ChatResponse(BaseModel):
+    response: str  # Main AI text response
+    conversation_id: int
+    # Optional fiber cards for visual display
+    fiber_cards: Optional[List[FiberCard]] = []
+
+class StartConversationResponse(BaseModel):
+    conversation_id: int
+    message: str
+
+class EndConversationResponse(BaseModel):
+    conversation_id: int
+    message: str
+    total_messages: int
+
+class ChatbotConversationRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    user_id: int
+    messages: List[MessageInConversation]
+    model_used: Optional[str] = None
+    is_active: bool
+    started_at: datetime
+    ended_at: Optional[datetime] = None
+    created_at: datetime
