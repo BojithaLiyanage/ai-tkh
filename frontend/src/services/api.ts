@@ -601,9 +601,20 @@ export interface ChatMessage {
   conversation_id: number;
 }
 
+export interface FiberCard {
+  name: string;
+  fiber_class?: string;
+  subtype?: string;
+  description?: string;
+  applications?: string[];
+  trade_names?: string[];
+  key_properties?: Record<string, string>;
+}
+
 export interface ChatResponse {
   response: string;
   conversation_id: number;
+  fiber_cards?: FiberCard[];
 }
 
 export interface ChatbotConversationRead {

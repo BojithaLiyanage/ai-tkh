@@ -1,13 +1,56 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Tooltip } from 'antd';
 import { useAuth } from '../contexts/AuthContext';
-import { clientApi, OnboardingStatus, chatbotApi, ChatbotConversationRead } from '../services/api';
+import { clientApi, chatbotApi } from '../services/api';
+import type { OnboardingStatus, ChatbotConversationRead, FiberCard } from '../services/api';
 import ClientOnboarding from './ClientOnboarding';
+import ChatMessage from './ChatMessage';
 
 interface Message {
   role: 'user' | 'ai';
   content: string;
+  fiberCards?: FiberCard[];
 }
+
+// Animated thinking loader component
+const ThinkingLoader: React.FC = () => {
+  const [textIndex, setTextIndex] = useState(0);
+  const thinkingTexts = ['Thinking', 'Analyzing', 'Searching', 'Processing'];
+  const loaderRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTextIndex((prev) => (prev + 1) % thinkingTexts.length);
+    }, 800); // Change text every 800ms
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Auto-scroll to loader when it appears
+  useEffect(() => {
+    if (loaderRef.current) {
+      loaderRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
+  }, []);
+
+  return (
+    <div ref={loaderRef} className="flex items-start space-x-3">
+      <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm">
+        AI
+      </div>
+      <div className="bg-white p-4 rounded-lg shadow-sm max-w-md">
+        <div className="flex items-center space-x-2">
+          <span className="text-gray-600 font-medium">{thinkingTexts[textIndex]}</span>
+          <div className="flex space-x-1">
+            <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+            <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+            <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const ClientDashboard: React.FC = () => {
   const { user, logout } = useAuth();
@@ -142,7 +185,11 @@ const ClientDashboard: React.FC = () => {
       }
 
       const response = await chatbotApi.sendMessage(userMessage, conversationId);
-      setMessages(prev => [...prev, { role: 'ai', content: response.response }]);
+      setMessages(prev => [...prev, {
+        role: 'ai',
+        content: response.response,
+        fiberCards: response.fiber_cards
+      }]);
 
       // Refresh history to show updated message count
       fetchConversationHistory();
@@ -154,7 +201,7 @@ const ClientDashboard: React.FC = () => {
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
@@ -352,36 +399,15 @@ const ClientDashboard: React.FC = () => {
                     {/* Chat Messages */}
                     <div className="bg-gray-50 rounded-lg p-6 space-y-4 min-h-[400px] max-h-[500px] overflow-y-auto">
                     {messages.map((msg, index) => (
-                      msg.role === 'ai' ? (
-                        <div key={index} className="flex items-start space-x-3">
-                          <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm">
-                            AI
-                          </div>
-                          <div className="bg-white p-4 rounded-lg shadow-sm max-w-md">
-                            <p className="text-gray-800">{msg.content}</p>
-                          </div>
-                        </div>
-                      ) : (
-                        <div key={index} className="flex items-start space-x-3 justify-end">
-                          <div className="bg-blue-600 text-white p-4 rounded-lg shadow-sm max-w-md">
-                            <p>{msg.content}</p>
-                          </div>
-                          <div className="w-8 h-8 bg-gray-500 rounded-full flex items-center justify-center text-white text-sm">
-                            {user.full_name?.charAt(0).toUpperCase()}
-                          </div>
-                        </div>
-                      )
+                      <ChatMessage
+                        key={index}
+                        role={msg.role}
+                        content={msg.content}
+                        fiberCards={msg.fiberCards}
+                        userName={user.full_name || 'U'}
+                      />
                     ))}
-                    {isSending && (
-                      <div className="flex items-start space-x-3">
-                        <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm">
-                          AI
-                        </div>
-                        <div className="bg-white p-4 rounded-lg shadow-sm max-w-md">
-                          <p className="text-gray-500">Typing...</p>
-                        </div>
-                      </div>
-                    )}
+                    {isSending && <ThinkingLoader />}
                   </div>
 
                   {/* Chat Input - Always show when conversation is loaded */}
@@ -390,7 +416,7 @@ const ClientDashboard: React.FC = () => {
                       type="text"
                       value={inputMessage}
                       onChange={(e) => setInputMessage(e.target.value)}
-                      onKeyPress={handleKeyPress}
+                      onKeyDown={handleKeyDown}
                       placeholder={isConversationActive ? "Type your message..." : "Type to continue this conversation..."}
                       className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       disabled={isSending}
