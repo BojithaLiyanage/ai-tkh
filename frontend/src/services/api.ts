@@ -611,10 +611,18 @@ export interface FiberCard {
   key_properties?: Record<string, string>;
 }
 
+export interface StructureImage {
+  fiber_name: string;
+  image_url: string;
+  fiber_id: string;
+  image_cms_id?: string;
+}
+
 export interface ChatResponse {
   response: string;
   conversation_id: number;
   fiber_cards?: FiberCard[];
+  structure_images?: StructureImage[];
 }
 
 export interface ChatbotConversationRead {

@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Login from './components/Login';
 import Signup from './components/Signup';
 import Dashboard from './components/Dashboard';
+import UserProfile from './components/UserProfile';
 import ProtectedRoute from './components/ProtectedRoute';
 import './App.css';
 
@@ -24,17 +25,25 @@ const AppRoutes: React.FC = () => {
         path="/signup" 
         element={user ? <Navigate to="/dashboard" replace /> : <Signup />} 
       />
-      <Route 
-        path="/dashboard" 
+      <Route
+        path="/dashboard"
         element={
           <ProtectedRoute>
             <Dashboard />
           </ProtectedRoute>
-        } 
+        }
       />
-      <Route 
-        path="/" 
-        element={<Navigate to={user ? "/dashboard" : "/login"} replace />} 
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <UserProfile />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/"
+        element={<Navigate to={user ? "/dashboard" : "/login"} replace />}
       />
     </Routes>
   );

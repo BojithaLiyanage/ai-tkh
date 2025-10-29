@@ -754,11 +754,50 @@ class FiberSearchService:
             intent["type"] = "category_inquiry"
             intent["requires_search"] = True
 
+        # Detect structure/image requests
+        if any(word in query_lower for word in ["structure", "image", "diagram", "picture", "visual", "molecular structure", "chemical structure", "show me"]):
+            intent["type"] = "structure_image_request"
+            intent["requires_search"] = True
+            intent["needs_images"] = True
+
         # Extract search terms - use fiber name if found, otherwise use the whole query
         if not intent["search_terms"]:
             intent["search_terms"] = [query]
 
         return intent
+
+
+    def extract_structure_images(self, fibers: List[Any], requested_fiber_name: Optional[str] = None) -> List[dict]:
+        """
+        Extract structure images from fiber results.
+
+        Args:
+            fibers: List of Fiber objects or dicts with 'fiber' key
+            requested_fiber_name: If provided, only return image for this specific fiber
+
+        Returns:
+            List of dicts with fiber name, image URL, and fiber ID
+        """
+        images = []
+        for item in fibers:
+            fiber = item if isinstance(item, Fiber) else item.get('fiber')
+            if not fiber:
+                continue
+
+            # If a specific fiber was requested, only include that fiber's image
+            if requested_fiber_name:
+                if fiber.name.lower() != requested_fiber_name.lower():
+                    continue
+
+            if fiber.structure_image_url:
+                images.append({
+                    "fiber_name": fiber.name,
+                    "image_url": fiber.structure_image_url,
+                    "fiber_id": fiber.fiber_id,
+                    "image_cms_id": fiber.structure_image_cms_id
+                })
+
+        return images
 
 
 def get_fiber_service(db: Session) -> FiberSearchService:
