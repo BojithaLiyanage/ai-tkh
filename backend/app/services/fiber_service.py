@@ -561,8 +561,19 @@ class FiberSearchService:
             if hasattr(fiber, 'subtype') and fiber.subtype:
                 fiber_info.append(f"   - Subtype: {fiber.subtype.name}")
 
+            # Trade names - IMPORTANT for identification
+            if fiber.trade_names and len(fiber.trade_names) > 0:
+                trade_names = ", ".join(fiber.trade_names[:10])  # Show up to 10 trade names
+                fiber_info.append(f"   - Trade Names: {trade_names}")
+
             if fiber.polymer_composition:
                 fiber_info.append(f"   - Composition: {fiber.polymer_composition}")
+
+            if fiber.repeating_unit:
+                fiber_info.append(f"   - Repeating Unit: {fiber.repeating_unit}")
+
+            if fiber.molecular_structure_smiles:
+                fiber_info.append(f"   - Molecular Structure (SMILES): {fiber.molecular_structure_smiles}")
 
             if fiber.applications and len(fiber.applications) > 0:
                 apps = ", ".join(fiber.applications[:5])  # Limit to first 5
@@ -595,8 +606,16 @@ class FiberSearchService:
                 properties.append(f"Density: {fiber.density_g_cm3} g/cm³")
             if fiber.moisture_regain_percent:
                 properties.append(f"Moisture Regain: {fiber.moisture_regain_percent}%")
+            if fiber.absorption_capacity_percent:
+                properties.append(f"Absorption Capacity: {fiber.absorption_capacity_percent}%")
             if fiber.tenacity_min_cn_tex and fiber.tenacity_max_cn_tex:
                 properties.append(f"Tenacity: {fiber.tenacity_min_cn_tex}-{fiber.tenacity_max_cn_tex} cN/tex")
+            if fiber.elongation_min_percent and fiber.elongation_max_percent:
+                properties.append(f"Elongation: {fiber.elongation_min_percent}-{fiber.elongation_max_percent}%")
+            if fiber.fineness_min_um and fiber.fineness_max_um:
+                properties.append(f"Fineness: {fiber.fineness_min_um}-{fiber.fineness_max_um} μm")
+            if fiber.staple_length_min_mm and fiber.staple_length_max_mm:
+                properties.append(f"Staple Length: {fiber.staple_length_min_mm}-{fiber.staple_length_max_mm} mm")
 
             if properties:
                 fiber_info.append(f"   - Properties: {', '.join(properties)}")
@@ -607,9 +626,19 @@ class FiberSearchService:
                 chemical.append(f"Acid: {fiber.acid_resistance}")
             if fiber.alkali_resistance:
                 chemical.append(f"Alkali: {fiber.alkali_resistance}")
+            if fiber.microbial_resistance:
+                chemical.append(f"Microbial: {fiber.microbial_resistance}")
 
             if chemical:
                 fiber_info.append(f"   - Chemical Resistance: {', '.join(chemical)}")
+
+            # Molecular/Chemical structure
+            if fiber.degree_of_polymerization:
+                fiber_info.append(f"   - Degree of Polymerization: {fiber.degree_of_polymerization}")
+
+            if fiber.functional_groups and len(fiber.functional_groups) > 0:
+                groups = ", ".join(fiber.functional_groups[:5])
+                fiber_info.append(f"   - Functional Groups: {groups}")
 
             # Thermal properties
             thermal = []
@@ -617,19 +646,42 @@ class FiberSearchService:
                 thermal.append(f"Melting Point: {fiber.melting_point_c}°C")
             if fiber.glass_transition_temp_c:
                 thermal.append(f"Glass Transition: {fiber.glass_transition_temp_c}°C")
+            if fiber.decomposition_temp_c:
+                thermal.append(f"Decomposition: {fiber.decomposition_temp_c}°C")
 
             if thermal:
                 fiber_info.append(f"   - Thermal: {', '.join(thermal)}")
+
+            # Additional thermal properties description
+            if fiber.thermal_properties:
+                thermal_desc = fiber.thermal_properties[:200] + "..." if len(fiber.thermal_properties) > 200 else fiber.thermal_properties
+                fiber_info.append(f"   - Thermal Properties: {thermal_desc}")
+
+            # Additional technical information
+            if fiber.identification_methods:
+                methods = fiber.identification_methods[:150] + "..." if len(fiber.identification_methods) > 150 else fiber.identification_methods
+                fiber_info.append(f"   - Identification Methods: {methods}")
+
+            if fiber.property_analysis_methods:
+                analysis = fiber.property_analysis_methods[:150] + "..." if len(fiber.property_analysis_methods) > 150 else fiber.property_analysis_methods
+                fiber_info.append(f"   - Property Analysis Methods: {analysis}")
+
+            # Structure images (for reference, URLs available)
+            if fiber.structure_image_url:
+                fiber_info.append(f"   - Structure Image Available: Yes (ID: {fiber.structure_image_cms_id or 'N/A'})")
 
             # Sustainability
             if fiber.biodegradability is not None:
                 biodeg = "Yes" if fiber.biodegradability else "No"
                 fiber_info.append(f"   - Biodegradable: {biodeg}")
 
+            if fiber.environmental_impact_score is not None:
+                fiber_info.append(f"   - Environmental Impact Score: {fiber.environmental_impact_score}/10")
+
             if fiber.sustainability_notes:
                 # Truncate long notes
                 notes = fiber.sustainability_notes[:200] + "..." if len(fiber.sustainability_notes) > 200 else fiber.sustainability_notes
-                fiber_info.append(f"   - Sustainability: {notes}")
+                fiber_info.append(f"   - Sustainability Notes: {notes}")
 
             # Add similarity score if from semantic search
             if similarity < 1.0:
