@@ -5,6 +5,15 @@ import { clientApi, chatbotApi } from '../services/api';
 import type { OnboardingStatus, ChatbotConversationRead, FiberCard } from '../services/api';
 import ClientOnboarding from './ClientOnboarding';
 import ChatMessage from './ChatMessage';
+import Navbar from './Navbar';
+import CompareTab from './CompareTab';
+
+interface StructureImage {
+  fiber_name: string;
+  image_url: string;
+  fiber_id: string;
+  image_cms_id?: string;
+}
 
 interface Message {
   role: 'user' | 'ai';
@@ -56,7 +65,7 @@ const ClientDashboard: React.FC = () => {
   const { user, logout } = useAuth();
   const [onboardingStatus, setOnboardingStatus] = useState<OnboardingStatus | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'chatbot' | 'assessments'>('chatbot');
+  const [activeTab, setActiveTab] = useState<'chatbot' | 'assessments' | 'compare'>('chatbot');
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -227,6 +236,27 @@ const ClientDashboard: React.FC = () => {
   if (onboardingStatus?.needs_onboarding) {
     return <ClientOnboarding />;
   }
+
+  const navbarTabs = [
+    {
+      id: 'chatbot',
+      label: 'Chatbot',
+      isActive: activeTab === 'chatbot',
+      onClick: () => setActiveTab('chatbot')
+    },
+    {
+      id: 'compare',
+      label: 'Compare',
+      isActive: activeTab === 'compare',
+      onClick: () => setActiveTab('compare')
+    },
+    {
+      id: 'assessments',
+      label: 'Assessments',
+      isActive: activeTab === 'assessments',
+      onClick: () => setActiveTab('assessments')
+    }
+  ];
 
   return (
     <div className="max-w-7xl mx-auto p-5 bg-gray-50 min-h-screen">
@@ -432,8 +462,10 @@ const ClientDashboard: React.FC = () => {
                 </>
               )}
               </div>
-            </div>
-          )}
+          </div>
+        )}
+
+        {activeTab === 'compare' && <CompareTab />}
 
           {activeTab === 'assessments' && (
             <div className="space-y-4">
