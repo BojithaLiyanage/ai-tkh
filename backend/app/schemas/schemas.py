@@ -461,6 +461,8 @@ class ChatResponse(BaseModel):
     conversation_id: int
     # Optional fiber cards for visual display
     fiber_cards: Optional[List[FiberCard]] = []
+    # Structure images when user requests fiber structure diagrams
+    structure_images: Optional[List[dict]] = []  # [{fiber_name: str, image_url: str, fiber_id: str}]
 
 class StartConversationResponse(BaseModel):
     conversation_id: int

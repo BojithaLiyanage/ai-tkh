@@ -1231,6 +1231,7 @@ async def chat_with_bot(
         print(f"{'='*60}\n")
 
         fiber_context = ""
+        structure_images = []  # Will store structure images if requested
 
         if intent["requires_search"]:
             # Use extracted search terms or fallback to full query
@@ -1323,6 +1324,17 @@ async def chat_with_bot(
                 print(f"DEBUG: Context Built (length: {len(fiber_context)} chars)")
                 print(f"DEBUG: Context Preview:\n{fiber_context[:500]}...\n")
                 print(f"{'='*60}\n")
+
+                # Extract structure images if user is asking for images/structure
+                if intent.get("needs_images"):
+                    # If a specific fiber was requested, only show that fiber's image
+                    requested_fiber = intent.get("entities", {}).get("fiber_name")
+                    structure_images = fiber_service.extract_structure_images(search_results, requested_fiber)
+                    print(f"DEBUG: Extracted {len(structure_images)} structure images")
+                    if requested_fiber:
+                        print(f"DEBUG: Filtered to requested fiber: {requested_fiber}")
+                    for img in structure_images:
+                        print(f"  - {img['fiber_name']}: {img['image_url']}")
         else:
             print(f"DEBUG: Intent does not require search, skipping database query")
             print(f"{'='*60}\n")
@@ -1349,6 +1361,7 @@ async def chat_with_bot(
 - If no information is available for a query, state: "I don't have specific information about that."
 - For follow-up questions, remember which fibers were discussed previously
 - If asked about non-textile topics, respond: "I'm a textile and fiber expert. Please ask questions related to textiles, fibers, or related materials."
+- When users ask for structure images or diagrams, let them know that the images will be displayed alongside your response (images are provided automatically when available)
 
 **Response Format - VERY IMPORTANT:**
 - **BE CONCISE BY DEFAULT**: Keep answers brief (1-3 sentences maximum)
@@ -1429,7 +1442,8 @@ async def chat_with_bot(
         return ChatResponse(
             response=bot_response,
             conversation_id=conversation.id,
-            fiber_cards=[]
+            fiber_cards=[],
+            structure_images=structure_images
         )
     except HTTPException:
         raise

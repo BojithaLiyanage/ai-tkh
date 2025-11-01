@@ -5,10 +5,11 @@ import UserManagement from './UserManagement';
 import ContentManagement from './ContentManagement';
 import ContentLibrary from './ContentLibrary';
 import FiberDatabaseManagement from './FiberDatabaseManagement';
+import Navbar from './Navbar';
 import { authApi, contentApi, type UserStats, type ContentStats } from '../services/api';
 
 const SuperAdminDashboard: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const [showCreateAdminModal, setShowCreateAdminModal] = useState(false);
   const [showUserManageModal, setShowUserManageModal] = useState(false);
   const [showContentManagement, setShowContentManagement] = useState(false);
@@ -42,24 +43,9 @@ const SuperAdminDashboard: React.FC = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-5 bg-gray-50 min-h-screen">
-      {/* Header */}
-      <div className="bg-white p-8 rounded-xl shadow-lg border border-gray-200 mb-6 flex justify-between items-center flex-wrap">
-        <div>
-          <h1 className="text-gray-900 text-3xl font-semibold mb-2.5">Super Admin Dashboard</h1>
-          <div className="text-left">
-            <p className="my-1.5 text-gray-500 text-sm">Welcome, {user.full_name}!</p>
-            <p className="my-1.5 text-gray-500 text-sm">Email: {user.email}</p>
-            <p className="my-1.5 text-red-600 text-sm font-medium">Role: {user.user_type.toUpperCase()}</p>
-          </div>
-        </div>
-        <button 
-          onClick={logout} 
-          className="w-auto px-5 py-2.5 bg-red-600 text-white border-none rounded-md text-sm font-medium cursor-pointer ml-5 transition-colors duration-200 hover:bg-red-700 sm:w-auto sm:ml-5 max-sm:w-full max-sm:ml-0 max-sm:mt-4"
-        >
-          Logout
-        </button>
-      </div>
+    <>
+      <Navbar />
+      <div className="max-w-7xl mx-auto p-5 bg-gray-50 min-h-screen">
 
       {/* Super Admin Features Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
@@ -312,7 +298,8 @@ const SuperAdminDashboard: React.FC = () => {
           />
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 };
 
