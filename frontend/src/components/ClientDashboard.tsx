@@ -19,6 +19,7 @@ interface Message {
   role: 'user' | 'ai';
   content: string;
   fiberCards?: FiberCard[];
+  structureImages?: StructureImage[];
 }
 
 // Animated thinking loader component
@@ -62,7 +63,7 @@ const ThinkingLoader: React.FC = () => {
 };
 
 const ClientDashboard: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const [onboardingStatus, setOnboardingStatus] = useState<OnboardingStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'chatbot' | 'assessments' | 'compare'>('chatbot');
@@ -197,7 +198,8 @@ const ClientDashboard: React.FC = () => {
       setMessages(prev => [...prev, {
         role: 'ai',
         content: response.response,
-        fiberCards: response.fiber_cards
+        fiberCards: response.fiber_cards,
+        structureImages: response.structure_images
       }]);
 
       // Refresh history to show updated message count
@@ -259,50 +261,11 @@ const ClientDashboard: React.FC = () => {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto p-5 bg-gray-50 min-h-screen">
-      {/* Header */}
-      <div className="bg-white p-8 rounded-xl shadow-lg border border-gray-200 mb-6 flex justify-between items-center flex-wrap">
-        <div>
-          <h1 className="text-gray-900 text-3xl font-semibold mb-2.5">Client Dashboard</h1>
-          <p className="my-1.5 text-gray-600 text-base">Welcome, {user.full_name}!</p>
-        </div>
-        <button
-          onClick={logout}
-          className="w-auto px-5 py-2.5 bg-red-600 text-white border-none rounded-md text-sm font-medium cursor-pointer ml-5 transition-colors duration-200 hover:bg-red-700 sm:w-auto sm:ml-5 max-sm:w-full max-sm:ml-0 max-sm:mt-4"
-        >
-          Logout
-        </button>
-      </div>
-
-      {/* Tabs */}
-      <div className="bg-white rounded-xl shadow-lg border border-gray-200">
-        <div className="flex border-b border-gray-200">
-          <button
-            onClick={() => setActiveTab('chatbot')}
-            className={`flex-1 px-6 py-4 text-center font-medium transition-colors duration-200 ${
-              activeTab === 'chatbot'
-                ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-            }`}
-          >
-            Chatbot
-          </button>
-          <button
-            onClick={() => setActiveTab('assessments')}
-            className={`flex-1 px-6 py-4 text-center font-medium transition-colors duration-200 ${
-              activeTab === 'assessments'
-                ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-            }`}
-          >
-            Assessments
-          </button>
-        </div>
-
-        {/* Tab Content */}
-        <div className="p-8">
-          {activeTab === 'chatbot' && (
-            <div className="flex gap-6">
+    <>
+      <Navbar tabs={navbarTabs} />
+      <div className="bg-gray-50 flex overflow-hidden" style={{ height: 'calc(100vh - 64px)' }}>
+        {activeTab === 'chatbot' && (
+          <div className="flex-1 flex gap-4 p-4">
               {/* Collapsed Panel - Floating Button */}
               {isPanelCollapsed && (
                 <div className="flex flex-col gap-2">
@@ -331,7 +294,7 @@ const ClientDashboard: React.FC = () => {
 
               {/* Side Panel - Conversation History */}
               {!isPanelCollapsed && (
-                <div className="w-80 bg-white border border-gray-200 rounded-lg p-4 max-h-[600px] overflow-y-auto relative">
+                <div className="w-80 bg-white border border-gray-200 rounded-lg p-4 h-full overflow-y-auto relative flex-shrink-0">
                   <Tooltip title="Hide Panel" placement="bottom">
                     <button
                       onClick={() => setIsPanelCollapsed(true)}
@@ -412,13 +375,13 @@ const ClientDashboard: React.FC = () => {
               )}
 
               {/* Main Chat Area */}
-              <div className="flex-1 space-y-4">
+              <div className="flex-1 flex flex-col h-full overflow-hidden">
                 <h2 className="text-2xl font-semibold text-gray-900 mb-4">
                   {conversationId ? 'Chat' : 'AI Chatbot'}
                 </h2>
 
                 {!conversationId || messages.length === 0 ? (
-                  <div className="bg-gray-50 rounded-lg p-12 text-center min-h-[400px] flex items-center justify-center">
+                  <div className="bg-gray-50 rounded-lg p-12 text-center flex-1 flex items-center justify-center">
                     <div>
                       <p className="text-gray-500 text-lg mb-4">Click "+ New Chat" to start a conversation</p>
                       <p className="text-gray-400 text-sm">Or select a past conversation from the left panel</p>
@@ -427,49 +390,50 @@ const ClientDashboard: React.FC = () => {
                 ) : (
                   <>
                     {/* Chat Messages */}
-                    <div className="bg-gray-50 rounded-lg p-6 space-y-4 min-h-[400px] max-h-[500px] overflow-y-auto">
-                    {messages.map((msg, index) => (
-                      <ChatMessage
-                        key={index}
-                        role={msg.role}
-                        content={msg.content}
-                        fiberCards={msg.fiberCards}
-                        userName={user.full_name || 'U'}
-                      />
-                    ))}
-                    {isSending && <ThinkingLoader />}
-                  </div>
+                    <div className="flex-1 bg-gray-50 rounded-lg p-6 space-y-4 overflow-y-auto">
+                      {messages.map((msg, index) => (
+                        <ChatMessage
+                          key={index}
+                          role={msg.role}
+                          content={msg.content}
+                          fiberCards={msg.fiberCards}
+                          structureImages={msg.structureImages}
+                          userName={user.full_name || 'U'}
+                        />
+                      ))}
+                      {isSending && <ThinkingLoader />}
+                    </div>
 
-                  {/* Chat Input - Always show when conversation is loaded */}
-                  <div className="flex space-x-3">
+                    {/* Chat Input - Always show when conversation is loaded */}
+                    <div className="flex space-x-2 mt-1 mr-5">
                     <input
                       type="text"
                       value={inputMessage}
                       onChange={(e) => setInputMessage(e.target.value)}
                       onKeyDown={handleKeyDown}
                       placeholder={isConversationActive ? "Type your message..." : "Type to continue this conversation..."}
-                      className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="flex-1 m-4 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
                       disabled={isSending}
                     />
                     <button
                       onClick={handleSendMessage}
                       disabled={isSending || !inputMessage.trim()}
-                      className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
+                      className="px-6 py-3 m-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
                     >
                       {isSending ? 'Sending...' : 'Send'}
                     </button>
-                  </div>
-                </>
-              )}
+                    </div>
+                  </>
+                )}
               </div>
           </div>
         )}
 
         {activeTab === 'compare' && <CompareTab />}
 
-          {activeTab === 'assessments' && (
-            <div className="space-y-4">
-              <h2 className="text-2xl font-semibold text-gray-900 mb-4">Your Assessments</h2>
+        {activeTab === 'assessments' && (
+          <div className="flex-1 p-8 overflow-y-auto">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Your Assessments</h2>
 
               {/* Assessment List */}
               <div className="space-y-4">
@@ -515,9 +479,8 @@ const ClientDashboard: React.FC = () => {
                   </div>
                 </div>
               </div>
-            </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Delete Confirmation Modal */}
@@ -564,7 +527,7 @@ const ClientDashboard: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };
 
