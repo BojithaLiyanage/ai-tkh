@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import select, or_, and_, func, text
 from app.models.models import (
     Fiber, FiberClass, FiberSubtype, SyntheticType, PolymerizationType,
-    FiberEmbedding, FiberProperty, FiberApplication
+    FiberEmbedding, FiberProperty, FiberApplication, FiberVideoLink
 )
 from openai import OpenAI
 from app.core.config import settings
@@ -798,6 +798,79 @@ class FiberSearchService:
                 })
 
         return images
+
+    def extract_related_videos(self, fibers: List[Any], query: str = "") -> List[dict]:
+        """
+        Extract related video links from fiber results based on video descriptions.
+
+        Args:
+            fibers: List of Fiber objects or dicts with 'fiber' key
+            query: User's search query to help filter relevant videos
+
+        Returns:
+            List of dicts with video information
+        """
+        videos = []
+        fiber_ids = []
+
+        # Collect fiber IDs from search results
+        for item in fibers:
+            fiber = item if isinstance(item, Fiber) else item.get('fiber')
+            if fiber and fiber.id not in fiber_ids:
+                fiber_ids.append(fiber.id)
+
+        if not fiber_ids:
+            return videos
+
+        # Query video links for these fibers
+        video_links = self.db.execute(
+            select(FiberVideoLink, Fiber).join(
+                Fiber, FiberVideoLink.fiber_id == Fiber.id
+            ).where(
+                FiberVideoLink.fiber_id.in_(fiber_ids)
+            ).order_by(FiberVideoLink.created_at.desc())
+        ).all()
+
+        # If query is provided, filter videos by description relevance
+        query_lower = query.lower() if query else ""
+
+        for video_link, fiber in video_links:
+            # Calculate relevance score
+            relevance_score = 0
+            if query_lower:
+                description = (video_link.description or "").lower()
+                title = (video_link.title or "").lower()
+
+                # Check if query terms appear in description or title
+                query_terms = query_lower.split()
+                for term in query_terms:
+                    if term in description:
+                        relevance_score += 2
+                    if term in title:
+                        relevance_score += 3
+            else:
+                # No query, include all videos
+                relevance_score = 1
+
+            if relevance_score > 0 or not query_lower:
+                videos.append({
+                    "id": video_link.id,
+                    "fiber_id": video_link.fiber_id,
+                    "fiber_name": fiber.name,
+                    "video_link": video_link.video_link,
+                    "title": video_link.title,
+                    "description": video_link.description,
+                    "relevance_score": relevance_score
+                })
+
+        # Sort by relevance score (descending) and limit to top 5
+        videos.sort(key=lambda x: x.get("relevance_score", 0), reverse=True)
+
+        # Remove relevance_score from final output
+        for video in videos:
+            video.pop("relevance_score", None)
+
+        return videos[:5]  # Return top 5 most relevant videos
 
 
 def get_fiber_service(db: Session) -> FiberSearchService:
