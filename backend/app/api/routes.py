@@ -5,7 +5,7 @@ from datetime import timedelta
 from app.db.session import get_db
 from app.models.models import (
     Module, Topic, Subtopic, ContentBlock, Tag, SubtopicTag, StudyGroup, SubtopicStudyGroup, User, Client, ClientOnboarding,
-    FiberClass, FiberSubtype, SyntheticType, PolymerizationType, Fiber, ChatbotConversation
+    FiberClass, FiberSubtype, SyntheticType, PolymerizationType, Fiber, ChatbotConversation, FiberVideoLink
 )
 from app.schemas.schemas import (
     ModuleCreate, ModuleRead, TopicCreate, TopicRead,
@@ -18,7 +18,8 @@ from app.schemas.schemas import (
     SyntheticTypeCreate, SyntheticTypeRead, SyntheticTypeUpdate,
     PolymerizationTypeCreate, PolymerizationTypeRead, PolymerizationTypeUpdate,
     FiberCreate, FiberRead, FiberUpdate, FiberSummaryRead,
-    ChatMessage, ChatResponse, ChatbotConversationRead, StartConversationResponse, EndConversationResponse
+    ChatMessage, ChatResponse, ChatbotConversationRead, StartConversationResponse, EndConversationResponse,
+    FiberVideoLinkCreate, FiberVideoLinkRead, FiberVideoLinkUpdate, VideoPreview
 )
 from typing import List
 from app.core.auth import (
@@ -1163,6 +1164,87 @@ def delete_cloudinary_image(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# --- Fiber Video Links ---
+@router.get("/fiber/fibers/{fiber_id}/videos", response_model=List[FiberVideoLinkRead])
+def list_fiber_videos(
+    fiber_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get all video links for a specific fiber"""
+    fiber = db.get(Fiber, fiber_id)
+    if not fiber:
+        raise HTTPException(status_code=404, detail="Fiber not found")
+
+    videos = db.execute(
+        select(FiberVideoLink).where(FiberVideoLink.fiber_id == fiber_id).order_by(FiberVideoLink.created_at.desc())
+    ).scalars().all()
+    return videos
+
+@router.post("/fiber/videos", response_model=FiberVideoLinkRead, status_code=201)
+def create_fiber_video(
+    payload: FiberVideoLinkCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Add a new video link for a fiber (Admin only)"""
+    # Validate fiber exists
+    if not db.get(Fiber, payload.fiber_id):
+        raise HTTPException(status_code=400, detail="Fiber not found")
+
+    video = FiberVideoLink(**payload.model_dump())
+    db.add(video)
+    try:
+        db.commit()
+        db.refresh(video)
+        return video
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Video link may already exist for this fiber")
+
+@router.put("/fiber/videos/{video_id}", response_model=FiberVideoLinkRead)
+def update_fiber_video(
+    video_id: int,
+    payload: FiberVideoLinkUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Update a fiber video link (Admin only)"""
+    video = db.get(FiberVideoLink, video_id)
+    if not video:
+        raise HTTPException(status_code=404, detail="Video link not found")
+
+    update_data = payload.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(video, field, value)
+
+    try:
+        db.commit()
+        db.refresh(video)
+        return video
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Update failed")
+
+@router.delete("/fiber/videos/{video_id}")
+def delete_fiber_video(
+    video_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Delete a fiber video link (Admin only)"""
+    video = db.get(FiberVideoLink, video_id)
+    if not video:
+        raise HTTPException(status_code=404, detail="Video link not found")
+
+    try:
+        db.delete(video)
+        db.commit()
+        return {"message": "Video link deleted successfully"}
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Cannot delete video link")
+
 # --- Chatbot ---
 @router.post("/chatbot/start", response_model=StartConversationResponse)
 def start_conversation(
@@ -1232,6 +1314,7 @@ async def chat_with_bot(
 
         fiber_context = ""
         structure_images = []  # Will store structure images if requested
+        related_videos = []  # Will store related video links
 
         if intent["requires_search"]:
             # Use extracted search terms or fallback to full query
@@ -1335,6 +1418,12 @@ async def chat_with_bot(
                         print(f"DEBUG: Filtered to requested fiber: {requested_fiber}")
                     for img in structure_images:
                         print(f"  - {img['fiber_name']}: {img['image_url']}")
+
+                # Extract related videos from fibers with video descriptions matching the query
+                related_videos = fiber_service.extract_related_videos(search_results, payload.message)
+                print(f"DEBUG: Extracted {len(related_videos)} related videos")
+                for vid in related_videos:
+                    print(f"  - {vid['fiber_name']}: {vid.get('title', 'Untitled')} - {vid['video_link']}")
         else:
             print(f"DEBUG: Intent does not require search, skipping database query")
             print(f"{'='*60}\n")
@@ -1386,7 +1475,7 @@ async def chat_with_bot(
                 "role": "system",
                 "content": f"===== FIBER KNOWLEDGE BASE =====\n{fiber_context}\n\n**CRITICAL:** Use ONLY this information to answer. Present facts naturally and authoritatively without mentioning the source. Be CONCISE - only provide basic facts unless user asks for details."
             })
-            print(f"DEBUG: Fiber context injected ({len(fiber_context)} chars)")
+            print(f"DEBUG: Fiber context injected {fiber_context} chars)")
         else:
             print(f"DEBUG: No fiber context for this query")
 
@@ -1443,7 +1532,8 @@ async def chat_with_bot(
             response=bot_response,
             conversation_id=conversation.id,
             fiber_cards=[],
-            structure_images=structure_images
+            structure_images=structure_images,
+            related_videos=related_videos
         )
     except HTTPException:
         raise

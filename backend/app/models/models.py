@@ -462,6 +462,25 @@ class ChatbotConversation(Base):
     created_at = Column(DateTime, default=func.current_timestamp())
 
 
+class FiberVideoLink(Base):
+    __tablename__ = "fiber_video_links"
+
+    id = Column(Integer, primary_key=True)
+    fiber_id = Column(Integer, ForeignKey("fibers.id", ondelete="CASCADE"), nullable=False)
+    video_link = Column(Text, nullable=False)
+    description = Column(Text)
+    title = Column(String(255))
+    created_at = Column(DateTime, default=func.current_timestamp())
+    updated_at = Column(DateTime, default=func.current_timestamp(), onupdate=func.current_timestamp())
+
+    # Relationships
+    fiber = relationship("Fiber", backref="video_links")
+
+    __table_args__ = (
+        Index('idx_fiber_video_unique', 'fiber_id', 'video_link', unique=True),
+    )
+
+
 # ==================================================
 # Pydantic Response Models
 # ==================================================
