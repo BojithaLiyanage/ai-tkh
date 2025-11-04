@@ -463,6 +463,8 @@ class ChatResponse(BaseModel):
     fiber_cards: Optional[List[FiberCard]] = []
     # Structure images when user requests fiber structure diagrams
     structure_images: Optional[List[dict]] = []  # [{fiber_name: str, image_url: str, fiber_id: str}]
+    # Related videos when available
+    related_videos: Optional[List['VideoPreview']] = []
 
 class StartConversationResponse(BaseModel):
     conversation_id: int
@@ -483,3 +485,34 @@ class ChatbotConversationRead(BaseModel):
     started_at: datetime
     ended_at: Optional[datetime] = None
     created_at: datetime
+
+# ---- fiber video links
+class FiberVideoLinkCreate(BaseModel):
+    fiber_id: int
+    video_link: str
+    description: Optional[str] = None
+    title: Optional[str] = None
+
+class FiberVideoLinkRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    fiber_id: int
+    video_link: str
+    description: Optional[str] = None
+    title: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+class FiberVideoLinkUpdate(BaseModel):
+    video_link: Optional[str] = None
+    description: Optional[str] = None
+    title: Optional[str] = None
+
+class VideoPreview(BaseModel):
+    """Video preview for chatbot responses"""
+    id: int
+    fiber_id: int
+    fiber_name: str
+    video_link: str
+    title: Optional[str] = None
+    description: Optional[str] = None

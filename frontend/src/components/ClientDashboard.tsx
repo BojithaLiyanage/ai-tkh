@@ -15,11 +15,21 @@ interface StructureImage {
   image_cms_id?: string;
 }
 
+interface VideoPreview {
+  id: number;
+  fiber_id: number;
+  fiber_name: string;
+  video_link: string;
+  title?: string;
+  description?: string;
+}
+
 interface Message {
   role: 'user' | 'ai';
   content: string;
   fiberCards?: FiberCard[];
   structureImages?: StructureImage[];
+  relatedVideos?: VideoPreview[];
 }
 
 // Animated thinking loader component
@@ -199,7 +209,8 @@ const ClientDashboard: React.FC = () => {
         role: 'ai',
         content: response.response,
         fiberCards: response.fiber_cards,
-        structureImages: response.structure_images
+        structureImages: response.structure_images,
+        relatedVideos: response.related_videos
       }]);
 
       // Refresh history to show updated message count
@@ -398,6 +409,7 @@ const ClientDashboard: React.FC = () => {
                           content={msg.content}
                           fiberCards={msg.fiberCards}
                           structureImages={msg.structureImages}
+                          relatedVideos={msg.relatedVideos}
                           userName={user.full_name || 'U'}
                         />
                       ))}
