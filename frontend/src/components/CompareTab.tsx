@@ -551,13 +551,6 @@ const CompareTab: React.FC = () => {
                             </div>
                             <div className="text-xs text-gray-500">{currentProperty?.unit}</div>
                           </div>
-                          <div className="bg-orange-50 p-3 rounded-lg">
-                            <div className="text-xs text-gray-600 mb-0.5">Range</div>
-                            <div className="text-lg font-bold text-orange-600">
-                              {(maxValue - minValue).toFixed(2)}
-                            </div>
-                            <div className="text-xs text-gray-500">{currentProperty?.unit}</div>
-                          </div>
                         </div>
                       </div>
                     </div>
