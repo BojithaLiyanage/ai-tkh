@@ -5,7 +5,7 @@ from datetime import timedelta
 from app.db.session import get_db
 from app.models.models import (
     Module, Topic, Subtopic, ContentBlock, Tag, SubtopicTag, StudyGroup, SubtopicStudyGroup, User, Client, ClientOnboarding,
-    FiberClass, FiberSubtype, SyntheticType, PolymerizationType, Fiber, ChatbotConversation, FiberVideoLink
+    FiberClass, FiberSubtype, SyntheticType, PolymerizationType, Fiber, ChatbotConversation, FiberVideoLink, FiberEmbedding
 )
 from app.schemas.schemas import (
     ModuleCreate, ModuleRead, TopicCreate, TopicRead,
@@ -1714,4 +1714,323 @@ def clear_fiber_cache(
         raise HTTPException(
             status_code=500,
             detail=f"Error clearing cache: {str(e)}"
+        )
+
+# --- Fiber Embeddings ---
+@router.post("/fibers/generate-embeddings")
+async def generate_fiber_embeddings(
+    force_regenerate: bool = False,
+    _: User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Generate embeddings for all fibers in the database.
+
+    This endpoint:
+    1. Fetches all active fibers
+    2. Creates embeddings for multiple content types (name, description, properties, etc.)
+    3. Saves embeddings to fiber_embeddings table
+    4. Returns progress and statistics
+
+    Query Parameters:
+    - force_regenerate: If True, regenerates embeddings even if they exist
+
+    Returns:
+        {
+            "status": "success",
+            "total_fibers": int,
+            "total_embeddings_created": int,
+            "skipped": int,
+            "errors": int,
+            "processing_time_seconds": float,
+            "embeddings_by_type": dict
+        }
+    """
+    try:
+        from openai import OpenAI
+        from datetime import datetime
+        import time
+
+        start_time = time.time()
+        openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
+
+        # Get all active fibers
+        fibers = db.execute(
+            select(Fiber).where(Fiber.is_active == True).options(
+                joinedload(Fiber.fiber_class),
+                joinedload(Fiber.subtype)
+            )
+        ).unique().scalars().all()
+
+        print(f"\n{'='*70}")
+        print(f"EMBEDDING GENERATION STARTED")
+        print(f"Total fibers to process: {len(fibers)}")
+        print(f"Force regenerate: {force_regenerate}")
+        print(f"{'='*70}\n")
+
+        total_embeddings_created = 0
+        embeddings_by_type = {
+            "name": 0,
+            "description": 0,
+            "properties": 0,
+            "applications": 0
+        }
+        skipped_fibers = []
+        error_fibers = []
+
+        # Process each fiber
+        for idx, fiber in enumerate(fibers, 1):
+            try:
+                print(f"[{idx}/{len(fibers)}] Processing: {fiber.name}")
+
+                # Define embedding content types
+                embeddings_to_create = []
+
+                # 1. Fiber Name Embedding
+                embeddings_to_create.append({
+                    "content_type": "name",
+                    "content_text": fiber.name
+                })
+
+                # 2. Fiber Description Embedding (combine multiple fields)
+                description_parts = []
+                if fiber.polymer_composition:
+                    description_parts.append(f"Composition: {fiber.polymer_composition}")
+                if fiber.fiber_class:
+                    description_parts.append(f"Class: {fiber.fiber_class.name}")
+                if fiber.subtype:
+                    description_parts.append(f"Subtype: {fiber.subtype.name}")
+                if fiber.sources:
+                    description_parts.append(f"Sources: {', '.join(fiber.sources)}")
+
+                if description_parts:
+                    description = " ".join(description_parts)
+                    embeddings_to_create.append({
+                        "content_type": "description",
+                        "content_text": description
+                    })
+
+                # 3. Properties Embedding (numerical and physical properties)
+                properties_parts = []
+                if fiber.density_g_cm3:
+                    properties_parts.append(f"Density {fiber.density_g_cm3} g/cm³")
+                if fiber.tenacity_min_cn_tex or fiber.tenacity_max_cn_tex:
+                    tenacity = f"{fiber.tenacity_min_cn_tex or 'N/A'}-{fiber.tenacity_max_cn_tex or 'N/A'}"
+                    properties_parts.append(f"Tenacity {tenacity} cN/tex")
+                if fiber.moisture_regain_percent:
+                    properties_parts.append(f"Moisture regain {fiber.moisture_regain_percent}%")
+                if fiber.thermal_properties:
+                    properties_parts.append(f"Thermal: {fiber.thermal_properties}")
+                if fiber.acid_resistance or fiber.alkali_resistance or fiber.microbial_resistance:
+                    resistance = f"Acid:{fiber.acid_resistance}, Alkali:{fiber.alkali_resistance}, Microbial:{fiber.microbial_resistance}"
+                    properties_parts.append(f"Resistance: {resistance}")
+
+                if properties_parts:
+                    properties_text = " ".join(properties_parts)
+                    embeddings_to_create.append({
+                        "content_type": "properties",
+                        "content_text": properties_text
+                    })
+
+                # 4. Applications Embedding
+                if fiber.applications:
+                    applications_text = f"Applications: {', '.join(fiber.applications)}"
+                    embeddings_to_create.append({
+                        "content_type": "applications",
+                        "content_text": applications_text
+                    })
+
+                # Generate and save embeddings
+                for embedding_config in embeddings_to_create:
+                    content_type = embedding_config["content_type"]
+                    content_text = embedding_config["content_text"]
+
+                    # Check if embedding already exists
+                    existing = db.execute(
+                        select(FiberEmbedding).where(
+                            FiberEmbedding.fiber_id == fiber.id,
+                            FiberEmbedding.content_type == content_type
+                        )
+                    ).scalar_one_or_none()
+
+                    # Skip if exists and not forcing regeneration
+                    if existing and not force_regenerate:
+                        print(f"  └─ {content_type}: SKIPPED (exists)")
+                        continue
+
+                    # Delete existing if force regenerating
+                    if existing and force_regenerate:
+                        db.delete(existing)
+                        print(f"  └─ {content_type}: DELETED (force regenerate)")
+
+                    # Generate embedding
+                    print(f"  └─ {content_type}: GENERATING...")
+                    response = openai_client.embeddings.create(
+                        model="text-embedding-3-small",
+                        input=content_text
+                    )
+                    embedding_vector = response.data[0].embedding
+
+                    # Create and save FiberEmbedding
+                    fiber_embedding = FiberEmbedding(
+                        fiber_id=fiber.id,
+                        content_type=content_type,
+                        content_text=content_text,
+                        embedding=embedding_vector,
+                        embedding_model="text-embedding-3-small"
+                    )
+                    db.add(fiber_embedding)
+                    total_embeddings_created += 1
+                    embeddings_by_type[content_type] += 1
+                    print(f"     → {content_type}: SAVED ✓")
+
+                # Commit after each fiber to avoid huge transactions
+                db.commit()
+                print(f"  ✓ Fiber committed to database\n")
+
+            except Exception as fiber_error:
+                db.rollback()
+                error_msg = f"Error processing {fiber.name}: {str(fiber_error)}"
+                print(f"  ✗ {error_msg}\n")
+                error_fibers.append(error_msg)
+
+        # Final commit
+        db.commit()
+
+        elapsed_time = time.time() - start_time
+
+        print(f"{'='*70}")
+        print(f"EMBEDDING GENERATION COMPLETED")
+        print(f"Total fibers processed: {len(fibers)}")
+        print(f"Total embeddings created: {total_embeddings_created}")
+        print(f"Embeddings by type: {embeddings_by_type}")
+        print(f"Errors: {len(error_fibers)}")
+        print(f"Processing time: {elapsed_time:.2f} seconds")
+        print(f"{'='*70}\n")
+
+        return {
+            "status": "success",
+            "total_fibers": len(fibers),
+            "total_embeddings_created": total_embeddings_created,
+            "embeddings_by_type": embeddings_by_type,
+            "skipped": len(fibers) - len(error_fibers),
+            "errors": len(error_fibers),
+            "error_details": error_fibers if error_fibers else [],
+            "processing_time_seconds": elapsed_time
+        }
+
+    except Exception as e:
+        print(f"FATAL ERROR in embedding generation: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error generating embeddings: {str(e)}"
+        )
+
+
+@router.get("/fibers/embeddings/status")
+def get_embeddings_status(
+    _: User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get statistics about fiber embeddings in the database.
+
+    Returns:
+        {
+            "total_fibers": int,
+            "fibers_with_embeddings": int,
+            "total_embeddings": int,
+            "coverage_percentage": float,
+            "embeddings_by_type": dict,
+            "fibers_missing_embeddings": List[str]
+        }
+    """
+    try:
+        # Total active fibers
+        total_fibers = db.execute(
+            select(Fiber).where(Fiber.is_active == True)
+        ).scalars().all()
+
+        # Total embeddings
+        total_embeddings = db.execute(
+            select(FiberEmbedding)
+        ).scalars().all()
+
+        # Embeddings by type
+        embeddings_by_type = {}
+        for embedding in total_embeddings:
+            if embedding.content_type not in embeddings_by_type:
+                embeddings_by_type[embedding.content_type] = 0
+            embeddings_by_type[embedding.content_type] += 1
+
+        # Fibers with at least one embedding
+        fibers_with_embeddings = set()
+        for embedding in total_embeddings:
+            fibers_with_embeddings.add(embedding.fiber_id)
+
+        # Find fibers missing embeddings
+        fibers_missing_embeddings = []
+        for fiber in total_fibers:
+            if fiber.id not in fibers_with_embeddings:
+                fibers_missing_embeddings.append(fiber.name)
+
+        coverage_percentage = (len(fibers_with_embeddings) / len(total_fibers) * 100) if total_fibers else 0
+
+        return {
+            "total_fibers": len(total_fibers),
+            "fibers_with_embeddings": len(fibers_with_embeddings),
+            "fibers_missing_embeddings": len(fibers_missing_embeddings),
+            "total_embeddings": len(total_embeddings),
+            "coverage_percentage": round(coverage_percentage, 2),
+            "embeddings_by_type": embeddings_by_type,
+            "missing_fibers_list": fibers_missing_embeddings[:10]  # Show first 10
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error getting embeddings status: {str(e)}"
+        )
+
+
+@router.delete("/fibers/embeddings/{fiber_id}")
+def delete_fiber_embeddings(
+    fiber_id: int,
+    _: User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Delete all embeddings for a specific fiber.
+    Useful when you want to regenerate embeddings for a single fiber.
+    """
+    try:
+        # Get fiber to verify it exists
+        fiber = db.get(Fiber, fiber_id)
+        if not fiber:
+            raise HTTPException(status_code=404, detail="Fiber not found")
+
+        # Delete all embeddings for this fiber
+        embeddings = db.execute(
+            select(FiberEmbedding).where(FiberEmbedding.fiber_id == fiber_id)
+        ).scalars().all()
+
+        deleted_count = len(embeddings)
+        for embedding in embeddings:
+            db.delete(embedding)
+
+        db.commit()
+
+        return {
+            "status": "success",
+            "fiber_name": fiber.name,
+            "embeddings_deleted": deleted_count
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error deleting embeddings: {str(e)}"
         )
