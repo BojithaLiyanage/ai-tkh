@@ -1689,3 +1689,29 @@ def get_chat_history(
 
     conversations = db.execute(query).scalars().all()
     return conversations
+
+@router.post("/chatbot/cache/clear")
+def clear_fiber_cache(
+    _: User = Depends(get_current_active_user),  # Require authentication but don't use the user object
+    db: Session = Depends(get_db)
+):
+    """
+    Clear the fiber names cache. Call this endpoint after adding new fibers to the database.
+    This ensures the chatbot recognizes new fibers immediately without waiting for cache expiration.
+
+    Requires authentication (admin users only in production).
+    """
+    try:
+        from app.services.fiber_service import get_fiber_service
+
+        fiber_service = get_fiber_service(db)
+        fiber_service.clear_fiber_cache()
+        return {
+            "message": "Fiber names cache cleared successfully",
+            "status": "success"
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error clearing cache: {str(e)}"
+        )

@@ -20,6 +20,53 @@ class FiberSearchService:
     def __init__(self, db: Session):
         self.db = db
         self.openai_client = OpenAI(api_key=settings.OPENAI_API_KEY) if hasattr(settings, 'OPENAI_API_KEY') else None
+        self._fiber_names_cache = None
+        self._cache_timestamp = None
+        self._CACHE_DURATION_SECONDS = 3600  # 1 hour cache
+
+    def _get_fiber_names_from_db(self) -> List[str]:
+        """
+        Dynamically fetch all active fiber names from the database.
+        Caches results for performance (1 hour duration).
+
+        Returns:
+            List of fiber names from database
+        """
+        import time
+
+        # Check if cache is still valid
+        current_time = time.time()
+        if (self._fiber_names_cache is not None and
+            self._cache_timestamp is not None and
+            (current_time - self._cache_timestamp) < self._CACHE_DURATION_SECONDS):
+            print(f"[FIBER CACHE] Using cached fiber names ({len(self._fiber_names_cache)} fibers)")
+            return self._fiber_names_cache
+
+        try:
+            # Query all active fiber names from database
+            stmt = select(Fiber.name).where(Fiber.is_active == True).order_by(Fiber.name)
+            fiber_names = self.db.execute(stmt).scalars().all()
+
+            # Convert to list and cache it
+            fiber_names_list = [name.lower() for name in fiber_names] if fiber_names else []
+            self._fiber_names_cache = fiber_names_list
+            self._cache_timestamp = current_time
+
+            print(f"[FIBER CACHE] Updated cache: {len(fiber_names_list)} active fibers from database")
+            if fiber_names_list:
+                print(f"[FIBER CACHE] Sample fibers: {fiber_names_list[:5]}")
+
+            return fiber_names_list
+        except Exception as e:
+            print(f"[FIBER CACHE] Error fetching fiber names: {e}")
+            # Return empty list on error, cache will be retried next time
+            return []
+
+    def clear_fiber_cache(self):
+        """Manually clear the fiber names cache. Useful when new fibers are added."""
+        self._fiber_names_cache = None
+        self._cache_timestamp = None
+        print("[FIBER CACHE] Cache cleared")
 
     def normalize_query(self, query: str) -> List[str]:
         """
@@ -709,19 +756,17 @@ class FiberSearchService:
             "search_terms": []
         }
 
-        # Detect specific fiber names (common fibers)
-        common_fibers = [
-            "cotton", "polyester", "nylon", "wool", "silk", "rayon", "acrylic",
-            "linen", "hemp", "bamboo", "viscose", "spandex", "lycra", "modal",
-            "tencel", "kevlar", "nomex", "teflon", "polypropylene", "jute",
-            "aramid", "carbon", "glass", "elastane", "acetate", "lyocell"
-        ]
+        # DYNAMIC: Detect specific fiber names from database instead of hardcoded list
+        db_fiber_names = self._get_fiber_names_from_db()
 
-        for fiber in common_fibers:
-            if fiber in query_lower:
-                intent["entities"]["fiber_name"] = fiber
-                intent["search_terms"].append(fiber)
+        # Check if any database fiber name appears in the query
+        for fiber_name in db_fiber_names:
+            if fiber_name in query_lower:
+                # Store the original fiber name (with proper casing) for reference
+                intent["entities"]["fiber_name"] = fiber_name
+                intent["search_terms"].append(fiber_name)
                 intent["requires_search"] = True
+                print(f"[INTENT DETECTION] Found fiber in query: {fiber_name}")
                 break
 
         # Detect property queries
