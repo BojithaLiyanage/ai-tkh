@@ -1134,6 +1134,60 @@ def activate_fiber(
     db.commit()
     return {"message": "Fiber activated successfully"}
 
+# Get fibers for comparison with physical and mechanical properties
+@router.get("/fiber/compare")
+def get_fibers_for_comparison(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get fibers with physical and mechanical properties for comparison.
+    Returns: fiber_id, name, fiber_class, and all physical/mechanical properties
+    """
+    query = select(Fiber).options(
+        joinedload(Fiber.fiber_class)
+    ).where(Fiber.is_active == True).order_by(Fiber.name)
+
+    query = query.offset(skip).limit(limit)
+    fibers = db.execute(query).scalars().all()
+
+    result = []
+    for fiber in fibers:
+        # Helper function to convert Decimal to float safely
+        def to_float(value):
+            if value is None:
+                return None
+            return float(value)
+
+        fiber_data = {
+            "id": fiber.id,
+            "fiber_id": fiber.fiber_id,
+            "name": fiber.name,
+            "fiber_class": {
+                "id": fiber.fiber_class.id,
+                "name": fiber.fiber_class.name
+            } if fiber.fiber_class else None,
+            # Physical Properties
+            "density_g_cm3": to_float(fiber.density_g_cm3),
+            "fineness_min_um": to_float(fiber.fineness_min_um),
+            "fineness_max_um": to_float(fiber.fineness_max_um),
+            "staple_length_min_mm": to_float(fiber.staple_length_min_mm),
+            "staple_length_max_mm": to_float(fiber.staple_length_max_mm),
+            "tenacity_min_cn_tex": to_float(fiber.tenacity_min_cn_tex),
+            "tenacity_max_cn_tex": to_float(fiber.tenacity_max_cn_tex),
+            "elongation_min_percent": to_float(fiber.elongation_min_percent),
+            "elongation_max_percent": to_float(fiber.elongation_max_percent),
+            "moisture_regain_percent": to_float(fiber.moisture_regain_percent),
+            # Mechanical Properties
+            "elastic_modulus_min_gpa": to_float(fiber.elastic_modulus_min_gpa),
+            "elastic_modulus_max_gpa": to_float(fiber.elastic_modulus_max_gpa),
+        }
+        result.append(fiber_data)
+
+    return result
+
 # --- Cloudinary ---
 @router.post("/upload/image")
 def upload_image(

@@ -389,6 +389,30 @@ export interface FiberSummary {
   is_active: boolean;
 }
 
+export interface FiberComparison {
+  id: number;
+  fiber_id: string;
+  name: string;
+  fiber_class: {
+    id: number;
+    name: string;
+  } | null;
+  // Physical Properties
+  density_g_cm3: number | null;
+  fineness_min_um: number | null;
+  fineness_max_um: number | null;
+  staple_length_min_mm: number | null;
+  staple_length_max_mm: number | null;
+  tenacity_min_cn_tex: number | null;
+  tenacity_max_cn_tex: number | null;
+  elongation_min_percent: number | null;
+  elongation_max_percent: number | null;
+  moisture_regain_percent: number | null;
+  // Mechanical Properties
+  elastic_modulus_min_gpa: number | null;
+  elastic_modulus_max_gpa: number | null;
+}
+
 export interface FiberClassCreate {
   name: string;
   description?: string;
@@ -561,6 +585,15 @@ export const fiberApi = {
 
   getFiber: async (fiberId: number): Promise<FiberDetail> => {
     const response = await api.get(`/fiber/fibers/${fiberId}`);
+    return response.data;
+  },
+
+  // Fibers for comparison (with all physical and mechanical properties)
+  getFibersForComparison: async (params?: {
+    skip?: number;
+    limit?: number;
+  }): Promise<FiberComparison[]> => {
+    const response = await api.get('/fiber/compare', { params });
     return response.data;
   },
 
