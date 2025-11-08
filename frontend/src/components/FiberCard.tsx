@@ -13,7 +13,7 @@ interface FiberCardProps {
 const FiberCard: React.FC<FiberCardProps> = ({
   name,
   fiber_class,
-  subtype,
+  // subtype,
   description,
   applications,
   trade_names,

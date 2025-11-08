@@ -4,6 +4,7 @@ import ContentManagement from './ContentManagement';
 import ContentLibrary from './ContentLibrary';
 import FiberDatabaseManagement from './FiberDatabaseManagement';
 import UserManagement from './UserManagement';
+import QuestionBankManagement from './QuestionBankManagement';
 import Navbar from './Navbar';
 import { contentApi, type ContentStats } from '../services/api';
 
@@ -13,6 +14,7 @@ const AdminDashboard: React.FC = () => {
   const [showContentLibrary, setShowContentLibrary] = useState(false);
   const [showFiberDatabaseManagement, setShowFiberDatabaseManagement] = useState(false);
   const [showUserManagement, setShowUserManagement] = useState(false);
+  const [showQuestionBank, setShowQuestionBank] = useState(false);
   const [contentStats, setContentStats] = useState<ContentStats | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -175,6 +177,18 @@ const AdminDashboard: React.FC = () => {
               <p className="text-sm text-gray-500 mt-1">Manage fiber database entries</p>
             </div>
           </div>
+          <div
+            onClick={() => setShowQuestionBank(true)}
+            className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow duration-200 cursor-pointer"
+          >
+            <div className="text-center">
+              <div className="w-12 h-12 bg-pink-100 rounded-lg mx-auto mb-3 flex items-center justify-center">
+                <span className="text-pink-600 text-xl">❓</span>
+              </div>
+              <p className="font-medium text-gray-900">Question Bank</p>
+              <p className="text-sm text-gray-500 mt-1">Manage assessment questions</p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -237,6 +251,15 @@ const AdminDashboard: React.FC = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <FiberDatabaseManagement
             onClose={() => setShowFiberDatabaseManagement(false)}
+          />
+        </div>
+      )}
+
+      {/* Question Bank Management Modal */}
+      {showQuestionBank && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <QuestionBankManagement
+            onClose={() => setShowQuestionBank(false)}
           />
         </div>
       )}
