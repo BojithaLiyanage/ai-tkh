@@ -76,7 +76,7 @@ const ClientDashboard: React.FC = () => {
   const { user } = useAuth();
   const [onboardingStatus, setOnboardingStatus] = useState<OnboardingStatus | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'chatbot' | 'assessments'>('chatbot');
+  const [activeTab, setActiveTab] = useState<'chatbot' | 'assessments' | 'compare'>('chatbot');
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -258,6 +258,12 @@ const ClientDashboard: React.FC = () => {
       onClick: () => setActiveTab('chatbot')
     },
     {
+      id: 'compare',
+      label: 'Compare',
+      isActive: activeTab === 'compare',
+      onClick: () => setActiveTab('compare')
+    },
+    {
       id: 'assessments',
       label: 'Assessments',
       isActive: activeTab === 'assessments',
@@ -434,6 +440,8 @@ const ClientDashboard: React.FC = () => {
               </div>
           </div>
         )}
+
+        {activeTab === 'compare' && <CompareTab />}
 
         {activeTab === 'assessments' && (
           <div className="flex-1 p-8 overflow-y-auto">

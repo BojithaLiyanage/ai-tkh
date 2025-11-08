@@ -277,7 +277,11 @@ class Fiber(Base):
     glass_transition_temp_c = Column(DECIMAL(6, 2))
     melting_point_c = Column(DECIMAL(6, 2))
     decomposition_temp_c = Column(DECIMAL(6, 2))
-    
+
+    # Mechanical Properties
+    elastic_modulus_min_gpa = Column(DECIMAL(8, 2))
+    elastic_modulus_max_gpa = Column(DECIMAL(8, 2))
+
     # Structure
     repeating_unit = Column(Text)
     molecular_structure_smiles = Column(Text)
@@ -567,7 +571,11 @@ class FiberDetailResponse(BaseModel):
     glass_transition_temp_c: Optional[float] = None
     melting_point_c: Optional[float] = None
     decomposition_temp_c: Optional[float] = None
-    
+
+    # Mechanical Properties
+    elastic_modulus_min_gpa: Optional[float] = None
+    elastic_modulus_max_gpa: Optional[float] = None
+
     # Structure
     repeating_unit: Optional[str] = None
     molecular_structure_smiles: Optional[str] = None

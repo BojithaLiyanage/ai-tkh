@@ -309,6 +309,8 @@ class FiberCreate(BaseModel):
     glass_transition_temp_c: Optional[float] = None
     melting_point_c: Optional[float] = None
     decomposition_temp_c: Optional[float] = None
+    elastic_modulus_min_gpa: Optional[float] = None
+    elastic_modulus_max_gpa: Optional[float] = None
     repeating_unit: Optional[str] = None
     molecular_structure_smiles: Optional[str] = None
     structure_image_cms_id: Optional[str] = None
@@ -363,6 +365,8 @@ class FiberRead(BaseModel):
     glass_transition_temp_c: Optional[float] = None
     melting_point_c: Optional[float] = None
     decomposition_temp_c: Optional[float] = None
+    elastic_modulus_min_gpa: Optional[float] = None
+    elastic_modulus_max_gpa: Optional[float] = None
     repeating_unit: Optional[str] = None
     molecular_structure_smiles: Optional[str] = None
     structure_image_cms_id: Optional[str] = None
@@ -413,6 +417,8 @@ class FiberUpdate(BaseModel):
     glass_transition_temp_c: Optional[float] = None
     melting_point_c: Optional[float] = None
     decomposition_temp_c: Optional[float] = None
+    elastic_modulus_min_gpa: Optional[float] = None
+    elastic_modulus_max_gpa: Optional[float] = None
     repeating_unit: Optional[str] = None
     molecular_structure_smiles: Optional[str] = None
     structure_image_cms_id: Optional[str] = None
