@@ -5,7 +5,7 @@ from datetime import timedelta
 from app.db.session import get_db
 from app.models.models import (
     Module, Topic, Subtopic, ContentBlock, Tag, SubtopicTag, StudyGroup, SubtopicStudyGroup, User, Client, ClientOnboarding,
-    FiberClass, FiberSubtype, SyntheticType, PolymerizationType, Fiber, ChatbotConversation, FiberVideoLink, FiberEmbedding
+    FiberClass, FiberSubtype, SyntheticType, PolymerizationType, Fiber, ChatbotConversation, FiberVideoLink, FiberEmbedding, Question
 )
 from app.schemas.schemas import (
     ModuleCreate, ModuleRead, TopicCreate, TopicRead,
@@ -19,7 +19,8 @@ from app.schemas.schemas import (
     PolymerizationTypeCreate, PolymerizationTypeRead, PolymerizationTypeUpdate,
     FiberCreate, FiberRead, FiberUpdate, FiberSummaryRead,
     ChatMessage, ChatResponse, ChatbotConversationRead, StartConversationResponse, EndConversationResponse,
-    FiberVideoLinkCreate, FiberVideoLinkRead, FiberVideoLinkUpdate, VideoPreview
+    FiberVideoLinkCreate, FiberVideoLinkRead, FiberVideoLinkUpdate, VideoPreview,
+    QuestionCreate, QuestionRead, QuestionUpdate, QuestionWithFiberRead
 )
 from typing import List
 from app.core.auth import (
@@ -2033,4 +2034,260 @@ def delete_fiber_embeddings(
         raise HTTPException(
             status_code=500,
             detail=f"Error deleting embeddings: {str(e)}"
+        )
+
+
+# ==================================================
+# Question Bank / Assessment Endpoints
+# ==================================================
+
+@router.get("/questions", response_model=List[QuestionWithFiberRead])
+def get_all_questions(
+    fiber_id: int = None,
+    study_group_code: str = None,
+    limit: int = 100,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_admin_user)
+):
+    """
+    Get all questions from the question bank with optional filters.
+    Admin only endpoint.
+    """
+    try:
+        query = select(Question).join(Fiber).join(StudyGroup)
+
+        if fiber_id:
+            query = query.where(Question.fiber_id == fiber_id)
+
+        if study_group_code:
+            query = query.where(Question.study_group_code == study_group_code)
+
+        query = query.offset(offset).limit(limit)
+
+        questions = db.execute(query).scalars().all()
+
+        # Transform to QuestionWithFiberRead format
+        result = []
+        for q in questions:
+            result.append({
+                "id": q.id,
+                "fiber_id": q.fiber_id,
+                "fiber_name": q.fiber.name,
+                "study_group_code": q.study_group_code,
+                "study_group_name": q.study_group.name,
+                "question": q.question,
+                "options": q.options,
+                "correct_answer": q.correct_answer,
+                "created_at": q.created_at,
+                "updated_at": q.updated_at
+            })
+
+        return result
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error fetching questions: {str(e)}"
+        )
+
+
+@router.post("/questions", response_model=QuestionRead, status_code=201)
+def create_question(
+    question_data: QuestionCreate,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_admin_user)
+):
+    """
+    Create a new question in the question bank.
+    Admin only endpoint.
+    """
+    try:
+        # Verify fiber exists
+        fiber = db.get(Fiber, question_data.fiber_id)
+        if not fiber:
+            raise HTTPException(status_code=404, detail="Fiber not found")
+
+        # Verify study group exists
+        study_group = db.get(StudyGroup, question_data.study_group_code)
+        if not study_group:
+            raise HTTPException(status_code=404, detail="Study group not found")
+
+        # Verify correct answer is in options
+        if question_data.correct_answer not in question_data.options:
+            raise HTTPException(
+                status_code=400,
+                detail="Correct answer must be one of the provided options"
+            )
+
+        # Create question
+        new_question = Question(
+            fiber_id=question_data.fiber_id,
+            study_group_code=question_data.study_group_code,
+            question=question_data.question,
+            options=question_data.options,
+            correct_answer=question_data.correct_answer
+        )
+
+        db.add(new_question)
+        db.commit()
+        db.refresh(new_question)
+
+        return new_question
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error creating question: {str(e)}"
+        )
+
+
+@router.get("/questions/{question_id}", response_model=QuestionRead)
+def get_question(
+    question_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_admin_user)
+):
+    """
+    Get a specific question by ID.
+    Admin only endpoint.
+    """
+    question = db.get(Question, question_id)
+    if not question:
+        raise HTTPException(status_code=404, detail="Question not found")
+
+    return question
+
+
+@router.put("/questions/{question_id}", response_model=QuestionRead)
+def update_question(
+    question_id: int,
+    question_data: QuestionUpdate,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_admin_user)
+):
+    """
+    Update an existing question.
+    Admin only endpoint.
+    """
+    try:
+        question = db.get(Question, question_id)
+        if not question:
+            raise HTTPException(status_code=404, detail="Question not found")
+
+        # Update fields if provided
+        if question_data.question is not None:
+            question.question = question_data.question
+
+        if question_data.options is not None:
+            question.options = question_data.options
+
+        if question_data.correct_answer is not None:
+            # Verify correct answer is in options
+            options_to_check = question_data.options if question_data.options is not None else question.options
+            if question_data.correct_answer not in options_to_check:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Correct answer must be one of the provided options"
+                )
+            question.correct_answer = question_data.correct_answer
+
+        if question_data.study_group_code is not None:
+            # Verify study group exists
+            study_group = db.get(StudyGroup, question_data.study_group_code)
+            if not study_group:
+                raise HTTPException(status_code=404, detail="Study group not found")
+            question.study_group_code = question_data.study_group_code
+
+        db.commit()
+        db.refresh(question)
+
+        return question
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error updating question: {str(e)}"
+        )
+
+
+@router.delete("/questions/{question_id}")
+def delete_question(
+    question_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_admin_user)
+):
+    """
+    Delete a question from the question bank.
+    Admin only endpoint.
+    """
+    try:
+        question = db.get(Question, question_id)
+        if not question:
+            raise HTTPException(status_code=404, detail="Question not found")
+
+        db.delete(question)
+        db.commit()
+
+        return {"status": "success", "message": "Question deleted successfully"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error deleting question: {str(e)}"
+        )
+
+
+@router.get("/questions/stats/summary")
+def get_question_stats(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_admin_user)
+):
+    """
+    Get statistics about the question bank.
+    Admin only endpoint.
+    """
+    try:
+        from sqlalchemy import func, distinct
+
+        total_questions = db.query(func.count(Question.id)).scalar()
+        total_fibers_with_questions = db.query(func.count(distinct(Question.fiber_id))).scalar()
+
+        # Questions per study group
+        questions_by_group = db.execute(
+            select(
+                StudyGroup.code,
+                StudyGroup.name,
+                func.count(Question.id).label("count")
+            )
+            .outerjoin(Question, Question.study_group_code == StudyGroup.code)
+            .group_by(StudyGroup.code, StudyGroup.name)
+        ).all()
+
+        return {
+            "total_questions": total_questions,
+            "total_fibers_with_questions": total_fibers_with_questions,
+            "questions_by_study_group": [
+                {
+                    "code": group.code,
+                    "name": group.name,
+                    "count": group.count
+                }
+                for group in questions_by_group
+            ]
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error fetching question stats: {str(e)}"
         )

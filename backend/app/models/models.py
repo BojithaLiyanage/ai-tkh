@@ -485,6 +485,29 @@ class FiberVideoLink(Base):
     )
 
 
+class Question(Base):
+    __tablename__ = "questions"
+
+    id = Column(Integer, primary_key=True)
+    fiber_id = Column(Integer, ForeignKey("fibers.id", ondelete="CASCADE"), nullable=False)
+    study_group_code = Column(String(1), ForeignKey("study_groups.code"), nullable=False)
+    question = Column(Text, nullable=False)
+    options = Column(ARRAY(String), nullable=False)
+    correct_answer = Column(String(500), nullable=False)
+    created_at = Column(DateTime, default=func.current_timestamp())
+    updated_at = Column(DateTime, default=func.current_timestamp(), onupdate=func.current_timestamp())
+
+    # Relationships
+    fiber = relationship("Fiber", backref="questions")
+    study_group = relationship("StudyGroup", backref="questions")
+
+    __table_args__ = (
+        Index('idx_questions_fiber_id', 'fiber_id'),
+        Index('idx_questions_study_group_code', 'study_group_code'),
+        UniqueConstraint('fiber_id', 'question', name='uq_questions_fiber_question'),
+    )
+
+
 # ==================================================
 # Pydantic Response Models
 # ==================================================
