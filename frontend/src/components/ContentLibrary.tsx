@@ -396,35 +396,39 @@ const ContentLibrary: React.FC<ContentLibraryProps> = ({ onClose }) => {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl shadow-2xl max-w-6xl w-full h-[90vh] flex items-center justify-center">
+      <div className="bg-white rounded-xl shadow-2xl w-full h-[90vh] flex items-center justify-center">
         <div className="text-gray-600">Loading content library...</div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-2xl max-w-6xl w-full h-[90vh] flex flex-col">
-      <div className="sticky top-0 bg-white border-b border-gray-200 p-6">
-        <div className="flex justify-between items-center">
-          <h2 className="text-2xl font-semibold text-gray-900">Content Library</h2>
-          <div className="flex items-center gap-4">
-            {canEdit && (
-              <button
-                onClick={() => setShowModuleForm(true)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                + Add Module
-              </button>
-            )}
-            {onClose && (
-              <button
-                onClick={onClose}
-                className="text-gray-400 hover:text-gray-600 text-xl font-bold"
-              >
-                ×
-              </button>
-            )}
-          </div>
+    <div className="bg-white rounded-lg shadow-xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6 flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-bold">Content Library Management</h2>
+          <p className="text-blue-100 mt-1">Manage modules, topics, and subtopics</p>
+        </div>
+        <div className="flex items-center gap-4">
+          {canEdit && (
+            <button
+              onClick={() => setShowModuleForm(true)}
+              className="px-4 py-2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white rounded-lg transition-colors font-medium"
+            >
+              + Add Module
+            </button>
+          )}
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="text-white hover:bg-white hover:bg-opacity-20 rounded-full p-2 transition-colors"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
 

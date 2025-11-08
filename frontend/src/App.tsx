@@ -26,7 +26,7 @@ const AppRoutes: React.FC = () => {
         element={user ? <Navigate to="/dashboard" replace /> : <Signup />} 
       />
       <Route
-        path="/dashboard"
+        path="/dashboard/*"
         element={
           <ProtectedRoute>
             <Dashboard />

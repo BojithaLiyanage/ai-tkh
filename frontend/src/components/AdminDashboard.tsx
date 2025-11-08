@@ -1,268 +1,255 @@
 import React, { useState, useEffect } from 'react';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import ContentManagement from './ContentManagement';
 import ContentLibrary from './ContentLibrary';
 import FiberDatabaseManagement from './FiberDatabaseManagement';
-import UserManagement from './UserManagement';
 import QuestionBankManagement from './QuestionBankManagement';
 import Navbar from './Navbar';
-import { contentApi, type ContentStats } from '../services/api';
+import { contentApi, fiberApi, questionApi, type ContentStats, type QuestionStats, type FiberClass } from '../services/api';
 
-const AdminDashboard: React.FC = () => {
-  const { user } = useAuth();
-  const [showContentManagement, setShowContentManagement] = useState(false);
-  const [showContentLibrary, setShowContentLibrary] = useState(false);
-  const [showFiberDatabaseManagement, setShowFiberDatabaseManagement] = useState(false);
-  const [showUserManagement, setShowUserManagement] = useState(false);
-  const [showQuestionBank, setShowQuestionBank] = useState(false);
+const AdminHome: React.FC = () => {
+  const navigate = useNavigate();
   const [contentStats, setContentStats] = useState<ContentStats | null>(null);
+  const [fiberCount, setFiberCount] = useState<number>(0);
+  const [fiberClasses, setFiberClasses] = useState<FiberClass[]>([]);
+  const [questionStats, setQuestionStats] = useState<QuestionStats | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchContentStats = async () => {
+  useEffect(() => {
+    fetchAllStats();
+  }, []);
+
+  const fetchAllStats = async () => {
     try {
-      const stats = await contentApi.getContentStats();
-      setContentStats(stats);
+      setLoading(true);
+      const [content, fibers, classes, questions] = await Promise.all([
+        contentApi.getContentStats(),
+        fiberApi.getFibers(),
+        fiberApi.getFiberClasses(),
+        questionApi.getQuestionStats(),
+      ]);
+      setContentStats(content);
+      setFiberCount(fibers.length);
+      setFiberClasses(classes);
+      setQuestionStats(questions);
     } catch (error) {
-      console.error('Failed to fetch content stats:', error);
+      console.error('Failed to fetch stats:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchContentStats();
-  }, []);
-
-  if (!user || user.user_type !== 'admin') {
-    return <div className="loading">Access denied...</div>;
+  if (loading) {
+    return (
+      <div className="text-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+        <p className="text-gray-600 mt-4">Loading statistics...</p>
+      </div>
+    );
   }
 
   return (
-    <>
-      <Navbar />
-      <div className="max-w-7xl mx-auto p-5 bg-gray-50 min-h-screen">
+    <div className="max-w-7xl mx-auto">
+      <h1 className="text-3xl font-bold text-gray-900 mb-6">Dashboard Overview</h1>
 
-      {/* Admin Features Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        {/* Content Management */}
-        <div className="bg-white p-8 rounded-xl shadow-lg border border-gray-200">
-          <h2 className="text-gray-900 text-2xl font-semibold mb-5 flex items-center">
-            <span className="w-3 h-3 bg-blue-500 rounded-full mr-3"></span>
-            Content Overview
-          </h2>
-          <div className="space-y-4">
-            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-              <span className="text-gray-600">Total Modules</span>
-              <span className="font-semibold text-gray-900">
-                {loading ? 'Loading...' : contentStats?.total_modules || 0}
-              </span>
-            </div>
-            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-              <span className="text-gray-600">Topics Created</span>
-              <span className="font-semibold text-gray-900">
-                {loading ? 'Loading...' : contentStats?.total_topics || 0}
-              </span>
-            </div>
-            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-              <span className="text-gray-600">Subtopics</span>
-              <span className="font-semibold text-blue-600">
-                {loading ? 'Loading...' : contentStats?.total_subtopics || 0}
-              </span>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Module Summary */}
+        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200 hover:shadow-xl transition-shadow">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-900">Module Summary</h2>
+            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
             </div>
           </div>
-        </div>
-
-        {/* Content Actions */}
-        <div className="bg-white p-8 rounded-xl shadow-lg border border-gray-200">
-          <h2 className="text-gray-900 text-2xl font-semibold mb-5 flex items-center">
-            <span className="w-3 h-3 bg-green-500 rounded-full mr-3"></span>
-            Content Management
-          </h2>
           <div className="space-y-3">
-            <button 
-              onClick={() => setShowContentManagement(true)}
-              className="w-full p-4 text-left bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors duration-200"
+            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+              <span className="text-gray-600 text-sm">Total Modules</span>
+              <span className="text-2xl font-bold text-blue-600">{contentStats?.total_modules || 0}</span>
+            </div>
+            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+              <span className="text-gray-600 text-sm">Topics</span>
+              <span className="text-xl font-semibold text-gray-900">{contentStats?.total_topics || 0}</span>
+            </div>
+            <button
+              onClick={() => navigate('/dashboard/admin-tools/content-library')}
+              className="w-full mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
             >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-blue-900">Manage Content</p>
-                  <p className="text-sm text-blue-600">Create modules, topics, and subtopics</p>
-                </div>
-                <span className="text-blue-500 text-lg">→</span>
-              </div>
+              Manage Modules
             </button>
-            {/* <button 
-              onClick={() => setShowContentManagement(true)}
-              className="w-full p-4 text-left bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors duration-200"
+          </div>
+        </div>
+
+        {/* Fibers Summary */}
+        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200 hover:shadow-xl transition-shadow">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-900">Fibers Summary</h2>
+            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+              <span className="text-2xl">🧵</span>
+            </div>
+          </div>
+          <div className="space-y-3">
+            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+              <span className="text-gray-600 text-sm">Total Fibers</span>
+              <span className="text-2xl font-bold text-purple-600">{fiberCount}</span>
+            </div>
+            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+              <span className="text-gray-600 text-sm">Classes</span>
+              <span className="text-xl font-semibold text-gray-900">{fiberClasses.length}</span>
+            </div>
+            <button
+              onClick={() => navigate('/dashboard/admin-tools/fiber-database')}
+              className="w-full mt-4 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
             >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-green-900">Add Learning Content</p>
-                  <p className="text-sm text-green-600">Create educational content for students</p>
-                </div>
-                <span className="text-green-500 text-lg">→</span>
-              </div>
-            </button> */}
-            {/* <button className="w-full p-4 text-left bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors duration-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-purple-900">Content Analytics</p>
-                  <p className="text-sm text-purple-600">View content engagement metrics</p>
-                </div>
-                <span className="text-purple-500 text-lg">→</span>
-              </div>
-            </button> */}
+              Manage Fibers
+            </button>
+          </div>
+        </div>
+
+        {/* Question Bank Summary */}
+        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200 hover:shadow-xl transition-shadow">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-900">Question Bank</h2>
+            <div className="w-12 h-12 bg-pink-100 rounded-lg flex items-center justify-center">
+              <span className="text-2xl">❓</span>
+            </div>
+          </div>
+          <div className="space-y-3">
+            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+              <span className="text-gray-600 text-sm">Total Questions</span>
+              <span className="text-2xl font-bold text-pink-600">{questionStats?.total_questions || 0}</span>
+            </div>
+            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+              <span className="text-gray-600 text-sm">Fibers Covered</span>
+              <span className="text-xl font-semibold text-gray-900">{questionStats?.total_fibers_with_questions || 0}</span>
+            </div>
+            <button
+              onClick={() => navigate('/dashboard/admin-tools/question-bank')}
+              className="w-full mt-4 px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors text-sm font-medium"
+            >
+              Manage Questions
+            </button>
           </div>
         </div>
       </div>
+    </div>
+  );
+};
 
-      {/* Tools & Resources */}
-      <div className="bg-white p-8 rounded-xl shadow-lg border border-gray-200 mb-6">
-        <h2 className="text-gray-900 text-2xl font-semibold mb-5 flex items-center">
-          <span className="w-3 h-3 bg-indigo-500 rounded-full mr-3"></span>
-          Admin Tools
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          <div
-            onClick={() => setShowContentLibrary(true)}
-            className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow duration-200 cursor-pointer"
+const AdminTools: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const getActiveTab = () => {
+    if (location.pathname.includes('content-library')) return 'content';
+    if (location.pathname.includes('fiber-database')) return 'fibers';
+    if (location.pathname.includes('question-bank')) return 'questions';
+    return 'content';
+  };
+
+  const activeTab = getActiveTab();
+
+  return (
+    <div className="h-full flex flex-col">
+      {/* Sub-tabs */}
+      <div className="bg-white border-b border-gray-200 px-6">
+        <div className="flex space-x-1">
+          <button
+            onClick={() => navigate('/dashboard/admin-tools/content-library')}
+            className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'content'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+            }`}
           >
-            <div className="text-center">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg mx-auto mb-3 flex items-center justify-center">
-                <span className="text-blue-600 text-xl">📚</span>
-              </div>
-              <p className="font-medium text-gray-900">Content Library</p>
-              <p className="text-sm text-gray-500 mt-1">View and manage educational content</p>
-            </div>
-          </div>
-          {/* <div className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow duration-200 cursor-pointer">
-            <div className="text-center">
-              <div className="w-12 h-12 bg-green-100 rounded-lg mx-auto mb-3 flex items-center justify-center">
-                <span className="text-green-600 text-xl">📊</span>
-              </div>
-              <p className="font-medium text-gray-900">Content Analytics</p>
-              <p className="text-sm text-gray-500 mt-1">View learning metrics</p>
-            </div>
-          </div> */}
-          {/* <div className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow duration-200 cursor-pointer">
-            <div className="text-center">
-              <div className="w-12 h-12 bg-orange-100 rounded-lg mx-auto mb-3 flex items-center justify-center">
-                <span className="text-orange-600 text-xl">🏷️</span>
-              </div>
-              <p className="font-medium text-gray-900">Tags & Categories</p>
-              <p className="text-sm text-gray-500 mt-1">Organize content structure</p>
-            </div>
-          </div> */}
-          {/* <div
-            onClick={() => setShowUserManagement(true)}
-            className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow duration-200 cursor-pointer"
+            📚 Content Library
+          </button>
+          <button
+            onClick={() => navigate('/dashboard/admin-tools/fiber-database')}
+            className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'fibers'
+                ? 'border-purple-600 text-purple-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+            }`}
           >
-            <div className="text-center">
-              <div className="w-12 h-12 bg-indigo-100 rounded-lg mx-auto mb-3 flex items-center justify-center">
-                <span className="text-indigo-600 text-xl">👥</span>
-              </div>
-              <p className="font-medium text-gray-900">User Management</p>
-              <p className="text-sm text-gray-500 mt-1">Manage users and clients</p>
-            </div>
-          </div> */}
-          <div
-            onClick={() => setShowFiberDatabaseManagement(true)}
-            className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow duration-200 cursor-pointer"
+            🧵 Fiber Database
+          </button>
+          <button
+            onClick={() => navigate('/dashboard/admin-tools/question-bank')}
+            className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'questions'
+                ? 'border-pink-600 text-pink-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+            }`}
           >
-            <div className="text-center">
-              <div className="w-12 h-12 bg-purple-100 rounded-lg mx-auto mb-3 flex items-center justify-center">
-                <span className="text-purple-600 text-xl">🧵</span>
-              </div>
-              <p className="font-medium text-gray-900">Fiber Database</p>
-              <p className="text-sm text-gray-500 mt-1">Manage fiber database entries</p>
-            </div>
-          </div>
-          <div
-            onClick={() => setShowQuestionBank(true)}
-            className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow duration-200 cursor-pointer"
-          >
-            <div className="text-center">
-              <div className="w-12 h-12 bg-pink-100 rounded-lg mx-auto mb-3 flex items-center justify-center">
-                <span className="text-pink-600 text-xl">❓</span>
-              </div>
-              <p className="font-medium text-gray-900">Question Bank</p>
-              <p className="text-sm text-gray-500 mt-1">Manage assessment questions</p>
-            </div>
-          </div>
+            ❓ Question Bank
+          </button>
         </div>
       </div>
 
-      {/* Recent Activity */}
-      <div className="bg-white p-8 rounded-xl shadow-lg border border-gray-200">
-        <h2 className="text-gray-900 text-2xl font-semibold mb-5 flex items-center">
-          <span className="w-3 h-3 bg-yellow-500 rounded-full mr-3"></span>
-          Recent Activity
-        </h2>
-        <div className="space-y-3">
-          <div className="flex items-center p-4 bg-gray-50 rounded-lg">
-            <div className="w-2 h-2 bg-blue-400 rounded-full mr-4"></div>
-            <div className="flex-1">
-              <p className="text-sm text-gray-900 font-medium">Admin dashboard accessed</p>
-              <p className="text-xs text-gray-500">Logged in successfully</p>
+      {/* Tool Content - Full Screen */}
+      <div className="flex-1 overflow-hidden">
+        <Routes>
+          <Route path="content-library" element={
+            <div className="h-full w-full p-6">
+              <ContentLibrary onClose={() => {}} />
             </div>
-            <span className="text-xs text-gray-400">Just now</span>
-          </div>
-          <div className="flex items-center justify-center p-8 text-gray-500">
-            <p>No recent activity to display</p>
-          </div>
-        </div>
+          } />
+          <Route path="fiber-database" element={
+            <div className="h-full p-6">
+              <FiberDatabaseManagement onClose={() => {}} />
+            </div>
+          } />
+          <Route path="question-bank" element={
+            <div className="h-full p-6">
+              <QuestionBankManagement onClose={() => {}} />
+            </div>
+          } />
+          <Route path="*" element={<Navigate to="content-library" replace />} />
+        </Routes>
       </div>
+    </div>
+  );
+};
 
-      {/* Content Management Modal */}
-      {showContentManagement && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <ContentManagement
-            onClose={() => setShowContentManagement(false)}
-            onContentUpdated={() => {
-              fetchContentStats(); // Refresh content statistics when content is updated
-            }}
-          />
-        </div>
-      )}
+const AdminDashboard: React.FC = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-      {/* User Management Modal */}
-      {showUserManagement && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <UserManagement
-            onClose={() => setShowUserManagement(false)}
-            onUserUpdated={() => {
-              // Could refresh any user statistics here if needed
-            }}
-          />
-        </div>
-      )}
+  if (!user || (user.user_type !== 'admin' && user.user_type !== 'super_admin')) {
+    return <div className="loading">Access denied...</div>;
+  }
 
-      {/* Content Library Modal */}
-      {showContentLibrary && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <ContentLibrary
-            onClose={() => setShowContentLibrary(false)}
-          />
-        </div>
-      )}
+  const isAdminToolsActive = location.pathname.includes('/admin-tools');
 
-      {/* Fiber Database Management Modal */}
-      {showFiberDatabaseManagement && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <FiberDatabaseManagement
-            onClose={() => setShowFiberDatabaseManagement(false)}
-          />
-        </div>
-      )}
+  const navbarTabs = [
+    {
+      id: 'home',
+      label: 'Home',
+      isActive: !isAdminToolsActive,
+      onClick: () => navigate('/dashboard/admin-home')
+    },
+    {
+      id: 'admin-tools',
+      label: 'Admin Tools',
+      isActive: isAdminToolsActive,
+      onClick: () => navigate('/dashboard/admin-tools/content-library')
+    }
+  ];
 
-      {/* Question Bank Management Modal */}
-      {showQuestionBank && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <QuestionBankManagement
-            onClose={() => setShowQuestionBank(false)}
-          />
+  return (
+    <>
+      <Navbar tabs={navbarTabs} />
+      <div className="bg-gray-50 overflow-hidden" style={{ height: 'calc(100vh - 64px)' }}>
+        <div className="h-full overflow-y-auto p-6">
+          <Routes>
+            <Route path="admin-home" element={<AdminHome />} />
+            <Route path="admin-tools/*" element={<AdminTools />} />
+            <Route path="*" element={<Navigate to="admin-home" replace />} />
+          </Routes>
         </div>
-      )}
       </div>
     </>
   );

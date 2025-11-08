@@ -567,16 +567,13 @@ const FiberDatabaseManagement: React.FC<FiberDatabaseManagementProps> = ({ onClo
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-screen overflow-hidden flex flex-col">
+    <div className="bg-white rounded-lg shadow-xl w-full max-h-[90vh] overflow-hidden flex flex-col">
       {/* Header */}
-      <div className="p-6 border-b border-gray-200 flex justify-between items-center">
-        <h2 className="text-2xl font-semibold text-gray-900">Fiber Database Management</h2>
-        <button
-          onClick={onClose}
-          className="text-gray-400 hover:text-gray-600 text-2xl"
-        >
-          ×
-        </button>
+      <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-6 flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-bold">Fiber Database Management</h2>
+          <p className="text-purple-100 mt-1">Manage fibers, classes, and properties</p>
+        </div>
       </div>
 
       {/* Error/Success Messages */}
