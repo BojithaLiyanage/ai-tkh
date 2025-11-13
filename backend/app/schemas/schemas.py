@@ -522,3 +522,43 @@ class VideoPreview(BaseModel):
     video_link: str
     title: Optional[str] = None
     description: Optional[str] = None
+
+
+# ---- questions (assessments/question bank)
+class QuestionCreate(BaseModel):
+    fiber_id: int
+    study_group_code: str = Field(..., min_length=1, max_length=1)
+    question: str
+    options: List[str] = Field(..., min_items=2)
+    correct_answer: str
+
+class QuestionRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    fiber_id: int
+    study_group_code: str
+    question: str
+    options: List[str]
+    correct_answer: str
+    created_at: datetime
+    updated_at: datetime
+
+class QuestionUpdate(BaseModel):
+    question: Optional[str] = None
+    options: Optional[List[str]] = Field(None, min_items=2)
+    correct_answer: Optional[str] = None
+    study_group_code: Optional[str] = Field(None, min_length=1, max_length=1)
+
+class QuestionWithFiberRead(BaseModel):
+    """Question with fiber details for admin view"""
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    fiber_id: int
+    fiber_name: str
+    study_group_code: str
+    study_group_name: str
+    question: str
+    options: List[str]
+    correct_answer: str
+    created_at: datetime
+    updated_at: datetime

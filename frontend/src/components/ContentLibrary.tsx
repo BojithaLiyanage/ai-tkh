@@ -396,38 +396,14 @@ const ContentLibrary: React.FC<ContentLibraryProps> = ({ onClose }) => {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl shadow-2xl max-w-6xl w-full h-[90vh] flex items-center justify-center">
+      <div className="bg-white rounded-xl shadow-2xl w-full h-[90vh] flex items-center justify-center">
         <div className="text-gray-600">Loading content library...</div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-2xl max-w-6xl w-full h-[90vh] flex flex-col">
-      <div className="sticky top-0 bg-white border-b border-gray-200 p-6">
-        <div className="flex justify-between items-center">
-          <h2 className="text-2xl font-semibold text-gray-900">Content Library</h2>
-          <div className="flex items-center gap-4">
-            {canEdit && (
-              <button
-                onClick={() => setShowModuleForm(true)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                + Add Module
-              </button>
-            )}
-            {onClose && (
-              <button
-                onClick={onClose}
-                className="text-gray-400 hover:text-gray-600 text-xl font-bold"
-              >
-                ×
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
+    <div className="bg-white rounded-lg shadow-xl w-full max-h-full flex flex-col">
       <div className="flex-1 overflow-y-auto p-6">
         {/* Status Messages */}
         {error && (
@@ -479,6 +455,18 @@ const ContentLibrary: React.FC<ContentLibraryProps> = ({ onClose }) => {
                 </button>
               </div>
             </form>
+          </div>
+        )}
+
+        {/* Add Module Button */}
+        {canEdit && (
+          <div className="mb-4 flex justify-start">
+            <button
+              onClick={() => setShowModuleForm(true)}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
+            >
+              + Add Module
+            </button>
           </div>
         )}
 

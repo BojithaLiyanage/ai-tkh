@@ -1,32 +1,41 @@
 import React, { useState, useEffect } from 'react';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import CreateAdminForm from './CreateAdminForm';
 import UserManagement from './UserManagement';
-import ContentManagement from './ContentManagement';
 import ContentLibrary from './ContentLibrary';
 import FiberDatabaseManagement from './FiberDatabaseManagement';
+import QuestionBankManagement from './QuestionBankManagement';
 import Navbar from './Navbar';
-import { authApi, contentApi, type UserStats, type ContentStats } from '../services/api';
+import { authApi, contentApi, fiberApi, questionApi, type UserStats, type ContentStats, type QuestionStats, type FiberClass } from '../services/api';
 
-const SuperAdminDashboard: React.FC = () => {
-  const { user } = useAuth();
-  const [showCreateAdminModal, setShowCreateAdminModal] = useState(false);
-  const [showUserManageModal, setShowUserManageModal] = useState(false);
-  const [showContentManagement, setShowContentManagement] = useState(false);
-  const [showContentLibrary, setShowContentLibrary] = useState(false);
-  const [showFiberDatabaseManagement, setShowFiberDatabaseManagement] = useState(false);
-  const [stats, setStats] = useState<UserStats | null>(null);
+const SuperAdminHome: React.FC = () => {
+  const navigate = useNavigate();
+  const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [contentStats, setContentStats] = useState<ContentStats | null>(null);
+  const [fiberCount, setFiberCount] = useState<number>(0);
+  const [fiberClasses, setFiberClasses] = useState<FiberClass[]>([]);
+  const [questionStats, setQuestionStats] = useState<QuestionStats | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchStats = async () => {
+  useEffect(() => {
+    fetchAllStats();
+  }, []);
+
+  const fetchAllStats = async () => {
     try {
-      const [userStats, contentStatsData] = await Promise.all([
+      setLoading(true);
+      const [users, content, fibers, classes, questions] = await Promise.all([
         authApi.getUserStats(),
-        contentApi.getContentStats()
+        contentApi.getContentStats(),
+        fiberApi.getFibers(),
+        fiberApi.getFiberClasses(),
+        questionApi.getQuestionStats(),
       ]);
-      setStats(userStats);
-      setContentStats(contentStatsData);
+      setUserStats(users);
+      setContentStats(content);
+      setFiberCount(fibers.length);
+      setFiberClasses(classes);
+      setQuestionStats(questions);
     } catch (error) {
       console.error('Failed to fetch stats:', error);
     } finally {
@@ -34,270 +43,253 @@ const SuperAdminDashboard: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    fetchStats();
-  }, []);
+  if (loading) {
+    return (
+      <div className="text-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+        <p className="text-gray-600 mt-4">Loading statistics...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-7xl mx-auto">
+      <h1 className="text-3xl font-bold text-gray-900 mb-6">Super Admin Dashboard</h1>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Module Summary */}
+        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200 hover:shadow-xl transition-shadow">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">Modules</h2>
+            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+            </div>
+          </div>
+          <p className="text-3xl font-bold text-blue-600 mb-1">{contentStats?.total_modules || 0}</p>
+          <p className="text-sm text-gray-500 mb-3">{contentStats?.total_topics || 0} topics</p>
+          <button
+            onClick={() => navigate('/dashboard/admin-tools/content-library')}
+            className="w-full px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs font-medium"
+          >
+            Manage Modules
+          </button>
+        </div>
+
+        {/* Fibers Summary */}
+        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200 hover:shadow-xl transition-shadow">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">Fibers</h2>
+            <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+              <span className="text-xl">🧵</span>
+            </div>
+          </div>
+          <p className="text-3xl font-bold text-purple-600 mb-1">{fiberCount}</p>
+          <p className="text-sm text-gray-500 mb-3">{fiberClasses.length} classes</p>
+          <button
+            onClick={() => navigate('/dashboard/admin-tools/fiber-database')}
+            className="w-full px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-xs font-medium"
+          >
+            Manage Fibers
+          </button>
+        </div>
+
+        {/* Question Bank Summary */}
+        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200 hover:shadow-xl transition-shadow">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">Questions</h2>
+            <div className="w-10 h-10 bg-pink-100 rounded-lg flex items-center justify-center">
+              <span className="text-xl">❓</span>
+            </div>
+          </div>
+          <p className="text-3xl font-bold text-pink-600 mb-1">{questionStats?.total_questions || 0}</p>
+          <p className="text-sm text-gray-500 mb-3">{questionStats?.total_fibers_with_questions || 0} fibers covered</p>
+          <button
+            onClick={() => navigate('/dashboard/admin-tools/question-bank')}
+            className="w-full px-3 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors text-xs font-medium"
+          >
+            Manage Questions
+          </button>
+        </div>
+
+        {/* User Summary */}
+        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200 hover:shadow-xl transition-shadow">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">Users</h2>
+            <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+              <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+            </div>
+          </div>
+          <p className="text-3xl font-bold text-green-600 mb-3">{userStats?.total_users || 0}</p>
+          <button
+            onClick={() => navigate('/dashboard/admin-tools/users')}
+            className="w-full px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs font-medium"
+          >
+            Manage Users
+          </button>
+        </div>
+
+        {/* User Breakdown Card */}
+        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200 hover:shadow-xl transition-shadow lg:col-span-4">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">User Breakdown</h2>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="text-center p-3 bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg border border-green-200">
+              <p className="text-sm text-gray-700 font-medium mb-1">Clients</p>
+              <p className="text-2xl font-bold text-green-600">{userStats?.client_users || 0}</p>
+            </div>
+            <div className="text-center p-3 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+              <p className="text-sm text-gray-700 font-medium mb-1">Admins</p>
+              <p className="text-2xl font-bold text-blue-600">{userStats?.admin_users || 0}</p>
+            </div>
+            <div className="text-center p-3 bg-gradient-to-br from-purple-50 to-violet-50 rounded-lg border border-purple-200">
+              <p className="text-sm text-gray-700 font-medium mb-1">Super Admins</p>
+              <p className="text-2xl font-bold text-purple-600">{userStats?.super_admin_users || 0}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const AdminTools: React.FC<{ onUserUpdated: () => void }> = ({ onUserUpdated }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const getActiveTab = () => {
+    if (location.pathname.includes('content-library')) return 'content';
+    if (location.pathname.includes('fiber-database')) return 'fibers';
+    if (location.pathname.includes('question-bank')) return 'questions';
+    if (location.pathname.includes('users')) return 'users';
+    return 'content';
+  };
+
+  const activeTab = getActiveTab();
+
+  return (
+    <div className="h-full flex flex-col">
+      {/* Sub-tabs */}
+      <div className="bg-white border-b border-gray-200 px-6">
+        <div className="flex space-x-1">
+          <button
+            onClick={() => navigate('/dashboard/admin-tools/content-library')}
+            className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'content'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+            }`}
+          >
+           Content Library
+          </button>
+          <button
+            onClick={() => navigate('/dashboard/admin-tools/fiber-database')}
+            className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'fibers'
+                ? 'border-purple-600 text-purple-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+            }`}
+          >
+            Fiber Database
+          </button>
+          <button
+            onClick={() => navigate('/dashboard/admin-tools/question-bank')}
+            className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'questions'
+                ? 'border-pink-600 text-pink-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+            }`}
+          >
+           Question Bank
+          </button>
+          <button
+            onClick={() => navigate('/dashboard/admin-tools/users')}
+            className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'users'
+                ? 'border-green-600 text-green-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+            }`}
+          >
+            👥 User Management
+          </button>
+        </div>
+      </div>
+
+      {/* Tool Content - Full Screen */}
+      <div className="flex-1 overflow-hidden">
+        <Routes>
+          <Route path="content-library" element={
+            <div className="h-full p-6">
+              <ContentLibrary onClose={() => {}} />
+            </div>
+          } />
+          <Route path="fiber-database" element={
+            <div className="h-full p-6">
+              <FiberDatabaseManagement onClose={() => {}} />
+            </div>
+          } />
+          <Route path="question-bank" element={
+            <div className="h-full p-6">
+              <QuestionBankManagement onClose={() => {}} />
+            </div>
+          } />
+          <Route path="users" element={
+            <div className="h-full p-6">
+              <UserManagement onClose={() => {}} onUserUpdated={onUserUpdated} />
+            </div>
+          } />
+          <Route path="*" element={<Navigate to="content-library" replace />} />
+        </Routes>
+      </div>
+    </div>
+  );
+};
+
+const SuperAdminDashboard: React.FC = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const fetchAllStats = async () => {
+    // This function is passed to UserManagement to refresh stats when users are updated
+    // We can trigger a re-render by navigating to the same route
+    navigate('/dashboard/admin-home', { replace: true });
+  };
 
   if (!user || user.user_type !== 'super_admin') {
     return <div className="loading">Access denied...</div>;
   }
 
+  const isAdminToolsActive = location.pathname.includes('/admin-tools');
+
+  const navbarTabs = [
+    {
+      id: 'home',
+      label: 'Home',
+      isActive: !isAdminToolsActive,
+      onClick: () => navigate('/dashboard/admin-home')
+    },
+    {
+      id: 'admin-tools',
+      label: 'Admin Tools',
+      isActive: isAdminToolsActive,
+      onClick: () => navigate('/dashboard/admin-tools/content-library')
+    }
+  ];
+
   return (
     <>
-      <Navbar />
-      <div className="max-w-7xl mx-auto p-5 bg-gray-50 min-h-screen">
-
-      {/* Super Admin Features Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        {/* System Overview */}
-        <div className="bg-white p-8 rounded-xl shadow-lg border border-gray-200">
-          <h2 className="text-gray-900 text-2xl font-semibold mb-5 flex items-center">
-            <span className="w-3 h-3 bg-red-500 rounded-full mr-3"></span>
-            System Overview
-          </h2>
-          <div className="space-y-4">
-            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-              <span className="text-gray-600">Total Users</span>
-              <span className="font-semibold text-gray-900">
-                {loading ? 'Loading...' : stats?.total_users || 0}
-              </span>
-            </div>
-            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-              <span className="text-gray-600">Active Users</span>
-              <span className="font-semibold text-gray-900">
-                {loading ? 'Loading...' : stats?.active_users || 0}
-              </span>
-            </div>
-            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-              <span className="text-gray-600">Admin Users</span>
-              <span className="font-semibold text-gray-900">
-                {loading ? 'Loading...' : stats?.admin_users || 0}
-              </span>
-            </div>
-            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-              <span className="text-gray-600">Client Accounts</span>
-              <span className="font-semibold text-gray-900">
-                {loading ? 'Loading...' : stats?.client_users || 0}
-              </span>
-            </div>
-            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-              <span className="text-gray-600">System Status</span>
-              <span className="font-semibold text-green-600">Online</span>
-            </div>
-          </div>
+      <Navbar tabs={navbarTabs} />
+      <div className="bg-gray-50 overflow-hidden" style={{ height: 'calc(100vh - 64px)' }}>
+        <div className="h-full overflow-y-auto p-6">
+          <Routes>
+            <Route path="admin-home" element={<SuperAdminHome />} />
+            <Route path="admin-tools/*" element={<AdminTools onUserUpdated={fetchAllStats} />} />
+            <Route path="*" element={<Navigate to="admin-home" replace />} />
+          </Routes>
         </div>
-
-        {/* Content Overview */}
-        <div className="bg-white p-8 rounded-xl shadow-lg border border-gray-200">
-          <h2 className="text-gray-900 text-2xl font-semibold mb-5 flex items-center">
-            <span className="w-3 h-3 bg-blue-500 rounded-full mr-3"></span>
-            Content Overview
-          </h2>
-          <div className="space-y-4">
-            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-              <span className="text-gray-600">Total Modules</span>
-              <span className="font-semibold text-gray-900">
-                {loading ? 'Loading...' : contentStats?.total_modules || 0}
-              </span>
-            </div>
-            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-              <span className="text-gray-600">Total Topics</span>
-              <span className="font-semibold text-gray-900">
-                {loading ? 'Loading...' : contentStats?.total_topics || 0}
-              </span>
-            </div>
-            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-              <span className="text-gray-600">Total Subtopics</span>
-              <span className="font-semibold text-blue-600">
-                {loading ? 'Loading...' : contentStats?.total_subtopics || 0}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* User Management */}
-        <div className="bg-white p-8 rounded-xl shadow-lg border border-gray-200">
-          <h2 className="text-gray-900 text-2xl font-semibold mb-5 flex items-center">
-            <span className="w-3 h-3 bg-blue-500 rounded-full mr-3"></span>
-            User Management
-          </h2>
-          <div className="space-y-3">
-            <button 
-              onClick={() => setShowCreateAdminModal(true)}
-              className="w-full p-4 text-left bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors duration-200"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-blue-900">Create User</p>
-                  <p className="text-sm text-blue-600">Add new accounts</p>
-                </div>
-                <span className="text-blue-500 text-lg">→</span>
-              </div>
-            </button>
-            <button 
-              onClick={() => setShowUserManageModal(true)}
-              className="w-full p-4 text-left bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors duration-200"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-green-900">Manage All Users</p>
-                  <p className="text-sm text-green-600">View, edit, or deactivate user accounts</p>
-                </div>
-                <span className="text-green-500 text-lg">→</span>
-              </div>
-            </button>
-            {/* <button className="w-full p-4 text-left bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors duration-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-purple-900">System Permissions</p>
-                  <p className="text-sm text-purple-600">Configure role-based access control</p>
-                </div>
-                <span className="text-purple-500 text-lg">→</span>
-              </div>
-            </button> */}
-          </div>
-        </div>
-      </div>
-
-      {/* System Administration */}
-      <div className="bg-white p-8 rounded-xl shadow-lg border border-gray-200 mb-6">
-        <h2 className="text-gray-900 text-2xl font-semibold mb-5 flex items-center">
-          <span className="w-3 h-3 bg-indigo-500 rounded-full mr-3"></span>
-          System Administration
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div
-            onClick={() => setShowContentManagement(true)}
-            className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow duration-200 cursor-pointer"
-          >
-            <div className="text-center">
-              <div className="w-12 h-12 bg-indigo-100 rounded-lg mx-auto mb-3 flex items-center justify-center">
-                <span className="text-indigo-600 text-xl">📝</span>
-              </div>
-              <p className="font-medium text-gray-900">Content Management</p>
-              <p className="text-sm text-gray-500 mt-1">Create educational content</p>
-            </div>
-          </div>
-          <div
-            onClick={() => setShowContentLibrary(true)}
-            className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow duration-200 cursor-pointer"
-          >
-            <div className="text-center">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg mx-auto mb-3 flex items-center justify-center">
-                <span className="text-blue-600 text-xl">📚</span>
-              </div>
-              <p className="font-medium text-gray-900">Content Library</p>
-              <p className="text-sm text-gray-500 mt-1">View and manage content</p>
-            </div>
-          </div>
-          {/* <div className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow duration-200 cursor-pointer">
-            <div className="text-center">
-              <div className="w-12 h-12 bg-orange-100 rounded-lg mx-auto mb-3 flex items-center justify-center">
-                <span className="text-orange-600 text-xl">📊</span>
-              </div>
-              <p className="font-medium text-gray-900">Analytics</p>
-              <p className="text-sm text-gray-500 mt-1">View system analytics</p>
-            </div>
-          </div> */}
-          {/* <div className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow duration-200 cursor-pointer">
-            <div className="text-center">
-              <div className="w-12 h-12 bg-red-100 rounded-lg mx-auto mb-3 flex items-center justify-center">
-                <span className="text-red-600 text-xl">🔒</span>
-              </div>
-              <p className="font-medium text-gray-900">Security</p>
-              <p className="text-sm text-gray-500 mt-1">Security configurations</p>
-            </div>
-          </div> */}
-          <div
-            onClick={() => setShowFiberDatabaseManagement(true)}
-            className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow duration-200 cursor-pointer"
-          >
-            <div className="text-center">
-              <div className="w-12 h-12 bg-green-100 rounded-lg mx-auto mb-3 flex items-center justify-center">
-                <span className="text-green-600 text-xl">🧵</span>
-              </div>
-              <p className="font-medium text-gray-900">Fiber Database</p>
-              <p className="text-sm text-gray-500 mt-1">Manage fiber database entries</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Recent Activity */}
-      <div className="bg-white p-8 rounded-xl shadow-lg border border-gray-200">
-        <h2 className="text-gray-900 text-2xl font-semibold mb-5 flex items-center">
-          <span className="w-3 h-3 bg-yellow-500 rounded-full mr-3"></span>
-          Recent Activity
-        </h2>
-        <div className="space-y-3">
-          <div className="flex items-center p-4 bg-gray-50 rounded-lg">
-            <div className="w-2 h-2 bg-green-400 rounded-full mr-4"></div>
-            <div className="flex-1">
-              <p className="text-sm text-gray-900 font-medium">System initialized</p>
-              <p className="text-xs text-gray-500">Super admin account created</p>
-            </div>
-            <span className="text-xs text-gray-400">Just now</span>
-          </div>
-          <div className="flex items-center justify-center p-8 text-gray-500">
-            <p>No recent activity to display</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Create Admin Modal */}
-      {showCreateAdminModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-screen overflow-y-auto">
-            <CreateAdminForm 
-              onSuccess={() => {
-                setShowCreateAdminModal(false);
-                fetchStats(); // Refresh stats after creating new user
-              }}
-              onCancel={() => setShowCreateAdminModal(false)}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* User Management Modal */}
-      {showUserManageModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <UserManagement 
-            onClose={() => setShowUserManageModal(false)}
-            onUserUpdated={() => fetchStats()} // Refresh stats when users are updated
-          />
-        </div>
-      )}
-
-      {/* Content Management Modal */}
-      {showContentManagement && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <ContentManagement
-            onClose={() => setShowContentManagement(false)}
-            onContentUpdated={() => {
-              fetchStats(); // Refresh content statistics when content is updated
-            }}
-          />
-        </div>
-      )}
-
-      {/* Content Library Modal */}
-      {showContentLibrary && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <ContentLibrary
-            onClose={() => setShowContentLibrary(false)}
-          />
-        </div>
-      )}
-
-      {/* Fiber Database Management Modal */}
-      {showFiberDatabaseManagement && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <FiberDatabaseManagement
-            onClose={() => setShowFiberDatabaseManagement(false)}
-          />
-        </div>
-      )}
       </div>
     </>
   );

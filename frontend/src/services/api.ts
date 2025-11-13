@@ -656,6 +656,7 @@ export interface ChatResponse {
   conversation_id: number;
   fiber_cards?: FiberCard[];
   structure_images?: StructureImage[];
+  related_videos?: any[];
 }
 
 export interface ChatbotConversationRead {
@@ -711,6 +712,91 @@ export const chatbotApi = {
 
   getHistory: async (limit: number = 50): Promise<ChatbotConversationRead[]> => {
     const response = await api.get('/chatbot/history', { params: { limit } });
+    return response.data;
+  },
+};
+
+// Question Bank Types
+export interface QuestionCreate {
+  fiber_id: number;
+  study_group_code: string;
+  question: string;
+  options: string[];
+  correct_answer: string;
+}
+
+export interface QuestionRead {
+  id: number;
+  fiber_id: number;
+  study_group_code: string;
+  question: string;
+  options: string[];
+  correct_answer: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface QuestionWithFiberRead extends QuestionRead {
+  fiber_name: string;
+  study_group_name: string;
+}
+
+export interface QuestionUpdate {
+  question?: string;
+  options?: string[];
+  correct_answer?: string;
+  study_group_code?: string;
+}
+
+export interface QuestionStats {
+  total_questions: number;
+  total_fibers_with_questions: number;
+  questions_by_study_group: Array<{
+    code: string;
+    name: string;
+    count: number;
+  }>;
+}
+
+export const questionApi = {
+  // Get all questions with optional filters
+  getQuestions: async (params?: {
+    fiber_id?: number;
+    study_group_code?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<QuestionWithFiberRead[]> => {
+    const response = await api.get('/questions', { params });
+    return response.data;
+  },
+
+  // Get a specific question by ID
+  getQuestion: async (questionId: number): Promise<QuestionRead> => {
+    const response = await api.get(`/questions/${questionId}`);
+    return response.data;
+  },
+
+  // Create a new question
+  createQuestion: async (questionData: QuestionCreate): Promise<QuestionRead> => {
+    const response = await api.post('/questions', questionData);
+    return response.data;
+  },
+
+  // Update an existing question
+  updateQuestion: async (questionId: number, questionData: QuestionUpdate): Promise<QuestionRead> => {
+    const response = await api.put(`/questions/${questionId}`, questionData);
+    return response.data;
+  },
+
+  // Delete a question
+  deleteQuestion: async (questionId: number): Promise<{ status: string; message: string }> => {
+    const response = await api.delete(`/questions/${questionId}`);
+    return response.data;
+  },
+
+  // Get question statistics
+  getQuestionStats: async (): Promise<QuestionStats> => {
+    const response = await api.get('/questions/stats/summary');
     return response.data;
   },
 };
