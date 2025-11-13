@@ -151,39 +151,58 @@ const AdminTools: React.FC = () => {
   const activeTab = getActiveTab();
 
   return (
-    <div className="h-full flex flex-col">
-      {/* Sub-tabs */}
-      <div className="bg-white border-b border-gray-200 px-6">
-        <div className="flex">
+    <div className="h-full flex">
+      {/* Sidebar */}
+      <div className="w-64 bg-white border-r border-gray-200 flex-shrink-0 overflow-y-auto">
+        <div className="p-4">
+          <h2 className="text-lg font-bold text-gray-900 mb-4">Admin Tools</h2>
+
+          {/* Content Library Section */}
           <button
             onClick={() => navigate('/dashboard/admin-tools/content-library')}
-            className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+            className={`w-full text-left p-3 rounded-lg mb-2 transition-colors ${
               activeTab === 'content'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                ? 'bg-blue-50 border-l-4 border-blue-600'
+                : 'hover:bg-gray-50'
             }`}
           >
-            📚 Content Library
+            <div className="flex items-center gap-3">
+              <span className={`font-medium ${activeTab === 'content' ? 'text-blue-600' : 'text-gray-900'}`}>
+                Content Library
+              </span>
+            </div>
           </button>
+
+          {/* Fiber Database Section */}
           <button
             onClick={() => navigate('/dashboard/admin-tools/fiber-database')}
-            className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+            className={`w-full text-left p-3 rounded-lg mb-2 transition-colors ${
               activeTab === 'fibers'
-                ? 'border-purple-600 text-purple-600'
-                : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                ? 'bg-purple-50 border-l-4 border-purple-600'
+                : 'hover:bg-gray-50'
             }`}
           >
-            🧵 Fiber Database
+            <div className="flex items-center gap-3">
+              <span className={`font-medium ${activeTab === 'fibers' ? 'text-purple-600' : 'text-gray-900'}`}>
+                Fiber Database
+              </span>
+            </div>
           </button>
+
+          {/* Question Bank Section */}
           <button
             onClick={() => navigate('/dashboard/admin-tools/question-bank')}
-            className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+            className={`w-full text-left p-3 rounded-lg transition-colors ${
               activeTab === 'questions'
-                ? 'border-pink-600 text-pink-600'
-                : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                ? 'bg-pink-50 border-l-4 border-pink-600'
+                : 'hover:bg-gray-50'
             }`}
           >
-            ❓ Question Bank
+            <div className="flex items-center gap-3">
+              <span className={`font-medium ${activeTab === 'questions' ? 'text-pink-600' : 'text-gray-900'}`}>
+                Question Bank
+              </span>
+            </div>
           </button>
         </div>
       </div>
@@ -202,7 +221,7 @@ const AdminTools: React.FC = () => {
             </div>
           } />
           <Route path="question-bank" element={
-            <div className="h-full ">
+            <div className="h-full">
               <QuestionBankManagement onClose={() => {}} />
             </div>
           } />

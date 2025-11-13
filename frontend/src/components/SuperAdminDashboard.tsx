@@ -182,7 +182,7 @@ const AdminTools: React.FC<{ onUserUpdated: () => void }> = ({ onUserUpdated }) 
                 : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
             }`}
           >
-            📚 Content Library
+           Content Library
           </button>
           <button
             onClick={() => navigate('/dashboard/admin-tools/fiber-database')}
@@ -192,7 +192,7 @@ const AdminTools: React.FC<{ onUserUpdated: () => void }> = ({ onUserUpdated }) 
                 : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
             }`}
           >
-            🧵 Fiber Database
+            Fiber Database
           </button>
           <button
             onClick={() => navigate('/dashboard/admin-tools/question-bank')}
@@ -202,7 +202,7 @@ const AdminTools: React.FC<{ onUserUpdated: () => void }> = ({ onUserUpdated }) 
                 : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
             }`}
           >
-            ❓ Question Bank
+           Question Bank
           </button>
           <button
             onClick={() => navigate('/dashboard/admin-tools/users')}

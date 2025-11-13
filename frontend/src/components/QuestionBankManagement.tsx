@@ -214,20 +214,20 @@ const QuestionBankManagement: React.FC<QuestionBankManagementProps> = ({ onClose
       <div className="flex-shrink-0">
         {/* Stats Dashboard */}
         {stats && (
-          <div className="bg-gray-50 p-4 border-b">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-white p-4 rounded-lg shadow-sm">
-                <p className="text-gray-600 text-sm">Total Questions</p>
-                <p className="text-2xl font-bold text-purple-600">{stats.total_questions}</p>
+          <div className="bg-gray-50 px-4 py-2 border-b">
+            <div className="flex items-center gap-6 flex-wrap">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600">Total:</span>
+                <span className="text-lg font-bold text-purple-600">{stats.total_questions}</span>
               </div>
-              <div className="bg-white p-4 rounded-lg shadow-sm">
-                <p className="text-gray-600 text-sm">Fibers Covered</p>
-                <p className="text-2xl font-bold text-indigo-600">{stats.total_fibers_with_questions}</p>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600">Fibers:</span>
+                <span className="text-lg font-bold text-indigo-600">{stats.total_fibers_with_questions}</span>
               </div>
-              {stats.questions_by_study_group.slice(0, 2).map((group) => (
-                <div key={group.code} className="bg-white p-4 rounded-lg shadow-sm">
-                  <p className="text-gray-600 text-sm">{group.name}</p>
-                  <p className="text-2xl font-bold text-blue-600">{group.count} questions</p>
+              {stats.questions_by_study_group.map((group) => (
+                <div key={group.code} className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600">{group.name}:</span>
+                  <span className="text-lg font-bold text-blue-600">{group.count}</span>
                 </div>
               ))}
             </div>
@@ -242,7 +242,7 @@ const QuestionBankManagement: React.FC<QuestionBankManagementProps> = ({ onClose
               <select
                 value={filterFiberId || ''}
                 onChange={(e) => setFilterFiberId(e.target.value ? Number(e.target.value) : undefined)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               >
                 <option value="">All Fibers</option>
                 {fibers.map((fiber) => (
@@ -258,7 +258,7 @@ const QuestionBankManagement: React.FC<QuestionBankManagementProps> = ({ onClose
               <select
                 value={filterStudyGroup || ''}
                 onChange={(e) => setFilterStudyGroup(e.target.value || undefined)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               >
                 <option value="">All Groups</option>
                 {studyGroups.map((group) => (
@@ -271,7 +271,7 @@ const QuestionBankManagement: React.FC<QuestionBankManagementProps> = ({ onClose
 
             <button
               onClick={() => setShowAddForm(!showAddForm)}
-              className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
+              className="bg-purple-600 text-white text-sm px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -283,117 +283,14 @@ const QuestionBankManagement: React.FC<QuestionBankManagementProps> = ({ onClose
 
         {/* Messages */}
         {error && (
-          <div className="mx-4 mt-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+          <div className="mx-4 mt-2 bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm">
             {error}
           </div>
         )}
         {success && (
-          <div className="mx-4 mt-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
+          <div className="mx-4 mt-2 bg-green-50 border border-green-200 text-green-700 px-3 py-2 rounded-lg text-sm">
             {success}
           </div>
-        )}
-
-        {/* Add Question Form */}
-        {showAddForm && (
-          <div className="p-4 bg-gray-50 border-b">
-          <form onSubmit={handleAddQuestion} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Fiber *</label>
-                <select
-                  value={formData.fiber_id}
-                  onChange={(e) => setFormData({ ...formData, fiber_id: Number(e.target.value) })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500"
-                  required
-                >
-                  <option value={0}>Select a fiber</option>
-                  {fibers.map((fiber) => (
-                    <option key={fiber.id} value={fiber.id}>
-                      {fiber.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Study Group *</label>
-                <select
-                  value={formData.study_group_code}
-                  onChange={(e) => setFormData({ ...formData, study_group_code: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500"
-                  required
-                >
-                  {studyGroups.map((group) => (
-                    <option key={group.code} value={group.code}>
-                      {group.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Question *</label>
-              <textarea
-                value={formData.question}
-                onChange={(e) => setFormData({ ...formData, question: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500"
-                rows={3}
-                required
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {formData.options.map((option, index) => (
-                <div key={index}>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Option {index + 1} *
-                  </label>
-                  <input
-                    type="text"
-                    value={option}
-                    onChange={(e) => handleOptionChange(index, e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500"
-                    required
-                  />
-                </div>
-              ))}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Correct Answer *</label>
-              <select
-                value={formData.correct_answer}
-                onChange={(e) => setFormData({ ...formData, correct_answer: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500"
-                required
-              >
-                <option value="">Select correct answer</option>
-                {formData.options.filter(opt => opt.trim() !== '').map((option, index) => (
-                  <option key={index} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex gap-2">
-              <button
-                type="submit"
-                className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors"
-              >
-                Add Question
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowAddForm(false)}
-                className="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-400 transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
         )}
       </div>
 
@@ -620,6 +517,134 @@ const QuestionBankManagement: React.FC<QuestionBankManagementProps> = ({ onClose
                 <button
                   type="button"
                   onClick={handleCancelEdit}
+                  className="px-6 py-3 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Question Modal */}
+      {showAddForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white p-6 flex justify-between items-center sticky top-0">
+              <div>
+                <h2 className="text-2xl font-bold">Add New Question</h2>
+                <p className="text-purple-100 mt-1">Create a new question for the question bank</p>
+              </div>
+              <button
+                onClick={() => setShowAddForm(false)}
+                className="text-white hover:bg-white hover:bg-opacity-20 rounded-full p-2 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleAddQuestion} className="p-6 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Fiber *</label>
+                  <select
+                    value={formData.fiber_id}
+                    onChange={(e) => setFormData({ ...formData, fiber_id: Number(e.target.value) })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500"
+                    required
+                  >
+                    <option value={0}>Select a fiber</option>
+                    {fibers.map((fiber) => (
+                      <option key={fiber.id} value={fiber.id}>
+                        {fiber.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Study Group *</label>
+                  <select
+                    value={formData.study_group_code}
+                    onChange={(e) => setFormData({ ...formData, study_group_code: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500"
+                    required
+                  >
+                    {studyGroups.map((group) => (
+                      <option key={group.code} value={group.code}>
+                        {group.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Question *</label>
+                <textarea
+                  value={formData.question}
+                  onChange={(e) => setFormData({ ...formData, question: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500"
+                  rows={3}
+                  required
+                  placeholder="Enter your question here..."
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {formData.options.map((option, index) => (
+                  <div key={index}>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Option {index + 1} *
+                    </label>
+                    <input
+                      type="text"
+                      value={option}
+                      onChange={(e) => handleOptionChange(index, e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500"
+                      required
+                      placeholder={`Enter option ${index + 1}`}
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Correct Answer *</label>
+                <select
+                  value={formData.correct_answer}
+                  onChange={(e) => setFormData({ ...formData, correct_answer: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500"
+                  required
+                >
+                  <option value="">Select correct answer</option>
+                  {formData.options.filter(opt => opt.trim() !== '').map((option, index) => (
+                    <option key={index} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {error && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                  {error}
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-4 border-t">
+                <button
+                  type="submit"
+                  className="flex-1 bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-colors font-medium"
+                >
+                  Add Question
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowAddForm(false)}
                   className="px-6 py-3 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors font-medium"
                 >
                   Cancel

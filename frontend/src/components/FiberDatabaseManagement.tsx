@@ -245,113 +245,57 @@ const FiberDatabaseManagement: React.FC<FiberDatabaseManagementProps> = ({ onClo
     switch (activeTab) {
       case 'fibers':
         return (
-          <div className="flex flex-col h-full space-y-4">
-            {/* Summary and Search Bar on Same Level */}
-            <div className="flex items-center gap-4">
-              {/* Summary */}
-
-              {/* Search and Filters */}
-              <div className="flex gap-4 flex-1">
-                <input
-                  type="text"
-                  placeholder="Search fibers..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
-                />
-                <select
-                  value={selectedClassFilter || ''}
-                  onChange={(e) => setSelectedClassFilter(e.target.value ? Number(e.target.value) : null)}
-                  className="px-3 py-2 border border-gray-300 rounded-md"
-                >
-                  <option value="">All Classes</option>
-                  {fiberClasses.map(cls => (
-                    <option key={cls.id} value={cls.id}>{cls.name}</option>
-                  ))}
-                </select>
-                              <div className="flex items-center gap-2 min-w-fit">
-                <p className="text-black font-bold text-sm whitespace-nowrap">
-                  Showing {filteredFibers.length} of {fibers.length} fibers
-                  {(searchTerm || selectedClassFilter) && (
-                    <span className="ml-2 text-sm text-blue-600">
-                      (filtered{searchTerm && ` by "${searchTerm}"`}{selectedClassFilter && ` by class`})
-                    </span>
-                  )}
-                </p>
-                {(searchTerm || selectedClassFilter) && (
-                  <button
-                    onClick={() => {
-                      setSearchTerm('');
-                      setSelectedClassFilter(null);
-                    }}
-                    className="text-sm text-blue-600 hover:text-blue-800 whitespace-nowrap"
-                  >
-                    Clear filters
-                  </button>
-                )}
-              </div>
-                <button
-                  onClick={() => setShowCreateForm(true)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 whitespace-nowrap"
-                >
-                  Add Fiber
-                </button>
-              </div>
-            </div>
-
-            {/* Fibers List */}
-            <div className="space-y-2 flex-1 overflow-y-auto">
-              {filteredFibers.map(fiber => (
-                <div key={fiber.id} className="p-4 border border-gray-200 rounded-lg">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <h4 className="font-medium text-gray-900">{fiber.name}</h4>
-                      <p className="text-sm text-gray-600">ID: {fiber.fiber_id}</p>
-                      {fiber.fiber_class && (
-                        <p className="text-sm text-gray-600">Class: {fiber.fiber_class.name}</p>
-                      )}
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className={`px-2 py-1 text-xs rounded ${
-                          fiber.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                        }`}>
-                          {fiber.is_active ? 'Active' : 'Inactive'}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleViewFiber(fiber.id)}
-                        className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
-                      >
-                        View
-                      </button>
-                      <button
-                        onClick={() => handleEditFiber(fiber.id)}
-                        className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleFiberStatusToggle(fiber.id, fiber.is_active)}
-                        className={`px-3 py-1 text-sm rounded ${
-                          fiber.is_active
-                            ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                            : 'bg-green-100 text-green-700 hover:bg-green-200'
-                        }`}
-                      >
-                        {fiber.is_active ? 'Deactivate' : 'Activate'}
-                      </button>
-                      <button
-                        onClick={() => handleDelete(fiber.id)}
-                        className="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200"
-                      >
-                        Delete
-                      </button>
+          <div className="space-y-2">
+            {filteredFibers.map(fiber => (
+              <div key={fiber.id} className="p-4 border border-gray-200 rounded-lg">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <h4 className="font-medium text-gray-900">{fiber.name}</h4>
+                    <p className="text-sm text-gray-600">ID: {fiber.fiber_id}</p>
+                    {fiber.fiber_class && (
+                      <p className="text-sm text-gray-600">Class: {fiber.fiber_class.name}</p>
+                    )}
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className={`px-2 py-1 text-xs rounded ${
+                        fiber.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                      }`}>
+                        {fiber.is_active ? 'Active' : 'Inactive'}
+                      </span>
                     </div>
                   </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleViewFiber(fiber.id)}
+                      className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                    >
+                      View
+                    </button>
+                    <button
+                      onClick={() => handleEditFiber(fiber.id)}
+                      className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleFiberStatusToggle(fiber.id, fiber.is_active)}
+                      className={`px-3 py-1 text-sm rounded ${
+                        fiber.is_active
+                          ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                          : 'bg-green-100 text-green-700 hover:bg-green-200'
+                      }`}
+                    >
+                      {fiber.is_active ? 'Deactivate' : 'Activate'}
+                    </button>
+                    <button
+                      onClick={() => handleDelete(fiber.id)}
+                      className="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
         );
 
@@ -569,63 +513,112 @@ const FiberDatabaseManagement: React.FC<FiberDatabaseManagementProps> = ({ onClo
 
   return (
     <div className="bg-white rounded-lg shadow-xl w-full max-h-full flex flex-col">
+      {/* Fixed Header Section */}
+      <div className="flex-shrink-0">
+        {/* Error/Success Messages */}
+        {error && (
+          <div className="m-6 mb-0 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+            {error}
+          </div>
+        )}
+        {success && (
+          <div className="m-6 mb-0 p-4 bg-green-100 border border-green-400 text-green-700 rounded">
+            {success}
+          </div>
+        )}
 
-      {/* Error/Success Messages */}
-      {error && (
-        <div className="m-6 mb-0 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
-          {error}
-        </div>
-      )}
-      {success && (
-        <div className="m-6 mb-0 p-4 bg-green-100 border border-green-400 text-green-700 rounded">
-          {success}
-        </div>
-      )}
-
-      {/* Tabs */}
-      <div className="border-b border-gray-200">
-        <nav className="flex space-x-8 px-6">
-          {([
-            {
-              key: 'fibers',
-              label: 'Fibers',
-              count: activeTab === 'fibers' && (searchTerm || selectedClassFilter) ?
-                `${filteredFibers.length}/${fibers.length}` :
-                fibers.length
-            },
-            { key: 'classes', label: 'Classes', count: fiberClasses.length },
-            { key: 'subtypes', label: 'Subtypes', count: fiberSubtypes.length },
-            { key: 'synthetic', label: 'Synthetic Types', count: syntheticTypes.length },
-            { key: 'polymerization', label: 'Polymerization Types', count: polymerizationTypes.length }
-          ] as const).map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === tab.key
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              <span className="flex items-center gap-2">
-                {tab.label}
-                <span className={`px-2 py-0.5 text-xs rounded-full ${
+        {/* Tabs */}
+        <div className="border-b border-gray-200">
+          <nav className="flex space-x-8 px-6">
+            {([
+              {
+                key: 'fibers',
+                label: 'Fibers',
+                count: activeTab === 'fibers' && (searchTerm || selectedClassFilter) ?
+                  `${filteredFibers.length}/${fibers.length}` :
+                  fibers.length
+              },
+              { key: 'classes', label: 'Classes', count: fiberClasses.length },
+              { key: 'subtypes', label: 'Subtypes', count: fiberSubtypes.length },
+              { key: 'synthetic', label: 'Synthetic Types', count: syntheticTypes.length },
+              { key: 'polymerization', label: 'Polymerization Types', count: polymerizationTypes.length }
+            ] as const).map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
                   activeTab === tab.key
-                    ? 'bg-blue-100 text-blue-800'
-                    : 'bg-gray-100 text-gray-600'
-                }`}>
-                  {tab.count}
-                  {tab.key === 'fibers' && activeTab === 'fibers' && (searchTerm || selectedClassFilter) && (
-                    <span className="ml-1 text-blue-600">filtered</span>
-                  )}
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  {tab.label}
+                  <span className={`px-2 py-0.5 text-xs rounded-full ${
+                    activeTab === tab.key
+                      ? 'bg-blue-100 text-blue-800'
+                      : 'bg-gray-100 text-gray-600'
+                  }`}>
+                    {tab.count}
+                    {tab.key === 'fibers' && activeTab === 'fibers' && (searchTerm || selectedClassFilter) && (
+                      <span className="ml-1 text-blue-600">filtered</span>
+                    )}
+                  </span>
                 </span>
-              </span>
-            </button>
-          ))}
-        </nav>
+              </button>
+            ))}
+          </nav>
+        </div>
+
+        {/* Search Bar for Fibers Tab */}
+        {activeTab === 'fibers' && (
+          <div className="px-6 py-4 pb-4 border-b border-gray-200">
+            <div className="flex items-center gap-4">
+              <input
+                type="text"
+                placeholder="Search fibers..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
+              />
+              <select
+                value={selectedClassFilter || ''}
+                onChange={(e) => setSelectedClassFilter(e.target.value ? Number(e.target.value) : null)}
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+              >
+                <option value="">All Classes</option>
+                {fiberClasses.map(cls => (
+                  <option key={cls.id} value={cls.id}>{cls.name}</option>
+                ))}
+              </select>
+              <div className="flex items-center gap-2 min-w-fit">
+                <p className="text-black font-bold text-sm whitespace-nowrap">
+                  Showing {filteredFibers.length} of {fibers.length}
+                </p>
+                {(searchTerm || selectedClassFilter) && (
+                  <button
+                    onClick={() => {
+                      setSearchTerm('');
+                      setSelectedClassFilter(null);
+                    }}
+                    className="text-sm text-blue-600 hover:text-blue-800 whitespace-nowrap"
+                  >
+                    Clear filters
+                  </button>
+                )}
+              </div>
+              <button
+                onClick={() => setShowCreateForm(true)}
+                className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 whitespace-nowrap"
+              >
+                Add Fiber
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Content */}
+      {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto p-6">
         {loading ? (
           <div className="flex justify-center items-center h-32">
