@@ -208,107 +208,94 @@ const QuestionBankManagement: React.FC<QuestionBankManagementProps> = ({ onClose
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-6 flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold">Question Bank Management</h2>
-          <p className="text-purple-100 mt-1">Manage assessment questions for fibers</p>
-        </div>
-        <button
-          onClick={onClose}
-          className="text-white hover:bg-white hover:bg-opacity-20 rounded-full p-2 transition-colors"
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
+    <div className="bg-white rounded-lg shadow-xl w-full max-h-[90vh] flex flex-col">
 
-      {/* Stats Dashboard */}
-      {stats && (
-        <div className="bg-gray-50 p-4 border-b">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-white p-4 rounded-lg shadow-sm">
-              <p className="text-gray-600 text-sm">Total Questions</p>
-              <p className="text-2xl font-bold text-purple-600">{stats.total_questions}</p>
-            </div>
-            <div className="bg-white p-4 rounded-lg shadow-sm">
-              <p className="text-gray-600 text-sm">Fibers Covered</p>
-              <p className="text-2xl font-bold text-indigo-600">{stats.total_fibers_with_questions}</p>
-            </div>
-            {stats.questions_by_study_group.slice(0, 2).map((group) => (
-              <div key={group.code} className="bg-white p-4 rounded-lg shadow-sm">
-                <p className="text-gray-600 text-sm">{group.name}</p>
-                <p className="text-2xl font-bold text-blue-600">{group.count} questions</p>
+      {/* Fixed Header Section */}
+      <div className="flex-shrink-0">
+        {/* Stats Dashboard */}
+        {stats && (
+          <div className="bg-gray-50 p-4 border-b">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-white p-4 rounded-lg shadow-sm">
+                <p className="text-gray-600 text-sm">Total Questions</p>
+                <p className="text-2xl font-bold text-purple-600">{stats.total_questions}</p>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Filters and Actions */}
-      <div className="p-4 border-b bg-white">
-        <div className="flex flex-wrap gap-4 items-end">
-          <div className="flex-1 min-w-[200px]">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Filter by Fiber</label>
-            <select
-              value={filterFiberId || ''}
-              onChange={(e) => setFilterFiberId(e.target.value ? Number(e.target.value) : undefined)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-            >
-              <option value="">All Fibers</option>
-              {fibers.map((fiber) => (
-                <option key={fiber.id} value={fiber.id}>
-                  {fiber.name}
-                </option>
+              <div className="bg-white p-4 rounded-lg shadow-sm">
+                <p className="text-gray-600 text-sm">Fibers Covered</p>
+                <p className="text-2xl font-bold text-indigo-600">{stats.total_fibers_with_questions}</p>
+              </div>
+              {stats.questions_by_study_group.slice(0, 2).map((group) => (
+                <div key={group.code} className="bg-white p-4 rounded-lg shadow-sm">
+                  <p className="text-gray-600 text-sm">{group.name}</p>
+                  <p className="text-2xl font-bold text-blue-600">{group.count} questions</p>
+                </div>
               ))}
-            </select>
+            </div>
           </div>
+        )}
 
-          <div className="flex-1 min-w-[200px]">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Filter by Study Group</label>
-            <select
-              value={filterStudyGroup || ''}
-              onChange={(e) => setFilterStudyGroup(e.target.value || undefined)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+        {/* Filters and Actions */}
+        <div className="p-4 border-b bg-white">
+          <div className="flex flex-wrap gap-4 items-end">
+            <div className="flex-1 min-w-[200px]">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Filter by Fiber</label>
+              <select
+                value={filterFiberId || ''}
+                onChange={(e) => setFilterFiberId(e.target.value ? Number(e.target.value) : undefined)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              >
+                <option value="">All Fibers</option>
+                {fibers.map((fiber) => (
+                  <option key={fiber.id} value={fiber.id}>
+                    {fiber.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex-1 min-w-[200px]">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Filter by Study Group</label>
+              <select
+                value={filterStudyGroup || ''}
+                onChange={(e) => setFilterStudyGroup(e.target.value || undefined)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              >
+                <option value="">All Groups</option>
+                {studyGroups.map((group) => (
+                  <option key={group.code} value={group.code}>
+                    {group.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <button
+              onClick={() => setShowAddForm(!showAddForm)}
+              className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
             >
-              <option value="">All Groups</option>
-              {studyGroups.map((group) => (
-                <option key={group.code} value={group.code}>
-                  {group.name}
-                </option>
-              ))}
-            </select>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Add Question
+            </button>
           </div>
-
-          <button
-            onClick={() => setShowAddForm(!showAddForm)}
-            className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Add Question
-          </button>
         </div>
-      </div>
 
-      {/* Messages */}
-      {error && (
-        <div className="mx-4 mt-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          {error}
-        </div>
-      )}
-      {success && (
-        <div className="mx-4 mt-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
-          {success}
-        </div>
-      )}
+        {/* Messages */}
+        {error && (
+          <div className="mx-4 mt-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+            {error}
+          </div>
+        )}
+        {success && (
+          <div className="mx-4 mt-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
+            {success}
+          </div>
+        )}
 
-      {/* Add Question Form */}
-      {showAddForm && (
-        <div className="p-4 bg-gray-50 border-b">
+        {/* Add Question Form */}
+        {showAddForm && (
+          <div className="p-4 bg-gray-50 border-b">
           <form onSubmit={handleAddQuestion} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -407,7 +394,8 @@ const QuestionBankManagement: React.FC<QuestionBankManagementProps> = ({ onClose
             </div>
           </form>
         </div>
-      )}
+        )}
+      </div>
 
       {/* Questions List */}
       <div className="flex-1 overflow-y-auto p-4">

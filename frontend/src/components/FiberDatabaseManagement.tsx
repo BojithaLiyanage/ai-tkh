@@ -245,61 +245,62 @@ const FiberDatabaseManagement: React.FC<FiberDatabaseManagementProps> = ({ onClo
     switch (activeTab) {
       case 'fibers':
         return (
-          <div className="space-y-4">
-            {/* Summary */}
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <div className="flex items-center justify-between">
-                <h4 className="font-medium text-gray-900">
+          <div className="flex flex-col h-full space-y-4">
+            {/* Summary and Search Bar on Same Level */}
+            <div className="flex items-center gap-4">
+              {/* Summary */}
+
+              {/* Search and Filters */}
+              <div className="flex gap-4 flex-1">
+                <input
+                  type="text"
+                  placeholder="Search fibers..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
+                />
+                <select
+                  value={selectedClassFilter || ''}
+                  onChange={(e) => setSelectedClassFilter(e.target.value ? Number(e.target.value) : null)}
+                  className="px-3 py-2 border border-gray-300 rounded-md"
+                >
+                  <option value="">All Classes</option>
+                  {fiberClasses.map(cls => (
+                    <option key={cls.id} value={cls.id}>{cls.name}</option>
+                  ))}
+                </select>
+                              <div className="flex items-center gap-2 min-w-fit">
+                <p className="text-black font-bold text-sm whitespace-nowrap">
                   Showing {filteredFibers.length} of {fibers.length} fibers
                   {(searchTerm || selectedClassFilter) && (
                     <span className="ml-2 text-sm text-blue-600">
                       (filtered{searchTerm && ` by "${searchTerm}"`}{selectedClassFilter && ` by class`})
                     </span>
                   )}
-                </h4>
+                </p>
                 {(searchTerm || selectedClassFilter) && (
                   <button
                     onClick={() => {
                       setSearchTerm('');
                       setSelectedClassFilter(null);
                     }}
-                    className="text-sm text-blue-600 hover:text-blue-800"
+                    className="text-sm text-blue-600 hover:text-blue-800 whitespace-nowrap"
                   >
                     Clear filters
                   </button>
                 )}
               </div>
-            </div>
-
-            {/* Search and Filters */}
-            <div className="flex gap-4 mb-4">
-              <input
-                type="text"
-                placeholder="Search fibers..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
-              />
-              <select
-                value={selectedClassFilter || ''}
-                onChange={(e) => setSelectedClassFilter(e.target.value ? Number(e.target.value) : null)}
-                className="px-3 py-2 border border-gray-300 rounded-md"
-              >
-                <option value="">All Classes</option>
-                {fiberClasses.map(cls => (
-                  <option key={cls.id} value={cls.id}>{cls.name}</option>
-                ))}
-              </select>
-              <button
-                onClick={() => setShowCreateForm(true)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-              >
-                Add Fiber
-              </button>
+                <button
+                  onClick={() => setShowCreateForm(true)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 whitespace-nowrap"
+                >
+                  Add Fiber
+                </button>
+              </div>
             </div>
 
             {/* Fibers List */}
-            <div className="space-y-2 max-h-96 overflow-y-auto">
+            <div className="space-y-2 flex-1 overflow-y-auto">
               {filteredFibers.map(fiber => (
                 <div key={fiber.id} className="p-4 border border-gray-200 rounded-lg">
                   <div className="flex justify-between items-start">
@@ -567,14 +568,7 @@ const FiberDatabaseManagement: React.FC<FiberDatabaseManagementProps> = ({ onClo
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-6 flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold">Fiber Database Management</h2>
-          <p className="text-purple-100 mt-1">Manage fibers, classes, and properties</p>
-        </div>
-      </div>
+    <div className="bg-white rounded-lg shadow-xl w-full max-h-full flex flex-col">
 
       {/* Error/Success Messages */}
       {error && (

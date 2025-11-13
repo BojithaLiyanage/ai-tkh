@@ -50,7 +50,7 @@ const AdminHome: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto">
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">Dashboard Overview</h1>
+      <h1 className="text-3xl font-bold text-gray-900 mb-6 mt-10">Dashboard Overview</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Module Summary */}
@@ -154,7 +154,7 @@ const AdminTools: React.FC = () => {
     <div className="h-full flex flex-col">
       {/* Sub-tabs */}
       <div className="bg-white border-b border-gray-200 px-6">
-        <div className="flex space-x-1">
+        <div className="flex">
           <button
             onClick={() => navigate('/dashboard/admin-tools/content-library')}
             className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
@@ -192,17 +192,17 @@ const AdminTools: React.FC = () => {
       <div className="flex-1 overflow-hidden">
         <Routes>
           <Route path="content-library" element={
-            <div className="h-full w-full p-6">
+            <div className="h-full w-full">
               <ContentLibrary onClose={() => {}} />
             </div>
           } />
           <Route path="fiber-database" element={
-            <div className="h-full p-6">
+            <div className="h-full">
               <FiberDatabaseManagement onClose={() => {}} />
             </div>
           } />
           <Route path="question-bank" element={
-            <div className="h-full p-6">
+            <div className="h-full ">
               <QuestionBankManagement onClose={() => {}} />
             </div>
           } />
@@ -243,7 +243,7 @@ const AdminDashboard: React.FC = () => {
     <>
       <Navbar tabs={navbarTabs} />
       <div className="bg-gray-50 overflow-hidden" style={{ height: 'calc(100vh - 64px)' }}>
-        <div className="h-full overflow-y-auto p-6">
+        <div className="h-full overflow-y-auto">
           <Routes>
             <Route path="admin-home" element={<AdminHome />} />
             <Route path="admin-tools/*" element={<AdminTools />} />
