@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Modal, Form, Input, InputNumber, Select, Button } from 'antd';
 import {
   fiberApi,
   type FiberClass,
@@ -7,6 +8,8 @@ import {
   type PolymerizationType
 } from '../services/api';
 import ImageUploadComponent from './ImageUploadComponent';
+
+const { TextArea } = Input;
 
 type TabType = 'fibers' | 'classes' | 'subtypes' | 'synthetic' | 'polymerization';
 
@@ -282,776 +285,588 @@ const FiberFormModal: React.FC<FiberFormModalProps> = ({
       case 'synthetic':
       case 'polymerization':
         return (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Name *
-              </label>
-              <input
-                type="text"
+          <>
+            <Form.Item
+              label="Name"
+              required
+              validateStatus={formErrors.name ? 'error' : ''}
+              help={formErrors.name}
+            >
+              <Input
                 value={formData.name || ''}
                 onChange={(e) => handleInputChange('name', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  formErrors.name ? 'border-red-500' : 'border-gray-300'
-                }`}
                 placeholder="Enter name"
               />
-              {formErrors.name && (
-                <p className="mt-1 text-sm text-red-600">{formErrors.name}</p>
-              )}
-            </div>
+            </Form.Item>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Description
-              </label>
-              <textarea
+            <Form.Item label="Description">
+              <TextArea
                 value={formData.description || ''}
                 onChange={(e) => handleInputChange('description', e.target.value)}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Enter description"
               />
-            </div>
-          </div>
+            </Form.Item>
+          </>
         );
 
       case 'subtypes':
         return (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Fiber Class *
-              </label>
-              <select
-                value={formData.class_id || ''}
-                onChange={(e) => handleInputChange('class_id', e.target.value ? parseInt(e.target.value) : '')}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  formErrors.class_id ? 'border-red-500' : 'border-gray-300'
-                }`}
+          <>
+            <Form.Item
+              label="Fiber Class"
+              required
+              validateStatus={formErrors.class_id ? 'error' : ''}
+              help={formErrors.class_id}
+            >
+              <Select
+                showSearch
+                placeholder="Select a fiber class"
+                value={formData.class_id || undefined}
+                onChange={(value) => handleInputChange('class_id', value || '')}
+                allowClear
+                filterOption={(input, option) =>
+                  String(option?.children || '').toLowerCase().includes(input.toLowerCase())
+                }
               >
-                <option value="">Select a fiber class</option>
                 {fiberClasses.map(cls => (
-                  <option key={cls.id} value={cls.id}>{cls.name}</option>
+                  <Select.Option key={cls.id} value={cls.id}>{cls.name}</Select.Option>
                 ))}
-              </select>
-              {formErrors.class_id && (
-                <p className="mt-1 text-sm text-red-600">{formErrors.class_id}</p>
-              )}
-            </div>
+              </Select>
+            </Form.Item>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Name *
-              </label>
-              <input
-                type="text"
+            <Form.Item
+              label="Name"
+              required
+              validateStatus={formErrors.name ? 'error' : ''}
+              help={formErrors.name}
+            >
+              <Input
                 value={formData.name || ''}
                 onChange={(e) => handleInputChange('name', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  formErrors.name ? 'border-red-500' : 'border-gray-300'
-                }`}
                 placeholder="Enter subtype name"
               />
-              {formErrors.name && (
-                <p className="mt-1 text-sm text-red-600">{formErrors.name}</p>
-              )}
-            </div>
+            </Form.Item>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Description
-              </label>
-              <textarea
+            <Form.Item label="Description">
+              <TextArea
                 value={formData.description || ''}
                 onChange={(e) => handleInputChange('description', e.target.value)}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Enter description"
               />
-            </div>
-          </div>
+            </Form.Item>
+          </>
         );
 
       case 'fibers':
         return (
-          <div className="space-y-6 max-h-[70vh] overflow-y-auto">
+          <div style={{ maxHeight: '60vh', overflowY: 'auto', paddingRight: '8px' }}>
             {/* Basic Information */}
-            <div>
-              <h4 className="text-lg font-medium text-gray-900 mb-3">Basic Information</h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Fiber ID *
-                  </label>
-                  <input
-                    type="text"
+            <div style={{ marginBottom: '24px' }}>
+              <h4 style={{ fontSize: '16px', fontWeight: 500, marginBottom: '12px' }}>Basic Information</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <Form.Item
+                  label="Fiber ID"
+                  required
+                  validateStatus={formErrors.fiber_id ? 'error' : ''}
+                  help={formErrors.fiber_id}
+                  style={{ marginBottom: 0 }}
+                >
+                  <Input
                     value={formData.fiber_id || ''}
                     onChange={(e) => handleInputChange('fiber_id', e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      formErrors.fiber_id ? 'border-red-500' : 'border-gray-300'
-                    }`}
                     placeholder="Enter fiber ID"
                   />
-                  {formErrors.fiber_id && (
-                    <p className="mt-1 text-sm text-red-600">{formErrors.fiber_id}</p>
-                  )}
-                </div>
+                </Form.Item>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Name *
-                  </label>
-                  <input
-                    type="text"
+                <Form.Item
+                  label="Name"
+                  required
+                  validateStatus={formErrors.name ? 'error' : ''}
+                  help={formErrors.name}
+                  style={{ marginBottom: 0 }}
+                >
+                  <Input
                     value={formData.name || ''}
                     onChange={(e) => handleInputChange('name', e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      formErrors.name ? 'border-red-500' : 'border-gray-300'
-                    }`}
                     placeholder="Enter fiber name"
                   />
-                  {formErrors.name && (
-                    <p className="mt-1 text-sm text-red-600">{formErrors.name}</p>
-                  )}
-                </div>
+                </Form.Item>
               </div>
             </div>
 
             {/* Classifications */}
-            <div>
-              <h4 className="text-lg font-medium text-gray-900 mb-3">Classifications</h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Fiber Class
-                  </label>
-                  <select
-                    value={formData.class_id || ''}
-                    onChange={(e) => handleInputChange('class_id', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            <div style={{ marginBottom: '24px' }}>
+              <h4 style={{ fontSize: '16px', fontWeight: 500, marginBottom: '12px' }}>Classifications</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <Form.Item label="Fiber Class" style={{ marginBottom: 0 }}>
+                  <Select
+                    showSearch
+                    placeholder="Select a fiber class"
+                    value={formData.class_id || undefined}
+                    onChange={(value) => handleInputChange('class_id', value || '')}
+                    allowClear
+                    filterOption={(input, option) =>
+                      String(option?.children || '').toLowerCase().includes(input.toLowerCase())
+                    }
                   >
-                    <option value="">Select a fiber class</option>
                     {fiberClasses.map(cls => (
-                      <option key={cls.id} value={cls.id}>{cls.name}</option>
+                      <Select.Option key={cls.id} value={cls.id}>{cls.name}</Select.Option>
                     ))}
-                  </select>
-                </div>
+                  </Select>
+                </Form.Item>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Fiber Subtype
-                  </label>
-                  <select
-                    value={formData.subtype_id || ''}
-                    onChange={(e) => handleInputChange('subtype_id', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                <Form.Item label="Fiber Subtype" style={{ marginBottom: 0 }}>
+                  <Select
+                    showSearch
+                    placeholder="Select a subtype"
+                    value={formData.subtype_id || undefined}
+                    onChange={(value) => handleInputChange('subtype_id', value || '')}
+                    allowClear
+                    filterOption={(input, option) =>
+                      String(option?.children || '').toLowerCase().includes(input.toLowerCase())
+                    }
                   >
-                    <option value="">Select a subtype</option>
                     {fiberSubtypes
                       .filter(subtype => !formData.class_id || subtype.class_id === parseInt(formData.class_id))
                       .map(subtype => (
-                        <option key={subtype.id} value={subtype.id}>{subtype.name}</option>
+                        <Select.Option key={subtype.id} value={subtype.id}>{subtype.name}</Select.Option>
                       ))}
-                  </select>
-                </div>
+                  </Select>
+                </Form.Item>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Synthetic Type
-                  </label>
-                  <select
-                    value={formData.synthetic_type_id || ''}
-                    onChange={(e) => handleInputChange('synthetic_type_id', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                <Form.Item label="Synthetic Type" style={{ marginBottom: 0 }}>
+                  <Select
+                    showSearch
+                    placeholder="Select a synthetic type"
+                    value={formData.synthetic_type_id || undefined}
+                    onChange={(value) => handleInputChange('synthetic_type_id', value || '')}
+                    allowClear
+                    filterOption={(input, option) =>
+                      String(option?.children || '').toLowerCase().includes(input.toLowerCase())
+                    }
                   >
-                    <option value="">Select a synthetic type</option>
                     {syntheticTypes.map(type => (
-                      <option key={type.id} value={type.id}>{type.name}</option>
+                      <Select.Option key={type.id} value={type.id}>{type.name}</Select.Option>
                     ))}
-                  </select>
-                </div>
+                  </Select>
+                </Form.Item>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Polymerization Type
-                  </label>
-                  <select
-                    value={formData.polymerization_type_id || ''}
-                    onChange={(e) => handleInputChange('polymerization_type_id', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                <Form.Item label="Polymerization Type" style={{ marginBottom: 0 }}>
+                  <Select
+                    showSearch
+                    placeholder="Select a polymerization type"
+                    value={formData.polymerization_type_id || undefined}
+                    onChange={(value) => handleInputChange('polymerization_type_id', value || '')}
+                    allowClear
+                    filterOption={(input, option) =>
+                      String(option?.children || '').toLowerCase().includes(input.toLowerCase())
+                    }
                   >
-                    <option value="">Select a polymerization type</option>
                     {polymerizationTypes.map(type => (
-                      <option key={type.id} value={type.id}>{type.name}</option>
+                      <Select.Option key={type.id} value={type.id}>{type.name}</Select.Option>
                     ))}
-                  </select>
-                </div>
+                  </Select>
+                </Form.Item>
               </div>
             </div>
 
             {/* Physical Properties */}
-            <div>
-              <h4 className="text-lg font-medium text-gray-900 mb-3">Physical Properties</h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Density (g/cm³)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.001"
-                    value={formData.density_g_cm3 || ''}
-                    onChange={(e) => handleInputChange('density_g_cm3', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            <div style={{ marginBottom: '24px' }}>
+              <h4 style={{ fontSize: '16px', fontWeight: 500, marginBottom: '12px' }}>Physical Properties</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <Form.Item label="Density (g/cm³)" style={{ marginBottom: 0 }}>
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    step={0.001}
+                    value={formData.density_g_cm3 || null}
+                    onChange={(value) => handleInputChange('density_g_cm3', value || '')}
                     placeholder="Enter density"
                   />
-                </div>
+                </Form.Item>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Moisture Regain (%)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.moisture_regain_percent || ''}
-                    onChange={(e) => handleInputChange('moisture_regain_percent', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                <Form.Item label="Moisture Regain (%)" style={{ marginBottom: 0 }}>
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    step={0.01}
+                    value={formData.moisture_regain_percent || null}
+                    onChange={(value) => handleInputChange('moisture_regain_percent', value || '')}
                     placeholder="Enter moisture regain"
                   />
-                </div>
+                </Form.Item>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Absorption Capacity (%)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.absorption_capacity_percent || ''}
-                    onChange={(e) => handleInputChange('absorption_capacity_percent', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                <Form.Item label="Absorption Capacity (%)" style={{ marginBottom: 0 }}>
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    step={0.01}
+                    value={formData.absorption_capacity_percent || null}
+                    onChange={(value) => handleInputChange('absorption_capacity_percent', value || '')}
                     placeholder="Enter absorption capacity"
                   />
-                </div>
+                </Form.Item>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Fineness Min (µm)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.fineness_min_um || ''}
-                    onChange={(e) => handleInputChange('fineness_min_um', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                <Form.Item label="Fineness Min (µm)" style={{ marginBottom: 0 }}>
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    step={0.01}
+                    value={formData.fineness_min_um || null}
+                    onChange={(value) => handleInputChange('fineness_min_um', value || '')}
                     placeholder="Enter minimum fineness"
                   />
-                </div>
+                </Form.Item>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Fineness Max (µm)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.fineness_max_um || ''}
-                    onChange={(e) => handleInputChange('fineness_max_um', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                <Form.Item label="Fineness Max (µm)" style={{ marginBottom: 0 }}>
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    step={0.01}
+                    value={formData.fineness_max_um || null}
+                    onChange={(value) => handleInputChange('fineness_max_um', value || '')}
                     placeholder="Enter maximum fineness"
                   />
-                </div>
+                </Form.Item>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Staple Length Min (mm)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.staple_length_min_mm || ''}
-                    onChange={(e) => handleInputChange('staple_length_min_mm', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                <Form.Item label="Staple Length Min (mm)" style={{ marginBottom: 0 }}>
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    step={0.01}
+                    value={formData.staple_length_min_mm || null}
+                    onChange={(value) => handleInputChange('staple_length_min_mm', value || '')}
                     placeholder="Enter minimum staple length"
                   />
-                </div>
+                </Form.Item>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Staple Length Max (mm)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.staple_length_max_mm || ''}
-                    onChange={(e) => handleInputChange('staple_length_max_mm', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                <Form.Item label="Staple Length Max (mm)" style={{ marginBottom: 0 }}>
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    step={0.01}
+                    value={formData.staple_length_max_mm || null}
+                    onChange={(value) => handleInputChange('staple_length_max_mm', value || '')}
                     placeholder="Enter maximum staple length"
                   />
-                </div>
+                </Form.Item>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Tenacity Min (cN/tex)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.tenacity_min_cn_tex || ''}
-                    onChange={(e) => handleInputChange('tenacity_min_cn_tex', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                <Form.Item label="Tenacity Min (cN/tex)" style={{ marginBottom: 0 }}>
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    step={0.01}
+                    value={formData.tenacity_min_cn_tex || null}
+                    onChange={(value) => handleInputChange('tenacity_min_cn_tex', value || '')}
                     placeholder="Enter minimum tenacity"
                   />
-                </div>
+                </Form.Item>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Tenacity Max (cN/tex)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.tenacity_max_cn_tex || ''}
-                    onChange={(e) => handleInputChange('tenacity_max_cn_tex', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                <Form.Item label="Tenacity Max (cN/tex)" style={{ marginBottom: 0 }}>
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    step={0.01}
+                    value={formData.tenacity_max_cn_tex || null}
+                    onChange={(value) => handleInputChange('tenacity_max_cn_tex', value || '')}
                     placeholder="Enter maximum tenacity"
                   />
-                </div>
+                </Form.Item>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Elongation Min (%)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.elongation_min_percent || ''}
-                    onChange={(e) => handleInputChange('elongation_min_percent', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                <Form.Item label="Elongation Min (%)" style={{ marginBottom: 0 }}>
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    step={0.01}
+                    value={formData.elongation_min_percent || null}
+                    onChange={(value) => handleInputChange('elongation_min_percent', value || '')}
                     placeholder="Enter minimum elongation"
                   />
-                </div>
+                </Form.Item>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Elongation Max (%)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.elongation_max_percent || ''}
-                    onChange={(e) => handleInputChange('elongation_max_percent', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                <Form.Item label="Elongation Max (%)" style={{ marginBottom: 0 }}>
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    step={0.01}
+                    value={formData.elongation_max_percent || null}
+                    onChange={(value) => handleInputChange('elongation_max_percent', value || '')}
                     placeholder="Enter maximum elongation"
                   />
-                </div>
+                </Form.Item>
               </div>
             </div>
 
             {/* Chemical Properties */}
-            <div>
-              <h4 className="text-lg font-medium text-gray-900 mb-3">Chemical Properties</h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Polymer Composition
-                  </label>
-                  <input
-                    type="text"
+            <div style={{ marginBottom: '24px' }}>
+              <h4 style={{ fontSize: '16px', fontWeight: 500, marginBottom: '12px' }}>Chemical Properties</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <Form.Item label="Polymer Composition" style={{ marginBottom: 0 }}>
+                  <Input
                     value={formData.polymer_composition || ''}
                     onChange={(e) => handleInputChange('polymer_composition', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Enter polymer composition"
                   />
-                </div>
+                </Form.Item>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Degree of Polymerization
-                  </label>
-                  <input
-                    type="text"
+                <Form.Item label="Degree of Polymerization" style={{ marginBottom: 0 }}>
+                  <Input
                     value={formData.degree_of_polymerization || ''}
                     onChange={(e) => handleInputChange('degree_of_polymerization', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Enter degree of polymerization"
                   />
-                </div>
+                </Form.Item>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Acid Resistance
-                  </label>
-                  <input
-                    type="text"
+                <Form.Item label="Acid Resistance" style={{ marginBottom: 0 }}>
+                  <Input
                     value={formData.acid_resistance || ''}
                     onChange={(e) => handleInputChange('acid_resistance', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Enter acid resistance"
                   />
-                </div>
+                </Form.Item>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Alkali Resistance
-                  </label>
-                  <input
-                    type="text"
+                <Form.Item label="Alkali Resistance" style={{ marginBottom: 0 }}>
+                  <Input
                     value={formData.alkali_resistance || ''}
                     onChange={(e) => handleInputChange('alkali_resistance', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Enter alkali resistance"
                   />
-                </div>
+                </Form.Item>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Microbial Resistance
-                  </label>
-                  <input
-                    type="text"
+                <Form.Item label="Microbial Resistance" style={{ marginBottom: 0 }}>
+                  <Input
                     value={formData.microbial_resistance || ''}
                     onChange={(e) => handleInputChange('microbial_resistance', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Enter microbial resistance"
                   />
-                </div>
+                </Form.Item>
               </div>
             </div>
 
             {/* Thermal Properties */}
-            <div>
-              <h4 className="text-lg font-medium text-gray-900 mb-3">Thermal Properties</h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Glass Transition Temperature (°C)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.glass_transition_temp_c || ''}
-                    onChange={(e) => handleInputChange('glass_transition_temp_c', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            <div style={{ marginBottom: '24px' }}>
+              <h4 style={{ fontSize: '16px', fontWeight: 500, marginBottom: '12px' }}>Thermal Properties</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <Form.Item label="Glass Transition Temperature (°C)" style={{ marginBottom: 0 }}>
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    step={0.01}
+                    value={formData.glass_transition_temp_c || null}
+                    onChange={(value) => handleInputChange('glass_transition_temp_c', value || '')}
                     placeholder="Enter glass transition temperature"
                   />
-                </div>
+                </Form.Item>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Melting Point (°C)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.melting_point_c || ''}
-                    onChange={(e) => handleInputChange('melting_point_c', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                <Form.Item label="Melting Point (°C)" style={{ marginBottom: 0 }}>
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    step={0.01}
+                    value={formData.melting_point_c || null}
+                    onChange={(value) => handleInputChange('melting_point_c', value || '')}
                     placeholder="Enter melting point"
                   />
-                </div>
+                </Form.Item>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Decomposition Temperature (°C)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.decomposition_temp_c || ''}
-                    onChange={(e) => handleInputChange('decomposition_temp_c', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                <Form.Item label="Decomposition Temperature (°C)" style={{ marginBottom: 0 }}>
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    step={0.01}
+                    value={formData.decomposition_temp_c || null}
+                    onChange={(value) => handleInputChange('decomposition_temp_c', value || '')}
                     placeholder="Enter decomposition temperature"
                   />
-                </div>
+                </Form.Item>
 
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Thermal Properties
-                  </label>
-                  <textarea
-                    value={formData.thermal_properties || ''}
-                    onChange={(e) => handleInputChange('thermal_properties', e.target.value)}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter thermal properties description"
-                  />
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <Form.Item label="Thermal Properties" style={{ marginBottom: 0 }}>
+                    <TextArea
+                      value={formData.thermal_properties || ''}
+                      onChange={(e) => handleInputChange('thermal_properties', e.target.value)}
+                      rows={3}
+                      placeholder="Enter thermal properties description"
+                    />
+                  </Form.Item>
                 </div>
               </div>
             </div>
 
             {/* Structure */}
-            <div>
-              <h4 className="text-lg font-medium text-gray-900 mb-3">Structure</h4>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Repeating Unit
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.repeating_unit || ''}
-                    onChange={(e) => handleInputChange('repeating_unit', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter repeating unit"
-                  />
-                </div>
+            <div style={{ marginBottom: '24px' }}>
+              <h4 style={{ fontSize: '16px', fontWeight: 500, marginBottom: '12px' }}>Structure</h4>
+              <Form.Item label="Repeating Unit" style={{ marginBottom: '16px' }}>
+                <Input
+                  value={formData.repeating_unit || ''}
+                  onChange={(e) => handleInputChange('repeating_unit', e.target.value)}
+                  placeholder="Enter repeating unit"
+                />
+              </Form.Item>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Molecular Structure (SMILES)
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.molecular_structure_smiles || ''}
-                    onChange={(e) => handleInputChange('molecular_structure_smiles', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter SMILES notation"
-                  />
-                </div>
+              <Form.Item label="Molecular Structure (SMILES)" style={{ marginBottom: '16px' }}>
+                <Input
+                  value={formData.molecular_structure_smiles || ''}
+                  onChange={(e) => handleInputChange('molecular_structure_smiles', e.target.value)}
+                  placeholder="Enter SMILES notation"
+                />
+              </Form.Item>
 
-                <div>
-                  <ImageUploadComponent
-                    value={formData.structure_image_url || null}
-                    publicId={formData.structure_image_id || null}
-                    onChange={(imageUrl, publicId) => {
-                      handleInputChange('structure_image_url', imageUrl || '');
-                      handleInputChange('structure_image_id', publicId || '');
-                    }}
-                    label="Structure Image"
-                    disabled={loading}
-                  />
-                </div>
-
+              <div style={{ marginBottom: '16px' }}>
+                <ImageUploadComponent
+                  value={formData.structure_image_url || null}
+                  publicId={formData.structure_image_id || null}
+                  onChange={(imageUrl, publicId) => {
+                    handleInputChange('structure_image_url', imageUrl || '');
+                    handleInputChange('structure_image_id', publicId || '');
+                  }}
+                  label="Structure Image"
+                  disabled={loading}
+                />
               </div>
             </div>
 
             {/* Arrays */}
-            <div>
-              <h4 className="text-lg font-medium text-gray-900 mb-3">Categories & Properties</h4>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Trade Names
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.trade_names?.join(', ') || ''}
-                    onChange={(e) => handleArrayChange('trade_names', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter trade names separated by commas"
-                  />
-                </div>
+            <div style={{ marginBottom: '24px' }}>
+              <h4 style={{ fontSize: '16px', fontWeight: 500, marginBottom: '12px' }}>Categories & Properties</h4>
+              <Form.Item label="Trade Names" style={{ marginBottom: '16px' }} tooltip="Enter comma-separated values">
+                <Input
+                  value={formData.trade_names?.join(', ') || ''}
+                  onChange={(e) => handleArrayChange('trade_names', e.target.value)}
+                  placeholder="Enter trade names separated by commas"
+                />
+              </Form.Item>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Sources
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.sources?.join(', ') || ''}
-                    onChange={(e) => handleArrayChange('sources', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter sources separated by commas"
-                  />
-                </div>
+              <Form.Item label="Sources" style={{ marginBottom: '16px' }} tooltip="Enter comma-separated values">
+                <Input
+                  value={formData.sources?.join(', ') || ''}
+                  onChange={(e) => handleArrayChange('sources', e.target.value)}
+                  placeholder="Enter sources separated by commas"
+                />
+              </Form.Item>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Applications
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.applications?.join(', ') || ''}
-                    onChange={(e) => handleArrayChange('applications', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter applications separated by commas"
-                  />
-                </div>
+              <Form.Item label="Applications" style={{ marginBottom: '16px' }} tooltip="Enter comma-separated values">
+                <Input
+                  value={formData.applications?.join(', ') || ''}
+                  onChange={(e) => handleArrayChange('applications', e.target.value)}
+                  placeholder="Enter applications separated by commas"
+                />
+              </Form.Item>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Manufacturing Process
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.manufacturing_process?.join(', ') || ''}
-                    onChange={(e) => handleArrayChange('manufacturing_process', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter manufacturing processes separated by commas"
-                  />
-                </div>
+              <Form.Item label="Manufacturing Process" style={{ marginBottom: '16px' }} tooltip="Enter comma-separated values">
+                <Input
+                  value={formData.manufacturing_process?.join(', ') || ''}
+                  onChange={(e) => handleArrayChange('manufacturing_process', e.target.value)}
+                  placeholder="Enter manufacturing processes separated by commas"
+                />
+              </Form.Item>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Spinning Method
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.spinning_method?.join(', ') || ''}
-                    onChange={(e) => handleArrayChange('spinning_method', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter spinning methods separated by commas"
-                  />
-                </div>
+              <Form.Item label="Spinning Method" style={{ marginBottom: '16px' }} tooltip="Enter comma-separated values">
+                <Input
+                  value={formData.spinning_method?.join(', ') || ''}
+                  onChange={(e) => handleArrayChange('spinning_method', e.target.value)}
+                  placeholder="Enter spinning methods separated by commas"
+                />
+              </Form.Item>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Post Treatments
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.post_treatments?.join(', ') || ''}
-                    onChange={(e) => handleArrayChange('post_treatments', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter post treatments separated by commas"
-                  />
-                </div>
+              <Form.Item label="Post Treatments" style={{ marginBottom: '16px' }} tooltip="Enter comma-separated values">
+                <Input
+                  value={formData.post_treatments?.join(', ') || ''}
+                  onChange={(e) => handleArrayChange('post_treatments', e.target.value)}
+                  placeholder="Enter post treatments separated by commas"
+                />
+              </Form.Item>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Functional Groups
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.functional_groups?.join(', ') || ''}
-                    onChange={(e) => handleArrayChange('functional_groups', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter functional groups separated by commas"
-                  />
-                </div>
+              <Form.Item label="Functional Groups" style={{ marginBottom: '16px' }} tooltip="Enter comma-separated values">
+                <Input
+                  value={formData.functional_groups?.join(', ') || ''}
+                  onChange={(e) => handleArrayChange('functional_groups', e.target.value)}
+                  placeholder="Enter functional groups separated by commas"
+                />
+              </Form.Item>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Dye Affinity
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.dye_affinity?.join(', ') || ''}
-                    onChange={(e) => handleArrayChange('dye_affinity', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter dye affinities separated by commas"
-                  />
-                </div>
-              </div>
+              <Form.Item label="Dye Affinity" style={{ marginBottom: '16px' }} tooltip="Enter comma-separated values">
+                <Input
+                  value={formData.dye_affinity?.join(', ') || ''}
+                  onChange={(e) => handleArrayChange('dye_affinity', e.target.value)}
+                  placeholder="Enter dye affinities separated by commas"
+                />
+              </Form.Item>
             </div>
 
             {/* Sustainability */}
-            <div>
-              <h4 className="text-lg font-medium text-gray-900 mb-3">Sustainability</h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Biodegradable
-                  </label>
-                  <select
-                    value={formData.biodegradability === null ? '' : formData.biodegradability ? 'true' : 'false'}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      handleInputChange('biodegradability', value === '' ? null : value === 'true');
+            <div style={{ marginBottom: '24px' }}>
+              <h4 style={{ fontSize: '16px', fontWeight: 500, marginBottom: '12px' }}>Sustainability</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <Form.Item label="Biodegradable" style={{ marginBottom: 0 }}>
+                  <Select
+                    placeholder="Unknown"
+                    value={formData.biodegradability === null ? undefined : formData.biodegradability ? 'true' : 'false'}
+                    onChange={(value) => {
+                      handleInputChange('biodegradability', value === undefined ? null : value === 'true');
                     }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    allowClear
                   >
-                    <option value="">Unknown</option>
-                    <option value="true">Yes</option>
-                    <option value="false">No</option>
-                  </select>
-                </div>
+                    <Select.Option value="true">Yes</Select.Option>
+                    <Select.Option value="false">No</Select.Option>
+                  </Select>
+                </Form.Item>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Environmental Impact Score
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="10"
-                    value={formData.environmental_impact_score || ''}
-                    onChange={(e) => handleInputChange('environmental_impact_score', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter impact score (1-10)"
+                <Form.Item label="Environmental Impact Score (1-10)" style={{ marginBottom: 0 }}>
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    min={1}
+                    max={10}
+                    value={formData.environmental_impact_score || null}
+                    onChange={(value) => handleInputChange('environmental_impact_score', value || '')}
+                    placeholder="Enter impact score"
                   />
-                </div>
+                </Form.Item>
 
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Sustainability Notes
-                  </label>
-                  <textarea
-                    value={formData.sustainability_notes || ''}
-                    onChange={(e) => handleInputChange('sustainability_notes', e.target.value)}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter sustainability notes"
-                  />
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <Form.Item label="Sustainability Notes" style={{ marginBottom: 0 }}>
+                    <TextArea
+                      value={formData.sustainability_notes || ''}
+                      onChange={(e) => handleInputChange('sustainability_notes', e.target.value)}
+                      rows={3}
+                      placeholder="Enter sustainability notes"
+                    />
+                  </Form.Item>
                 </div>
               </div>
             </div>
 
             {/* Identification & Testing */}
-            <div>
-              <h4 className="text-lg font-medium text-gray-900 mb-3">Identification & Testing</h4>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Identification Methods
-                  </label>
-                  <textarea
-                    value={formData.identification_methods || ''}
-                    onChange={(e) => handleInputChange('identification_methods', e.target.value)}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter identification methods"
-                  />
-                </div>
+            <div style={{ marginBottom: '24px' }}>
+              <h4 style={{ fontSize: '16px', fontWeight: 500, marginBottom: '12px' }}>Identification & Testing</h4>
+              <Form.Item label="Identification Methods" style={{ marginBottom: '16px' }}>
+                <TextArea
+                  value={formData.identification_methods || ''}
+                  onChange={(e) => handleInputChange('identification_methods', e.target.value)}
+                  rows={3}
+                  placeholder="Enter identification methods"
+                />
+              </Form.Item>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Property Analysis Methods
-                  </label>
-                  <textarea
-                    value={formData.property_analysis_methods || ''}
-                    onChange={(e) => handleInputChange('property_analysis_methods', e.target.value)}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter property analysis methods"
-                  />
-                </div>
-              </div>
+              <Form.Item label="Property Analysis Methods" style={{ marginBottom: '16px' }}>
+                <TextArea
+                  value={formData.property_analysis_methods || ''}
+                  onChange={(e) => handleInputChange('property_analysis_methods', e.target.value)}
+                  rows={3}
+                  placeholder="Enter property analysis methods"
+                />
+              </Form.Item>
             </div>
 
             {/* Metadata */}
-            <div>
-              <h4 className="text-lg font-medium text-gray-900 mb-3">Metadata</h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Data Quality Score (1-5)
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="5"
+            <div style={{ marginBottom: '24px' }}>
+              <h4 style={{ fontSize: '16px', fontWeight: 500, marginBottom: '12px' }}>Metadata</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <Form.Item label="Data Quality Score (1-5)" style={{ marginBottom: 0 }}>
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    min={1}
+                    max={5}
                     value={formData.data_quality_score || 3}
-                    onChange={(e) => handleInputChange('data_quality_score', parseInt(e.target.value))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onChange={(value) => handleInputChange('data_quality_score', value ? parseInt(String(value)) : 3)}
                   />
-                </div>
+                </Form.Item>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Data Source
-                  </label>
-                  <input
-                    type="text"
+                <Form.Item label="Data Source" style={{ marginBottom: 0 }}>
+                  <Input
                     value={formData.data_source || 'Manual Entry'}
                     onChange={(e) => handleInputChange('data_source', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Enter data source"
                   />
-                </div>
+                </Form.Item>
               </div>
             </div>
           </div>
@@ -1062,46 +877,27 @@ const FiberFormModal: React.FC<FiberFormModalProps> = ({
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-screen overflow-hidden">
-        <div className="p-6 border-b border-gray-200 flex justify-between items-center">
-          <h3 className="text-xl font-semibold">
-            {editingItem ? 'Edit' : 'Create'} {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
-          </h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 text-2xl"
-          >
-            ×
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="p-6">
-          {renderFormFields()}
-
-          <div className="flex gap-3 mt-6 pt-4 border-t border-gray-200">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition-colors"
-              disabled={loading}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:opacity-50"
-              disabled={loading}
-            >
-              {loading ? 'Saving...' : editingItem ? 'Update' : 'Create'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      title={`${editingItem ? 'Edit' : 'Create'} ${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}`}
+      open={isOpen}
+      onCancel={onClose}
+      footer={[
+        <Button key="cancel" onClick={onClose} disabled={loading}>
+          Cancel
+        </Button>,
+        <Button key="submit" type="primary" onClick={handleSubmit} loading={loading}>
+          {editingItem ? 'Update' : 'Create'}
+        </Button>
+      ]}
+      width={800}
+      style={{ top: 20 }}
+      styles={{ body: { maxHeight: 'calc(100vh - 200px)', overflowY: 'auto' } }}
+    >
+      <Form layout="vertical" onSubmitCapture={handleSubmit}>
+        {renderFormFields()}
+      </Form>
+    </Modal>
   );
 };
 

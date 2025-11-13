@@ -603,36 +603,44 @@ const FiberDatabaseManagement: React.FC<FiberDatabaseManagementProps> = () => {
 
       {/* Search Bar for Fibers Tab */}
       {activeTab === 'fibers' && (
-        <div className="px-4 py-4 border-b border-gray-200">
-          <Space size="middle" wrap style={{ width: '100%', justifyContent: 'space-between' }}>
-            <Input.Search
-              placeholder="Search fibers..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ width: 300 }}
-              allowClear
-            />
-            <Select
-              placeholder="All Classes"
-              value={selectedClassFilter}
-              onChange={(value) => setSelectedClassFilter(value)}
-              style={{ width: 200 }}
-              allowClear
-            >
-              {fiberClasses.map(cls => (
-                <Select.Option key={cls.id} value={cls.id}>{cls.name}</Select.Option>
-              ))}
-            </Select>
-            <Space>
-              <span className="text-sm font-semibold">
+        <div className="p-4 border-b border-gray-200">
+          <div className="flex flex-wrap gap-4 items-end">
+            <div style={{ flex: '1 1 250px', minWidth: '250px' }}>
+              <Input.Search
+                placeholder="Search fibers..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                allowClear
+              />
+            </div>
+            <div style={{ flex: '0 1 200px', minWidth: '180px' }}>
+              <Select
+                showSearch
+                placeholder="All Classes"
+                value={selectedClassFilter}
+                onChange={(value) => setSelectedClassFilter(value)}
+                style={{ width: '100%' }}
+                allowClear
+                filterOption={(input, option) =>
+                  String(option?.children || '').toLowerCase().includes(input.toLowerCase())
+                }
+              >
+                {fiberClasses.map(cls => (
+                  <Select.Option key={cls.id} value={cls.id}>{cls.name}</Select.Option>
+                ))}
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold whitespace-nowrap">
                 Showing {filteredFibers.length} of {fibers.length}
               </span>
-              {(searchTerm || selectedClassFilter) && (
-                <Button type="link" onClick={() => { setSearchTerm(''); setSelectedClassFilter(null); }}>
+                <Button 
+                type="link" 
+                disabled={!(searchTerm || selectedClassFilter)}
+                onClick={() => { setSearchTerm(''); setSelectedClassFilter(null); }}>
                   Clear filters
                 </Button>
-              )}
-            </Space>
+            </div>
             <Button
               type="primary"
               icon={<PlusOutlined />}
@@ -640,7 +648,7 @@ const FiberDatabaseManagement: React.FC<FiberDatabaseManagementProps> = () => {
             >
               Add Fiber
             </Button>
-          </Space>
+          </div>
         </div>
       )}
 

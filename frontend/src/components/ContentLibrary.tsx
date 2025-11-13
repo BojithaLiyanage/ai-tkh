@@ -395,44 +395,6 @@ const ContentLibrary: React.FC<ContentLibraryProps> = () => {
         />
       )}
 
-      {/* Module Creation Form */}
-      {showModuleForm && canEdit && (
-        <Card
-          title={editingModule ? 'Edit Module' : 'Create New Module'}
-          style={{ marginBottom: '16px', backgroundColor: '#e6f7ff', borderColor: '#91d5ff' }}
-        >
-          <Form onFinish={handleCreateModule} layout="vertical">
-            <Form.Item
-              label="Module Name"
-              required
-            >
-              <Input
-                placeholder="Module name"
-                value={moduleForm.name}
-                onChange={(e) => setModuleForm({...moduleForm, name: e.target.value})}
-                required
-              />
-            </Form.Item>
-            <Form.Item label="Description">
-              <TextArea
-                placeholder="Description (optional)"
-                value={moduleForm.description}
-                onChange={(e) => setModuleForm({...moduleForm, description: e.target.value})}
-                rows={2}
-              />
-            </Form.Item>
-            <Space>
-              <Button type="primary" htmlType="submit">
-                {editingModule ? 'Update Module' : 'Create Module'}
-              </Button>
-              <Button onClick={() => { setShowModuleForm(false); resetForms(); }}>
-                Cancel
-              </Button>
-            </Space>
-          </Form>
-        </Card>
-      )}
-
       {/* Add Module Button */}
       {canEdit && (
         <div style={{ marginBottom: '16px' }}>
@@ -496,57 +458,23 @@ const ContentLibrary: React.FC<ContentLibraryProps> = () => {
                         >
                           Delete
                         </Button>
-                        <Button
-                          size="small"
-                          type="primary"
-                          style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
-                          icon={<PlusOutlined />}
-                          onClick={(e) => { e.stopPropagation(); setShowTopicForm(module.id); }}
-                        >
-                          Topic
-                        </Button>
+                        {expandedModules.has(module.id) && (
+                          <Button
+                            size="small"
+                            // type="primary"
+                            style={{color:"#52c41a", borderColor: '#52c41a' }}
+                            icon={<PlusOutlined />}
+                            onClick={(e) => { e.stopPropagation(); setShowTopicForm(module.id); }}
+                          >
+                            Topic
+                          </Button>
+                        )}
                       </>
                     )}
                   </Space>
                 </div>
               }
             >
-              {/* Topic Creation Form */}
-              {showTopicForm === module.id && canEdit && (
-                <Card
-                  title={editingTopic ? 'Edit Topic' : 'Create New Topic'}
-                  style={{ marginBottom: '16px', backgroundColor: '#f6ffed', borderColor: '#b7eb8f' }}
-                  size="small"
-                >
-                  <Form onFinish={(e) => handleCreateTopic(e, module.id)} layout="vertical">
-                    <Form.Item label="Topic Name" required>
-                      <Input
-                        placeholder="Topic name"
-                        value={topicForm.name}
-                        onChange={(e) => setTopicForm({...topicForm, name: e.target.value})}
-                        required
-                      />
-                    </Form.Item>
-                    <Form.Item label="Description">
-                      <TextArea
-                        placeholder="Description (optional)"
-                        value={topicForm.description}
-                        onChange={(e) => setTopicForm({...topicForm, description: e.target.value})}
-                        rows={2}
-                      />
-                    </Form.Item>
-                    <Space>
-                      <Button type="primary" htmlType="submit" style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}>
-                        {editingTopic ? 'Update Topic' : 'Create Topic'}
-                      </Button>
-                      <Button onClick={() => { setShowTopicForm(null); resetForms(); }}>
-                        Cancel
-                      </Button>
-                    </Space>
-                  </Form>
-                </Card>
-              )}
-
               {/* Topics */}
               {topics[module.id] && topics[module.id].length > 0 && (
                 <Collapse
@@ -591,9 +519,9 @@ const ContentLibrary: React.FC<ContentLibraryProps> = () => {
                                 </Button>
                                 <Button
                                   size="small"
-                                  type="primary"
-                                  style={{ backgroundColor: '#722ed1', borderColor: '#722ed1' }}
-                                  icon={<PlusOutlined />}
+                                  // type="primary"
+                                 style={{color:"#722ed1", borderColor: '#722ed1' }}
+                                   icon={<PlusOutlined />}
                                   onClick={(e) => { e.stopPropagation(); setShowSubtopicForm(topic.id); }}
                                 >
                                   Subtopic
@@ -604,80 +532,6 @@ const ContentLibrary: React.FC<ContentLibraryProps> = () => {
                         </div>
                       }
                     >
-                      {/* Subtopic Creation Form */}
-                      {showSubtopicForm === topic.id && canEdit && (
-                        <Card
-                          title={editingSubtopic ? 'Edit Subtopic' : 'Create New Subtopic'}
-                          style={{ marginBottom: '16px', backgroundColor: '#f9f0ff', borderColor: '#d3adf7' }}
-                          size="small"
-                        >
-                          <Form onFinish={(e) => handleCreateSubtopic(e, topic.id)} layout="vertical">
-                            <Form.Item label="Subtopic Name" required>
-                              <Input
-                                placeholder="Subtopic name"
-                                value={subtopicForm.name}
-                                onChange={(e) => setSubtopicForm({...subtopicForm, name: e.target.value})}
-                                required
-                              />
-                            </Form.Item>
-                            <Form.Item label="Definition">
-                              <TextArea
-                                placeholder="Definition (optional)"
-                                value={subtopicForm.definition}
-                                onChange={(e) => setSubtopicForm({...subtopicForm, definition: e.target.value})}
-                                rows={2}
-                              />
-                            </Form.Item>
-                            <Form.Item label="Notes">
-                              <TextArea
-                                placeholder="Notes (optional)"
-                                value={subtopicForm.notes}
-                                onChange={(e) => setSubtopicForm({...subtopicForm, notes: e.target.value})}
-                                rows={2}
-                              />
-                            </Form.Item>
-                            <Form.Item label="Difficulty Level">
-                              <Select
-                                value={subtopicForm.difficulty_level}
-                                onChange={(value) => setSubtopicForm({
-                                  ...subtopicForm,
-                                  difficulty_level: value as 'intro' | 'basic' | 'intermediate' | 'advanced'
-                                })}
-                              >
-                                <Select.Option value="intro">Introduction</Select.Option>
-                                <Select.Option value="basic">Basic</Select.Option>
-                                <Select.Option value="intermediate">Intermediate</Select.Option>
-                                <Select.Option value="advanced">Advanced</Select.Option>
-                              </Select>
-                            </Form.Item>
-                            {studyGroups.length > 0 && (
-                              <Form.Item label="Target Study Groups">
-                                <Checkbox.Group
-                                  value={selectedStudyGroups}
-                                  onChange={(checkedValues) => setSelectedStudyGroups(checkedValues as string[])}
-                                >
-                                  <Space direction="vertical">
-                                    {studyGroups.map((group) => (
-                                      <Checkbox key={group.code} value={group.code}>
-                                        {group.name} ({group.code})
-                                      </Checkbox>
-                                    ))}
-                                  </Space>
-                                </Checkbox.Group>
-                              </Form.Item>
-                            )}
-                            <Space>
-                              <Button type="primary" htmlType="submit" style={{ backgroundColor: '#722ed1', borderColor: '#722ed1' }}>
-                                {editingSubtopic ? 'Update Subtopic' : 'Create Subtopic'}
-                              </Button>
-                              <Button onClick={() => { setShowSubtopicForm(null); resetForms(); }}>
-                                Cancel
-                              </Button>
-                            </Space>
-                          </Form>
-                        </Card>
-                      )}
-
                       {/* Subtopics */}
                       {subtopics[topic.id] && subtopics[topic.id].length > 0 && (
                         <div style={{ marginTop: '8px' }}>
@@ -738,6 +592,152 @@ const ContentLibrary: React.FC<ContentLibraryProps> = () => {
           ))}
         </Collapse>
       )}
+
+      {/* Module Modal */}
+      <Modal
+        title={editingModule ? 'Edit Module' : 'Create New Module'}
+        open={showModuleForm}
+        onCancel={() => { setShowModuleForm(false); resetForms(); }}
+        footer={null}
+        width={600}
+      >
+        <Form onFinish={handleCreateModule} layout="vertical">
+          <Form.Item label="Module Name" required>
+            <Input
+              placeholder="Module name"
+              value={moduleForm.name}
+              onChange={(e) => setModuleForm({...moduleForm, name: e.target.value})}
+              required
+            />
+          </Form.Item>
+          <Form.Item label="Description">
+            <TextArea
+              placeholder="Description (optional)"
+              value={moduleForm.description}
+              onChange={(e) => setModuleForm({...moduleForm, description: e.target.value})}
+              rows={3}
+            />
+          </Form.Item>
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+            <Button onClick={() => { setShowModuleForm(false); resetForms(); }}>
+              Cancel
+            </Button>
+            <Button type="primary" htmlType="submit">
+              {editingModule ? 'Update Module' : 'Create Module'}
+            </Button>
+          </div>
+        </Form>
+      </Modal>
+
+      {/* Topic Modal */}
+      <Modal
+        title={editingTopic ? 'Edit Topic' : 'Create New Topic'}
+        open={showTopicForm !== null}
+        onCancel={() => { setShowTopicForm(null); resetForms(); }}
+        footer={null}
+        width={600}
+      >
+        <Form onFinish={(e) => handleCreateTopic(e, showTopicForm!)} layout="vertical">
+          <Form.Item label="Topic Name" required>
+            <Input
+              placeholder="Topic name"
+              value={topicForm.name}
+              onChange={(e) => setTopicForm({...topicForm, name: e.target.value})}
+              required
+            />
+          </Form.Item>
+          <Form.Item label="Description">
+            <TextArea
+              placeholder="Description (optional)"
+              value={topicForm.description}
+              onChange={(e) => setTopicForm({...topicForm, description: e.target.value})}
+              rows={3}
+            />
+          </Form.Item>
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+            <Button onClick={() => { setShowTopicForm(null); resetForms(); }}>
+              Cancel
+            </Button>
+            <Button type="primary" htmlType="submit" style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}>
+              {editingTopic ? 'Update Topic' : 'Create Topic'}
+            </Button>
+          </div>
+        </Form>
+      </Modal>
+
+      {/* Subtopic Modal */}
+      <Modal
+        title={editingSubtopic ? 'Edit Subtopic' : 'Create New Subtopic'}
+        open={showSubtopicForm !== null}
+        onCancel={() => { setShowSubtopicForm(null); resetForms(); }}
+        footer={null}
+        width={700}
+      >
+        <Form onFinish={(e) => handleCreateSubtopic(e, showSubtopicForm!)} layout="vertical">
+          <Form.Item label="Subtopic Name" required>
+            <Input
+              placeholder="Subtopic name"
+              value={subtopicForm.name}
+              onChange={(e) => setSubtopicForm({...subtopicForm, name: e.target.value})}
+              required
+            />
+          </Form.Item>
+          <Form.Item label="Definition">
+            <TextArea
+              placeholder="Definition (optional)"
+              value={subtopicForm.definition}
+              onChange={(e) => setSubtopicForm({...subtopicForm, definition: e.target.value})}
+              rows={2}
+            />
+          </Form.Item>
+          <Form.Item label="Notes">
+            <TextArea
+              placeholder="Notes (optional)"
+              value={subtopicForm.notes}
+              onChange={(e) => setSubtopicForm({...subtopicForm, notes: e.target.value})}
+              rows={2}
+            />
+          </Form.Item>
+          <Form.Item label="Difficulty Level">
+            <Select
+              value={subtopicForm.difficulty_level}
+              onChange={(value) => setSubtopicForm({
+                ...subtopicForm,
+                difficulty_level: value as 'intro' | 'basic' | 'intermediate' | 'advanced'
+              })}
+            >
+              <Select.Option value="intro">Introduction</Select.Option>
+              <Select.Option value="basic">Basic</Select.Option>
+              <Select.Option value="intermediate">Intermediate</Select.Option>
+              <Select.Option value="advanced">Advanced</Select.Option>
+            </Select>
+          </Form.Item>
+          {studyGroups.length > 0 && (
+            <Form.Item label="Target Study Groups">
+              <Checkbox.Group
+                value={selectedStudyGroups}
+                onChange={(checkedValues) => setSelectedStudyGroups(checkedValues as string[])}
+              >
+                <Space direction="vertical">
+                  {studyGroups.map((group) => (
+                    <Checkbox key={group.code} value={group.code}>
+                      {group.name} ({group.code})
+                    </Checkbox>
+                  ))}
+                </Space>
+              </Checkbox.Group>
+            </Form.Item>
+          )}
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+            <Button onClick={() => { setShowSubtopicForm(null); resetForms(); }}>
+              Cancel
+            </Button>
+            <Button type="primary" htmlType="submit" style={{ backgroundColor: '#722ed1', borderColor: '#722ed1' }}>
+              {editingSubtopic ? 'Update Subtopic' : 'Create Subtopic'}
+            </Button>
+          </div>
+        </Form>
+      </Modal>
     </div>
   );
 };

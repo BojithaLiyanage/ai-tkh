@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { questionApi, fiberApi, type QuestionWithFiberRead, type QuestionCreate, type QuestionStats, type FiberSummary } from '../services/api';
-import { Card, Button, Select, Alert, Spin, Modal, Form, Input, Tag, Space, Statistic } from 'antd';
+import { Card, Button, Select, Alert, Spin, Modal, Form, Input, Tag, Space } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 
 const { TextArea } = Input;
@@ -26,6 +26,9 @@ const QuestionBankManagement: React.FC<QuestionBankManagementProps> = () => {
   });
   const [editingQuestion, setEditingQuestion] = useState<QuestionWithFiberRead | null>(null);
   const [showEditForm, setShowEditForm] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
 
   // Form state
   const [formData, setFormData] = useState<QuestionCreate>({
@@ -51,6 +54,8 @@ const QuestionBankManagement: React.FC<QuestionBankManagementProps> = () => {
   ];
 
   useEffect(() => {
+    setOffset(0);
+    setHasMore(true);
     fetchData();
   }, [filterFiberId, filterStudyGroup]);
 
@@ -62,6 +67,7 @@ const QuestionBankManagement: React.FC<QuestionBankManagementProps> = () => {
           fiber_id: filterFiberId,
           study_group_code: filterStudyGroup,
           limit: 100,
+          offset: 0,
         }),
         questionApi.getQuestionStats(),
         fiberApi.getFibers(),
@@ -69,11 +75,33 @@ const QuestionBankManagement: React.FC<QuestionBankManagementProps> = () => {
       setQuestions(questionsData);
       setStats(statsData);
       setFibers(fibersData);
+      setHasMore(questionsData.length === 100);
+      setOffset(100);
     } catch (err) {
       setError('Failed to fetch questions');
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadMore = async () => {
+    try {
+      setLoadingMore(true);
+      const moreQuestions = await questionApi.getQuestions({
+        fiber_id: filterFiberId,
+        study_group_code: filterStudyGroup,
+        limit: 100,
+        offset: offset,
+      });
+      setQuestions([...questions, ...moreQuestions]);
+      setHasMore(moreQuestions.length === 100);
+      setOffset(offset + 100);
+    } catch (err) {
+      setError('Failed to load more questions');
+      console.error(err);
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -218,25 +246,21 @@ const QuestionBankManagement: React.FC<QuestionBankManagementProps> = () => {
       <div className="flex-shrink-0">
         {/* Stats Dashboard */}
         {stats && (
-          <div className="bg-gray-50 px-6 py-4 border-b">
+          <div className="bg-gray-50 px-6 py-3 border-b">
             <Space size="large" wrap>
-              <Statistic
-                title="Total Questions"
-                value={stats.total_questions}
-                valueStyle={{ color: '#722ed1', fontSize: '24px', fontWeight: 'bold' }}
-              />
-              <Statistic
-                title="Fibers Covered"
-                value={stats.total_fibers_with_questions}
-                valueStyle={{ color: '#531dab', fontSize: '24px', fontWeight: 'bold' }}
-              />
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600 font-medium">Total Questions:</span>
+                <span className="text-lg font-semibold" style={{ color: '#722ed1' }}>{stats.total_questions}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600 font-medium">Fibers Covered:</span>
+                <span className="text-lg font-semibold" style={{ color: '#531dab' }}>{stats.total_fibers_with_questions}</span>
+              </div>
               {stats.questions_by_study_group.map((group) => (
-                <Statistic
-                  key={group.code}
-                  title={group.name}
-                  value={group.count}
-                  valueStyle={{ color: '#1890ff', fontSize: '24px', fontWeight: 'bold' }}
-                />
+                <div key={group.code} className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600 font-medium">{group.name}:</span>
+                  <span className="text-lg font-semibold" style={{ color: '#1890ff' }}>{group.count}</span>
+                </div>
               ))}
             </Space>
           </div>
@@ -248,11 +272,15 @@ const QuestionBankManagement: React.FC<QuestionBankManagementProps> = () => {
             <div style={{ minWidth: '200px' }}>
               <div style={{ marginBottom: '8px', fontSize: '14px', fontWeight: 500 }}>Filter by Fiber</div>
               <Select
+                showSearch
                 placeholder="All Fibers"
                 value={filterFiberId}
                 onChange={(value) => setFilterFiberId(value)}
                 allowClear
                 style={{ width: '200px' }}
+                filterOption={(input, option) =>
+                  String(option?.children || '').toLowerCase().includes(input.toLowerCase())
+                }
               >
                 {fibers.map((fiber) => (
                   <Select.Option key={fiber.id} value={fiber.id}>
@@ -265,11 +293,15 @@ const QuestionBankManagement: React.FC<QuestionBankManagementProps> = () => {
             <div style={{ minWidth: '200px' }}>
               <div style={{ marginBottom: '8px', fontSize: '14px', fontWeight: 500 }}>Filter by Study Group</div>
               <Select
+                showSearch
                 placeholder="All Groups"
                 value={filterStudyGroup}
                 onChange={(value) => setFilterStudyGroup(value)}
                 allowClear
                 style={{ width: '200px' }}
+                filterOption={(input, option) =>
+                  String(option?.children || '').toLowerCase().includes(input.toLowerCase())
+                }
               >
                 {studyGroups.map((group) => (
                   <Select.Option key={group.code} value={group.code}>
@@ -284,7 +316,6 @@ const QuestionBankManagement: React.FC<QuestionBankManagementProps> = () => {
               icon={<PlusOutlined />}
               onClick={() => setShowAddForm(!showAddForm)}
               style={{ backgroundColor: '#722ed1', borderColor: '#722ed1', marginTop: '24px' }}
-              size="large"
             >
               Add Question
             </Button>
@@ -367,6 +398,21 @@ const QuestionBankManagement: React.FC<QuestionBankManagementProps> = () => {
                 </div>
               </Card>
             ))}
+
+            {/* Show More Button */}
+            {hasMore && !loading && questions.length > 0 && (
+              <div className="text-center mt-6">
+                <Button
+                  type="default"
+                  size="large"
+                  onClick={loadMore}
+                  loading={loadingMore}
+                  style={{ minWidth: '200px' }}
+                >
+                  {loadingMore ? 'Loading...' : 'Show More'}
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -111,8 +111,8 @@ const Navbar: React.FC<NavbarProps> = ({ tabs }) => {
         </Text>
 
         {/* Profile dropdown */}
-        <Dropdown menu={{ items }} placement="bottomRight" trigger={['click']}>
-          <Space style={{ cursor: 'pointer', padding: '8px 12px', borderRadius: '8px' }} className="hover:bg-gray-100">
+        <Dropdown menu={{ items }} placement="bottomRight" trigger={['hover']}>
+          <Space style={{ cursor: 'pointer', borderRadius: '8px' }} >
             <Avatar
               style={{
                 backgroundColor: '#1890ff',
