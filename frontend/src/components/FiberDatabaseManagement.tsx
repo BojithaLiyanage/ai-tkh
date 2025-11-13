@@ -14,14 +14,16 @@ import {
   type FiberCreate
 } from '../services/api';
 import FiberFormModal from './FiberFormModal';
+import { Tabs, Card, Button, Alert, Spin, Input, Select, Tag, Space, Modal } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, CheckCircleOutlined, StopOutlined } from '@ant-design/icons';
 
 interface FiberDatabaseManagementProps {
-  onClose: () => void;
+  onClose?: () => void;
 }
 
 type TabType = 'fibers' | 'classes' | 'subtypes' | 'synthetic' | 'polymerization';
 
-const FiberDatabaseManagement: React.FC<FiberDatabaseManagementProps> = ({ onClose }) => {
+const FiberDatabaseManagement: React.FC<FiberDatabaseManagementProps> = () => {
   const [activeTab, setActiveTab] = useState<TabType>('fibers');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -151,41 +153,48 @@ const FiberDatabaseManagement: React.FC<FiberDatabaseManagementProps> = ({ onClo
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this item?')) return;
+    Modal.confirm({
+      title: 'Are you sure you want to delete this item?',
+      content: 'This action cannot be undone.',
+      okText: 'Delete',
+      okType: 'danger',
+      cancelText: 'Cancel',
+      onOk: async () => {
+        setLoading(true);
+        clearMessages();
 
-    setLoading(true);
-    clearMessages();
+        try {
+          switch (activeTab) {
+            case 'classes':
+              await fiberApi.deleteFiberClass(id);
+              setSuccess('Fiber class deleted successfully');
+              break;
+            case 'subtypes':
+              await fiberApi.deleteFiberSubtype(id);
+              setSuccess('Fiber subtype deleted successfully');
+              break;
+            case 'synthetic':
+              await fiberApi.deleteSyntheticType(id);
+              setSuccess('Synthetic type deleted successfully');
+              break;
+            case 'polymerization':
+              await fiberApi.deletePolymerizationType(id);
+              setSuccess('Polymerization type deleted successfully');
+              break;
+            case 'fibers':
+              await fiberApi.deleteFiber(id);
+              setSuccess('Fiber deleted successfully');
+              break;
+          }
 
-    try {
-      switch (activeTab) {
-        case 'classes':
-          await fiberApi.deleteFiberClass(id);
-          setSuccess('Fiber class deleted successfully');
-          break;
-        case 'subtypes':
-          await fiberApi.deleteFiberSubtype(id);
-          setSuccess('Fiber subtype deleted successfully');
-          break;
-        case 'synthetic':
-          await fiberApi.deleteSyntheticType(id);
-          setSuccess('Synthetic type deleted successfully');
-          break;
-        case 'polymerization':
-          await fiberApi.deletePolymerizationType(id);
-          setSuccess('Polymerization type deleted successfully');
-          break;
-        case 'fibers':
-          await fiberApi.deleteFiber(id);
-          setSuccess('Fiber deleted successfully');
-          break;
-      }
-
-      await loadData();
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to delete item');
-    } finally {
-      setLoading(false);
-    }
+          await loadData();
+        } catch (err: any) {
+          setError(err.response?.data?.detail || 'Failed to delete item');
+        } finally {
+          setLoading(false);
+        }
+      },
+    });
   };
 
   const handleFiberStatusToggle = async (fiberId: number, isActive: boolean) => {
@@ -245,9 +254,9 @@ const FiberDatabaseManagement: React.FC<FiberDatabaseManagementProps> = ({ onClo
     switch (activeTab) {
       case 'fibers':
         return (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {filteredFibers.map(fiber => (
-              <div key={fiber.id} className="p-4 border border-gray-200 rounded-lg">
+              <Card key={fiber.id} size="small" hoverable>
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <h4 className="font-medium text-gray-900">{fiber.name}</h4>
@@ -255,46 +264,47 @@ const FiberDatabaseManagement: React.FC<FiberDatabaseManagementProps> = ({ onClo
                     {fiber.fiber_class && (
                       <p className="text-sm text-gray-600">Class: {fiber.fiber_class.name}</p>
                     )}
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className={`px-2 py-1 text-xs rounded ${
-                        fiber.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                      }`}>
+                    <div className="mt-2">
+                      <Tag color={fiber.is_active ? 'green' : 'red'}>
                         {fiber.is_active ? 'Active' : 'Inactive'}
-                      </span>
+                      </Tag>
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <button
+                  <Space size="small">
+                    <Button
+                      size="small"
+                      icon={<EyeOutlined />}
                       onClick={() => handleViewFiber(fiber.id)}
-                      className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
                     >
                       View
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      size="small"
+                      type="primary"
+                      icon={<EditOutlined />}
                       onClick={() => handleEditFiber(fiber.id)}
-                      className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
                     >
                       Edit
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      size="small"
+                      icon={fiber.is_active ? <StopOutlined /> : <CheckCircleOutlined />}
+                      danger={fiber.is_active}
                       onClick={() => handleFiberStatusToggle(fiber.id, fiber.is_active)}
-                      className={`px-3 py-1 text-sm rounded ${
-                        fiber.is_active
-                          ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                          : 'bg-green-100 text-green-700 hover:bg-green-200'
-                      }`}
                     >
                       {fiber.is_active ? 'Deactivate' : 'Activate'}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      size="small"
+                      danger
+                      icon={<DeleteOutlined />}
                       onClick={() => handleDelete(fiber.id)}
-                      className="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200"
                     >
                       Delete
-                    </button>
-                  </div>
+                    </Button>
+                  </Space>
                 </div>
-              </div>
+              </Card>
             ))}
           </div>
         );
@@ -303,25 +313,26 @@ const FiberDatabaseManagement: React.FC<FiberDatabaseManagementProps> = ({ onClo
         return (
           <div className="space-y-4">
             {/* Summary */}
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h4 className="font-medium text-gray-900">
-                {fiberClasses.length} fiber classes in database
-              </h4>
-            </div>
+            <Alert
+              message={`${fiberClasses.length} fiber classes in database`}
+              type="info"
+              showIcon
+            />
 
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-medium">Fiber Classes</h3>
-              <button
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
                 onClick={() => setShowCreateForm(true)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
               >
                 Add Class
-              </button>
+              </Button>
             </div>
 
             <div className="space-y-2 max-h-96 overflow-y-auto">
               {fiberClasses.map(cls => (
-                <div key={cls.id} className="p-4 border border-gray-200 rounded-lg">
+                <Card key={cls.id} size="small" hoverable>
                   <div className="flex justify-between items-start">
                     <div>
                       <h4 className="font-medium text-gray-900">{cls.name}</h4>
@@ -329,22 +340,26 @@ const FiberDatabaseManagement: React.FC<FiberDatabaseManagementProps> = ({ onClo
                         <p className="text-sm text-gray-600 mt-1">{cls.description}</p>
                       )}
                     </div>
-                    <div className="flex gap-2">
-                      <button
+                    <Space size="small">
+                      <Button
+                        size="small"
+                        type="primary"
+                        icon={<EditOutlined />}
                         onClick={() => setEditingItem(cls)}
-                        className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
                       >
                         Edit
-                      </button>
-                      <button
+                      </Button>
+                      <Button
+                        size="small"
+                        danger
+                        icon={<DeleteOutlined />}
                         onClick={() => handleDelete(cls.id)}
-                        className="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200"
                       >
                         Delete
-                      </button>
-                    </div>
+                      </Button>
+                    </Space>
                   </div>
-                </div>
+                </Card>
               ))}
             </div>
           </div>
@@ -354,25 +369,26 @@ const FiberDatabaseManagement: React.FC<FiberDatabaseManagementProps> = ({ onClo
         return (
           <div className="space-y-4">
             {/* Summary */}
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h4 className="font-medium text-gray-900">
-                {fiberSubtypes.length} fiber subtypes across {fiberClasses.length} classes
-              </h4>
-            </div>
+            <Alert
+              message={`${fiberSubtypes.length} fiber subtypes across ${fiberClasses.length} classes`}
+              type="info"
+              showIcon
+            />
 
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-medium">Fiber Subtypes</h3>
-              <button
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
                 onClick={() => setShowCreateForm(true)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
               >
                 Add Subtype
-              </button>
+              </Button>
             </div>
 
             <div className="space-y-2 max-h-96 overflow-y-auto">
               {fiberSubtypes.map(subtype => (
-                <div key={subtype.id} className="p-4 border border-gray-200 rounded-lg">
+                <Card key={subtype.id} size="small" hoverable>
                   <div className="flex justify-between items-start">
                     <div>
                       <h4 className="font-medium text-gray-900">{subtype.name}</h4>
@@ -383,22 +399,26 @@ const FiberDatabaseManagement: React.FC<FiberDatabaseManagementProps> = ({ onClo
                         <p className="text-sm text-gray-600 mt-1">{subtype.description}</p>
                       )}
                     </div>
-                    <div className="flex gap-2">
-                      <button
+                    <Space size="small">
+                      <Button
+                        size="small"
+                        type="primary"
+                        icon={<EditOutlined />}
                         onClick={() => setEditingItem(subtype)}
-                        className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
                       >
                         Edit
-                      </button>
-                      <button
+                      </Button>
+                      <Button
+                        size="small"
+                        danger
+                        icon={<DeleteOutlined />}
                         onClick={() => handleDelete(subtype.id)}
-                        className="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200"
                       >
                         Delete
-                      </button>
-                    </div>
+                      </Button>
+                    </Space>
                   </div>
-                </div>
+                </Card>
               ))}
             </div>
           </div>
@@ -408,25 +428,26 @@ const FiberDatabaseManagement: React.FC<FiberDatabaseManagementProps> = ({ onClo
         return (
           <div className="space-y-4">
             {/* Summary */}
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h4 className="font-medium text-gray-900">
-                {syntheticTypes.length} synthetic types available
-              </h4>
-            </div>
+            <Alert
+              message={`${syntheticTypes.length} synthetic types available`}
+              type="info"
+              showIcon
+            />
 
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-medium">Synthetic Types</h3>
-              <button
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
                 onClick={() => setShowCreateForm(true)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
               >
                 Add Type
-              </button>
+              </Button>
             </div>
 
             <div className="space-y-2 max-h-96 overflow-y-auto">
               {syntheticTypes.map(type => (
-                <div key={type.id} className="p-4 border border-gray-200 rounded-lg">
+                <Card key={type.id} size="small" hoverable>
                   <div className="flex justify-between items-start">
                     <div>
                       <h4 className="font-medium text-gray-900">{type.name}</h4>
@@ -434,22 +455,26 @@ const FiberDatabaseManagement: React.FC<FiberDatabaseManagementProps> = ({ onClo
                         <p className="text-sm text-gray-600 mt-1">{type.description}</p>
                       )}
                     </div>
-                    <div className="flex gap-2">
-                      <button
+                    <Space size="small">
+                      <Button
+                        size="small"
+                        type="primary"
+                        icon={<EditOutlined />}
                         onClick={() => setEditingItem(type)}
-                        className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
                       >
                         Edit
-                      </button>
-                      <button
+                      </Button>
+                      <Button
+                        size="small"
+                        danger
+                        icon={<DeleteOutlined />}
                         onClick={() => handleDelete(type.id)}
-                        className="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200"
                       >
                         Delete
-                      </button>
-                    </div>
+                      </Button>
+                    </Space>
                   </div>
-                </div>
+                </Card>
               ))}
             </div>
           </div>
@@ -459,25 +484,26 @@ const FiberDatabaseManagement: React.FC<FiberDatabaseManagementProps> = ({ onClo
         return (
           <div className="space-y-4">
             {/* Summary */}
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h4 className="font-medium text-gray-900">
-                {polymerizationTypes.length} polymerization types available
-              </h4>
-            </div>
+            <Alert
+              message={`${polymerizationTypes.length} polymerization types available`}
+              type="info"
+              showIcon
+            />
 
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-medium">Polymerization Types</h3>
-              <button
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
                 onClick={() => setShowCreateForm(true)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
               >
                 Add Type
-              </button>
+              </Button>
             </div>
 
             <div className="space-y-2 max-h-96 overflow-y-auto">
               {polymerizationTypes.map(type => (
-                <div key={type.id} className="p-4 border border-gray-200 rounded-lg">
+                <Card key={type.id} size="small" hoverable>
                   <div className="flex justify-between items-start">
                     <div>
                       <h4 className="font-medium text-gray-900">{type.name}</h4>
@@ -485,22 +511,26 @@ const FiberDatabaseManagement: React.FC<FiberDatabaseManagementProps> = ({ onClo
                         <p className="text-sm text-gray-600 mt-1">{type.description}</p>
                       )}
                     </div>
-                    <div className="flex gap-2">
-                      <button
+                    <Space size="small">
+                      <Button
+                        size="small"
+                        type="primary"
+                        icon={<EditOutlined />}
                         onClick={() => setEditingItem(type)}
-                        className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
                       >
                         Edit
-                      </button>
-                      <button
+                      </Button>
+                      <Button
+                        size="small"
+                        danger
+                        icon={<DeleteOutlined />}
                         onClick={() => handleDelete(type.id)}
-                        className="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200"
                       >
                         Delete
-                      </button>
-                    </div>
+                      </Button>
+                    </Space>
                   </div>
-                </div>
+                </Card>
               ))}
             </div>
           </div>
@@ -511,118 +541,114 @@ const FiberDatabaseManagement: React.FC<FiberDatabaseManagementProps> = ({ onClo
     }
   };
 
+  const tabItems = [
+    {
+      key: 'fibers',
+      label: (
+        <span>
+          Fibers{' '}
+          <Tag color="blue">
+            {activeTab === 'fibers' && (searchTerm || selectedClassFilter)
+              ? `${filteredFibers.length}/${fibers.length}`
+              : fibers.length}
+          </Tag>
+        </span>
+      ),
+      children: null,
+    },
+    {
+      key: 'classes',
+      label: <span>Classes <Tag color="blue">{fiberClasses.length}</Tag></span>,
+      children: null,
+    },
+    {
+      key: 'subtypes',
+      label: <span>Subtypes <Tag color="blue">{fiberSubtypes.length}</Tag></span>,
+      children: null,
+    },
+    {
+      key: 'synthetic',
+      label: <span>Synthetic Types <Tag color="blue">{syntheticTypes.length}</Tag></span>,
+      children: null,
+    },
+    {
+      key: 'polymerization',
+      label: <span>Polymerization Types <Tag color="blue">{polymerizationTypes.length}</Tag></span>,
+      children: null,
+    },
+  ];
+
   return (
-    <div className="bg-white rounded-lg shadow-xl w-full max-h-full flex flex-col">
-      {/* Fixed Header Section */}
-      <div className="flex-shrink-0">
-        {/* Error/Success Messages */}
-        {error && (
-          <div className="m-6 mb-0 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
-            {error}
-          </div>
-        )}
-        {success && (
-          <div className="m-6 mb-0 p-4 bg-green-100 border border-green-400 text-green-700 rounded">
-            {success}
-          </div>
-        )}
-
-        {/* Tabs */}
-        <div className="border-b border-gray-200">
-          <nav className="flex space-x-8 px-6">
-            {([
-              {
-                key: 'fibers',
-                label: 'Fibers',
-                count: activeTab === 'fibers' && (searchTerm || selectedClassFilter) ?
-                  `${filteredFibers.length}/${fibers.length}` :
-                  fibers.length
-              },
-              { key: 'classes', label: 'Classes', count: fiberClasses.length },
-              { key: 'subtypes', label: 'Subtypes', count: fiberSubtypes.length },
-              { key: 'synthetic', label: 'Synthetic Types', count: syntheticTypes.length },
-              { key: 'polymerization', label: 'Polymerization Types', count: polymerizationTypes.length }
-            ] as const).map(tab => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === tab.key
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <span className="flex items-center gap-2">
-                  {tab.label}
-                  <span className={`px-2 py-0.5 text-xs rounded-full ${
-                    activeTab === tab.key
-                      ? 'bg-blue-100 text-blue-800'
-                      : 'bg-gray-100 text-gray-600'
-                  }`}>
-                    {tab.count}
-                    {tab.key === 'fibers' && activeTab === 'fibers' && (searchTerm || selectedClassFilter) && (
-                      <span className="ml-1 text-blue-600">filtered</span>
-                    )}
-                  </span>
-                </span>
-              </button>
-            ))}
-          </nav>
+    <div className="bg-white w-full h-full flex flex-col">
+      {/* Error/Success Messages */}
+      {error && (
+        <div style={{ margin: '16px 16px 0' }}>
+          <Alert message={error} type="error" closable onClose={() => setError(null)} showIcon />
         </div>
+      )}
+      {success && (
+        <div style={{ margin: '16px 16px 0' }}>
+          <Alert message={success} type="success" closable onClose={() => setSuccess(null)} showIcon />
+        </div>
+      )}
 
-        {/* Search Bar for Fibers Tab */}
-        {activeTab === 'fibers' && (
-          <div className="px-6 py-4 pb-4 border-b border-gray-200">
-            <div className="flex items-center gap-4">
-              <input
-                type="text"
-                placeholder="Search fibers..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
-              />
-              <select
-                value={selectedClassFilter || ''}
-                onChange={(e) => setSelectedClassFilter(e.target.value ? Number(e.target.value) : null)}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm"
-              >
-                <option value="">All Classes</option>
-                {fiberClasses.map(cls => (
-                  <option key={cls.id} value={cls.id}>{cls.name}</option>
-                ))}
-              </select>
-              <div className="flex items-center gap-2 min-w-fit">
-                <p className="text-black font-bold text-sm whitespace-nowrap">
-                  Showing {filteredFibers.length} of {fibers.length}
-                </p>
-                {(searchTerm || selectedClassFilter) && (
-                  <button
-                    onClick={() => {
-                      setSearchTerm('');
-                      setSelectedClassFilter(null);
-                    }}
-                    className="text-sm text-blue-600 hover:text-blue-800 whitespace-nowrap"
-                  >
-                    Clear filters
-                  </button>
-                )}
-              </div>
-              <button
-                onClick={() => setShowCreateForm(true)}
-                className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 whitespace-nowrap"
-              >
-                Add Fiber
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+      {/* Tabs */}
+      <Tabs
+        activeKey={activeTab}
+        onChange={(key) => setActiveTab(key as TabType)}
+        items={tabItems}
+        style={{ marginBottom: 0 }}
+        tabBarStyle={{ paddingLeft: '16px', paddingRight: '16px', marginBottom: 0 }}
+      />
+
+      {/* Search Bar for Fibers Tab */}
+      {activeTab === 'fibers' && (
+        <div className="px-4 py-4 border-b border-gray-200">
+          <Space size="middle" wrap style={{ width: '100%', justifyContent: 'space-between' }}>
+            <Input.Search
+              placeholder="Search fibers..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{ width: 300 }}
+              allowClear
+            />
+            <Select
+              placeholder="All Classes"
+              value={selectedClassFilter}
+              onChange={(value) => setSelectedClassFilter(value)}
+              style={{ width: 200 }}
+              allowClear
+            >
+              {fiberClasses.map(cls => (
+                <Select.Option key={cls.id} value={cls.id}>{cls.name}</Select.Option>
+              ))}
+            </Select>
+            <Space>
+              <span className="text-sm font-semibold">
+                Showing {filteredFibers.length} of {fibers.length}
+              </span>
+              {(searchTerm || selectedClassFilter) && (
+                <Button type="link" onClick={() => { setSearchTerm(''); setSelectedClassFilter(null); }}>
+                  Clear filters
+                </Button>
+              )}
+            </Space>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => setShowCreateForm(true)}
+            >
+              Add Fiber
+            </Button>
+          </Space>
+        </div>
+      )}
 
       {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto p-6">
         {loading ? (
           <div className="flex justify-center items-center h-32">
-            <div className="text-gray-500">Loading...</div>
+            <Spin size="large" tip="Loading..." />
           </div>
         ) : (
           renderTabContent()
@@ -630,19 +656,16 @@ const FiberDatabaseManagement: React.FC<FiberDatabaseManagementProps> = ({ onClo
       </div>
 
       {/* Fiber Detail Modal */}
-      {selectedFiber && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-screen overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 flex justify-between items-center">
-              <h3 className="text-xl font-semibold">Fiber Details: {selectedFiber.name}</h3>
-              <button
-                onClick={() => setSelectedFiber(null)}
-                className="text-gray-400 hover:text-gray-600 text-2xl"
-              >
-                ×
-              </button>
-            </div>
-            <div className="p-6 space-y-6 max-h-96 overflow-y-auto">
+      <Modal
+        title={`Fiber Details: ${selectedFiber?.name || ''}`}
+        open={!!selectedFiber}
+        onCancel={() => setSelectedFiber(null)}
+        footer={null}
+        width={900}
+        style={{ top: 20 }}
+      >
+        {selectedFiber && (
+          <div className="space-y-6 max-h-[70vh] overflow-y-auto p-4">
               {/* Basic Information */}
               <div>
                 <h4 className="text-lg font-medium text-gray-900 mb-3">Basic Information</h4>
@@ -985,9 +1008,8 @@ const FiberDatabaseManagement: React.FC<FiberDatabaseManagementProps> = ({ onClo
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          )}
+      </Modal>
 
       {/* Create/Edit Form Modal */}
       <FiberFormModal
