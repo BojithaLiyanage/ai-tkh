@@ -1,5 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { Tooltip, Button, message as antMessage, Typography, Space } from 'antd';
+import {
+  CopyOutlined,
+  CheckOutlined,
+  RobotOutlined,
+  UserOutlined
+} from '@ant-design/icons';
 import FiberCard from './FiberCard';
+
+const { Paragraph } = Typography;
 
 interface FiberCardData {
   name: string;
@@ -42,8 +51,9 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   fiberCards,
   structureImages,
   relatedVideos,
-  userName = 'U',
 }) => {
+  const [copied, setCopied] = useState(false);
+
   // Extract YouTube video ID from URL
   const getYouTubeThumbnail = (url: string): string | null => {
     try {
@@ -62,16 +72,61 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
     }
   };
 
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopied(true);
+      antMessage.success('Message copied to clipboard');
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      antMessage.error('Failed to copy message');
+    }
+  };
+
+  const getCurrentTime = () => {
+    return new Date().toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
   if (role === 'ai') {
     return (
-      <div className="flex items-start space-x-3">
-        <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm flex-shrink-0">
-          AI
+      <div className="flex items-start space-x-3 group">
+        {/* AI Avatar */}
+        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white flex-shrink-0 shadow-md">
+          <RobotOutlined className="text-lg" />
         </div>
+
         <div className="flex-1 max-w-3xl space-y-3">
           {/* AI Text Response */}
-          <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
-            <p className="text-gray-800 whitespace-pre-wrap leading-relaxed">{content}</p>
+          <div className="relative">
+            <div className="bg-gradient-to-br from-white to-blue-50 p-5 rounded-2xl shadow-md border border-blue-100 hover:shadow-lg transition-shadow duration-200">
+              <Paragraph
+                className="text-gray-800 whitespace-pre-wrap leading-relaxed mb-0"
+                style={{ fontSize: '15px' }}
+              >
+                {content}
+              </Paragraph>
+            </div>
+
+            {/* Message Actions */}
+            <div className="flex items-center justify-between mt-2 px-1">
+              <span className="text-xs text-gray-400">{getCurrentTime()}</span>
+              <Space size="small">
+                <Tooltip title={copied ? 'Copied!' : 'Copy message'}>
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={copied ? <CheckOutlined /> : <CopyOutlined />}
+                    onClick={handleCopy}
+                    className={`opacity-0 group-hover:opacity-100 transition-opacity ${
+                      copied ? 'text-green-600' : 'text-gray-500 hover:text-blue-600'
+                    }`}
+                  />
+                </Tooltip>
+              </Space>
+            </div>
           </div>
 
           {/* Structure Images (if any) */}
@@ -210,12 +265,20 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
 
   // User message
   return (
-    <div className="flex items-start space-x-3 justify-end">
-      <div className="bg-blue-600 text-white p-4 rounded-lg shadow-sm max-w-md">
-        <p className="whitespace-pre-wrap">{content}</p>
+    <div className="flex items-start space-x-3 justify-end group">
+      <div className="flex flex-col items-end max-w-md">
+        <div className="bg-gradient-to-br from-blue-600 to-blue-700 text-white p-5 rounded-2xl shadow-md hover:shadow-lg transition-shadow duration-200">
+          <Paragraph
+            className="text-white whitespace-pre-wrap mb-0"
+            style={{ fontSize: '15px' }}
+          >
+            {content}
+          </Paragraph>
+        </div>
+        <span className="text-xs text-gray-400 mt-2 px-1">{getCurrentTime()}</span>
       </div>
-      <div className="w-8 h-8 bg-gray-500 rounded-full flex items-center justify-center text-white text-sm flex-shrink-0">
-        {userName.charAt(0).toUpperCase()}
+      <div className="w-10 h-10 bg-gradient-to-br from-gray-500 to-gray-600 rounded-full flex items-center justify-center text-white flex-shrink-0 shadow-md">
+        <UserOutlined className="text-lg" />
       </div>
     </div>
   );
