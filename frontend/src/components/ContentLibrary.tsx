@@ -1,10 +1,34 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
-import ConfirmationModal from './ConfirmationModal';
+import {
+  Collapse,
+  Card,
+  Button,
+  Form,
+  Input,
+  Select,
+  Tag,
+  Alert,
+  Modal,
+  Checkbox,
+  Spin,
+  Space,
+  Typography
+} from 'antd';
+import {
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  ExclamationCircleOutlined
+} from '@ant-design/icons';
+
+const { Panel } = Collapse;
+const { TextArea } = Input;
+const { Text } = Typography;
 
 interface ContentLibraryProps {
-  onClose?: () => void;
+  onClose?: () => void; // eslint-disable-line @typescript-eslint/no-unused-vars
 }
 
 interface Module {
@@ -41,7 +65,7 @@ interface StudyGroup {
   description?: string;
 }
 
-const ContentLibrary: React.FC<ContentLibraryProps> = ({ onClose }) => {
+const ContentLibrary: React.FC<ContentLibraryProps> = () => {
   const { user } = useAuth();
   const [modules, setModules] = useState<Module[]>([]);
   const [topics, setTopics] = useState<Record<number, Topic[]>>({});
@@ -82,23 +106,6 @@ const ContentLibrary: React.FC<ContentLibraryProps> = ({ onClose }) => {
   });
 
   const [selectedStudyGroups, setSelectedStudyGroups] = useState<string[]>([]);
-
-  // Confirmation modal state
-  const [confirmationModal, setConfirmationModal] = useState<{
-    isOpen: boolean;
-    title: string;
-    message: string;
-    itemName: string;
-    onConfirm: () => void;
-    isLoading: boolean;
-  }>({
-    isOpen: false,
-    title: '',
-    message: '',
-    itemName: '',
-    onConfirm: () => {},
-    isLoading: false
-  });
 
   const isAdmin = user?.user_type === 'admin';
   const isSuperAdmin = user?.user_type === 'super_admin';
@@ -150,26 +157,6 @@ const ContentLibrary: React.FC<ContentLibraryProps> = ({ onClose }) => {
     }
   };
 
-  const toggleModule = (moduleId: number) => {
-    const newExpanded = new Set(expandedModules);
-    if (newExpanded.has(moduleId)) {
-      newExpanded.delete(moduleId);
-    } else {
-      newExpanded.add(moduleId);
-    }
-    setExpandedModules(newExpanded);
-  };
-
-  const toggleTopic = (topicId: number) => {
-    const newExpanded = new Set(expandedTopics);
-    if (newExpanded.has(topicId)) {
-      newExpanded.delete(topicId);
-    } else {
-      newExpanded.add(topicId);
-    }
-    setExpandedTopics(newExpanded);
-  };
-
   const resetForms = () => {
     setModuleForm({ name: '', description: '', order_index: 0 });
     setTopicForm({ name: '', description: '', order_index: 0 });
@@ -212,33 +199,31 @@ const ContentLibrary: React.FC<ContentLibraryProps> = ({ onClose }) => {
     const topicCount = topics[module.id]?.length || 0;
     const subtopicCount = topics[module.id]?.reduce((acc, topic) => acc + (subtopics[topic.id]?.length || 0), 0) || 0;
 
-    let message = `This will permanently delete the module`;
+    let content = `This will permanently delete the module "${module.name}"`;
     if (topicCount > 0) {
-      message += `, ${topicCount} topic${topicCount > 1 ? 's' : ''}`;
+      content += `, ${topicCount} topic${topicCount > 1 ? 's' : ''}`;
     }
     if (subtopicCount > 0) {
-      message += `, and ${subtopicCount} subtopic${subtopicCount > 1 ? 's' : ''}`;
+      content += `, and ${subtopicCount} subtopic${subtopicCount > 1 ? 's' : ''}`;
     }
-    message += '.';
+    content += '.';
 
-    setConfirmationModal({
-      isOpen: true,
+    Modal.confirm({
       title: 'Delete Module',
-      message,
-      itemName: module.name,
-      onConfirm: async () => {
-        setConfirmationModal(prev => ({ ...prev, isLoading: true }));
+      icon: <ExclamationCircleOutlined />,
+      content,
+      okText: 'Delete',
+      okType: 'danger',
+      cancelText: 'Cancel',
+      onOk: async () => {
         try {
           await api.delete(`/modules/${module.id}`);
           setSuccess('Module deleted successfully!');
           fetchAllContent();
-          setConfirmationModal(prev => ({ ...prev, isOpen: false, isLoading: false }));
         } catch (err) {
           setError('Failed to delete module');
-          setConfirmationModal(prev => ({ ...prev, isLoading: false }));
         }
       },
-      isLoading: false
     });
   };
 
@@ -273,30 +258,28 @@ const ContentLibrary: React.FC<ContentLibraryProps> = ({ onClose }) => {
   const handleDeleteTopic = (topic: Topic) => {
     const subtopicCount = subtopics[topic.id]?.length || 0;
 
-    let message = `This will permanently delete the topic`;
+    let content = `This will permanently delete the topic "${topic.name}"`;
     if (subtopicCount > 0) {
-      message += ` and ${subtopicCount} subtopic${subtopicCount > 1 ? 's' : ''}`;
+      content += ` and ${subtopicCount} subtopic${subtopicCount > 1 ? 's' : ''}`;
     }
-    message += '.';
+    content += '.';
 
-    setConfirmationModal({
-      isOpen: true,
+    Modal.confirm({
       title: 'Delete Topic',
-      message,
-      itemName: topic.name,
-      onConfirm: async () => {
-        setConfirmationModal(prev => ({ ...prev, isLoading: true }));
+      icon: <ExclamationCircleOutlined />,
+      content,
+      okText: 'Delete',
+      okType: 'danger',
+      cancelText: 'Cancel',
+      onOk: async () => {
         try {
           await api.delete(`/topics/${topic.id}`);
           setSuccess('Topic deleted successfully!');
           fetchAllContent();
-          setConfirmationModal(prev => ({ ...prev, isOpen: false, isLoading: false }));
         } catch (err) {
           setError('Failed to delete topic');
-          setConfirmationModal(prev => ({ ...prev, isLoading: false }));
         }
       },
-      isLoading: false
     });
   };
 
@@ -347,24 +330,22 @@ const ContentLibrary: React.FC<ContentLibraryProps> = ({ onClose }) => {
   };
 
   const handleDeleteSubtopic = (subtopic: Subtopic) => {
-    setConfirmationModal({
-      isOpen: true,
+    Modal.confirm({
       title: 'Delete Subtopic',
-      message: 'This will permanently delete the subtopic and all its content.',
-      itemName: subtopic.name,
-      onConfirm: async () => {
-        setConfirmationModal(prev => ({ ...prev, isLoading: true }));
+      icon: <ExclamationCircleOutlined />,
+      content: `This will permanently delete the subtopic "${subtopic.name}" and all its content.`,
+      okText: 'Delete',
+      okType: 'danger',
+      cancelText: 'Cancel',
+      onOk: async () => {
         try {
           await api.delete(`/subtopics/${subtopic.id}`);
           setSuccess('Subtopic deleted successfully!');
           fetchAllContent();
-          setConfirmationModal(prev => ({ ...prev, isOpen: false, isLoading: false }));
         } catch (err) {
           setError('Failed to delete subtopic');
-          setConfirmationModal(prev => ({ ...prev, isLoading: false }));
         }
       },
-      isLoading: false
     });
   };
 
@@ -373,392 +354,390 @@ const ContentLibrary: React.FC<ContentLibraryProps> = ({ onClose }) => {
     setSuccess('');
   };
 
-  const handleCancelConfirmation = () => {
-    setConfirmationModal({
-      isOpen: false,
-      title: '',
-      message: '',
-      itemName: '',
-      onConfirm: () => {},
-      isLoading: false
-    });
-  };
-
-  const getDifficultyColor = (level: string) => {
+  const getDifficultyColor = (level: string): string => {
     switch (level) {
-      case 'intro': return 'bg-green-100 text-green-800';
-      case 'basic': return 'bg-blue-100 text-blue-800';
-      case 'intermediate': return 'bg-yellow-100 text-yellow-800';
-      case 'advanced': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'intro': return 'success';
+      case 'basic': return 'processing';
+      case 'intermediate': return 'warning';
+      case 'advanced': return 'error';
+      default: return 'default';
     }
   };
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl shadow-2xl w-full h-[90vh] flex items-center justify-center">
-        <div className="text-gray-600">Loading content library...</div>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+        <Spin size="large" tip="Loading content library..." />
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-xl w-full max-h-full flex flex-col">
-      <div className="flex-1 overflow-y-auto p-6">
-        {/* Status Messages */}
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-red-600 text-sm">{error}</p>
-            <button onClick={clearMessages} className="text-red-800 underline text-xs">Dismiss</button>
-          </div>
-        )}
+    <div style={{ backgroundColor: '#fff', padding: '24px', height: '100%', overflow: 'auto' }}>
+      {/* Status Messages */}
+      {error && (
+        <Alert
+          message={error}
+          type="error"
+          closable
+          onClose={clearMessages}
+          style={{ marginBottom: '16px' }}
+        />
+      )}
 
-        {success && (
-          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-            <p className="text-green-600 text-sm">{success}</p>
-            <button onClick={clearMessages} className="text-green-800 underline text-xs">Dismiss</button>
-          </div>
-        )}
+      {success && (
+        <Alert
+          message={success}
+          type="success"
+          closable
+          onClose={clearMessages}
+          style={{ marginBottom: '16px' }}
+        />
+      )}
 
-        {/* Module Creation Form */}
-        {showModuleForm && canEdit && (
-          <div className="mb-6 p-4 border border-blue-200 rounded-lg bg-blue-50">
-            <h3 className="text-lg font-semibold mb-3">
-              {editingModule ? 'Edit Module' : 'Create New Module'}
-            </h3>
-            <form onSubmit={handleCreateModule} className="space-y-3">
-              <input
-                type="text"
-                placeholder="Module name"
-                value={moduleForm.name}
-                onChange={(e) => setModuleForm({...moduleForm, name: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                required
-              />
-              <textarea
-                placeholder="Description (optional)"
-                value={moduleForm.description}
-                onChange={(e) => setModuleForm({...moduleForm, description: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                rows={2}
-              />
-              <div className="flex gap-2">
-                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                  {editingModule ? 'Update Module' : 'Create Module'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setShowModuleForm(false); resetForms(); }}
-                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
+      {/* Add Module Button */}
+      {canEdit && (
+        <div style={{ marginBottom: '16px' }}>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => setShowModuleForm(true)}
+          >
+            Add Module
+          </Button>
+        </div>
+      )}
 
-        {/* Add Module Button */}
-        {canEdit && (
-          <div className="mb-4 flex justify-start">
-            <button
-              onClick={() => setShowModuleForm(true)}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
-            >
-              + Add Module
-            </button>
-          </div>
-        )}
-
-        {/* Content Tree */}
-        <div className="space-y-4">
-          {modules.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
+      {/* Content Tree */}
+      {modules.length === 0 ? (
+        <Card>
+          <div style={{ textAlign: 'center', padding: '32px 0', color: '#8c8c8c' }}>
+            <Text type="secondary">
               No modules found. {canEdit && 'Click "Add Module" to create the first module.'}
-            </div>
-          ) : (
-            modules.map((module) => (
-              <div key={module.id} className="border border-gray-200 rounded-lg">
-                {/* Module Header */}
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-t-lg">
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => toggleModule(module.id)}
-                      className="text-gray-500 hover:text-gray-700"
-                    >
-                      {expandedModules.has(module.id) ? '▼' : '▶'}
-                    </button>
-                    <div>
-                      <h3 className="font-semibold text-gray-900">{module.name}</h3>
-                      {module.description && (
-                        <p className="text-sm text-gray-600">{module.description}</p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs bg-gray-200 px-2 py-1 rounded">
-                      {topics[module.id]?.length || 0} topics
-                    </span>
-                    {canEdit && (
-                      <>
-                        <button
-                          onClick={() => handleEditModule(module)}
-                          className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeleteModule(module)}
-                          className="px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700"
-                        >
-                          Delete
-                        </button>
-                        <button
-                          onClick={() => setShowTopicForm(module.id)}
-                          className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
-                        >
-                          + Topic
-                        </button>
-                      </>
+            </Text>
+          </div>
+        </Card>
+      ) : (
+        <Collapse
+          accordion={false}
+          activeKey={Array.from(expandedModules).map(String)}
+          onChange={(keys) => {
+            const keysArray = Array.isArray(keys) ? keys : [keys];
+            setExpandedModules(new Set(keysArray.map(Number)));
+          }}
+        >
+          {modules.map((module) => (
+            <Panel
+              key={String(module.id)}
+              header={
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                  <div>
+                    <Text strong>{module.name}</Text>
+                    {module.description && (
+                      <div>
+                        <Text type="secondary" style={{ fontSize: '14px' }}>{module.description}</Text>
+                      </div>
                     )}
                   </div>
-                </div>
-
-                {/* Topic Creation Form */}
-                {showTopicForm === module.id && canEdit && (
-                  <div className="p-4 border-t border-gray-200 bg-green-50">
-                    <h4 className="font-semibold mb-3">
-                      {editingTopic ? 'Edit Topic' : 'Create New Topic'}
-                    </h4>
-                    <form onSubmit={(e) => handleCreateTopic(e, module.id)} className="space-y-3">
-                      <input
-                        type="text"
-                        placeholder="Topic name"
-                        value={topicForm.name}
-                        onChange={(e) => setTopicForm({...topicForm, name: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                        required
-                      />
-                      <textarea
-                        placeholder="Description (optional)"
-                        value={topicForm.description}
-                        onChange={(e) => setTopicForm({...topicForm, description: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                        rows={2}
-                      />
-                      <div className="flex gap-2">
-                        <button type="submit" className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
-                          {editingTopic ? 'Update Topic' : 'Create Topic'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => { setShowTopicForm(null); resetForms(); }}
-                          className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
+                  <Space onClick={(e) => e.stopPropagation()}>
+                    <Tag>{topics[module.id]?.length || 0} topics</Tag>
+                    {canEdit && (
+                      <>
+                        <Button
+                          size="small"
+                          icon={<EditOutlined />}
+                          onClick={(e) => { e.stopPropagation(); handleEditModule(module); }}
                         >
-                          Cancel
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                )}
-
-                {/* Topics */}
-                {expandedModules.has(module.id) && topics[module.id] && (
-                  <div className="border-t border-gray-200">
-                    {topics[module.id].map((topic) => (
-                      <div key={topic.id} className="border-b border-gray-100 last:border-b-0">
-                        {/* Topic Header */}
-                        <div className="flex items-center justify-between p-4 pl-8 bg-white">
-                          <div className="flex items-center gap-3">
-                            <button
-                              onClick={() => toggleTopic(topic.id)}
-                              className="text-gray-500 hover:text-gray-700"
-                            >
-                              {expandedTopics.has(topic.id) ? '▼' : '▶'}
-                            </button>
-                            <div>
-                              <h4 className="font-medium text-gray-900">{topic.name}</h4>
-                              {topic.description && (
-                                <p className="text-sm text-gray-600">{topic.description}</p>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs bg-gray-200 px-2 py-1 rounded">
-                              {subtopics[topic.id]?.length || 0} subtopics
-                            </span>
-                            {canEdit && (
-                              <>
-                                <button
-                                  onClick={() => handleEditTopic(topic)}
-                                  className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteTopic(topic)}
-                                  className="px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700"
-                                >
-                                  Delete
-                                </button>
-                                <button
-                                  onClick={() => setShowSubtopicForm(topic.id)}
-                                  className="px-3 py-1 bg-purple-600 text-white text-sm rounded hover:bg-purple-700"
-                                >
-                                  + Subtopic
-                                </button>
-                              </>
+                          Edit
+                        </Button>
+                        <Button
+                          size="small"
+                          danger
+                          icon={<DeleteOutlined />}
+                          onClick={(e) => { e.stopPropagation(); handleDeleteModule(module); }}
+                        >
+                          Delete
+                        </Button>
+                        {expandedModules.has(module.id) && (
+                          <Button
+                            size="small"
+                            // type="primary"
+                            style={{color:"#52c41a", borderColor: '#52c41a' }}
+                            icon={<PlusOutlined />}
+                            onClick={(e) => { e.stopPropagation(); setShowTopicForm(module.id); }}
+                          >
+                            Topic
+                          </Button>
+                        )}
+                      </>
+                    )}
+                  </Space>
+                </div>
+              }
+            >
+              {/* Topics */}
+              {topics[module.id] && topics[module.id].length > 0 && (
+                <Collapse
+                  activeKey={Array.from(expandedTopics).map(String)}
+                  onChange={(keys) => {
+                    const keysArray = Array.isArray(keys) ? keys : [keys];
+                    setExpandedTopics(new Set(keysArray.map(Number)));
+                  }}
+                  style={{ marginTop: '8px' }}
+                >
+                  {topics[module.id].map((topic) => (
+                    <Panel
+                      key={String(topic.id)}
+                      header={
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                          <div>
+                            <Text strong>{topic.name}</Text>
+                            {topic.description && (
+                              <div>
+                                <Text type="secondary" style={{ fontSize: '14px' }}>{topic.description}</Text>
+                              </div>
                             )}
                           </div>
-                        </div>
-
-                        {/* Subtopic Creation Form */}
-                        {showSubtopicForm === topic.id && canEdit && (
-                          <div className="p-4 pl-8 border-t border-gray-200 bg-purple-50">
-                            <h5 className="font-semibold mb-3">
-                              {editingSubtopic ? 'Edit Subtopic' : 'Create New Subtopic'}
-                            </h5>
-                            <form onSubmit={(e) => handleCreateSubtopic(e, topic.id)} className="space-y-3">
-                              <input
-                                type="text"
-                                placeholder="Subtopic name"
-                                value={subtopicForm.name}
-                                onChange={(e) => setSubtopicForm({...subtopicForm, name: e.target.value})}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                                required
-                              />
-                              <textarea
-                                placeholder="Definition (optional)"
-                                value={subtopicForm.definition}
-                                onChange={(e) => setSubtopicForm({...subtopicForm, definition: e.target.value})}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                                rows={2}
-                              />
-                              <textarea
-                                placeholder="Notes (optional)"
-                                value={subtopicForm.notes}
-                                onChange={(e) => setSubtopicForm({...subtopicForm, notes: e.target.value})}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                                rows={2}
-                              />
-                              <select
-                                value={subtopicForm.difficulty_level}
-                                onChange={(e) => setSubtopicForm({
-                                  ...subtopicForm,
-                                  difficulty_level: e.target.value as 'intro' | 'basic' | 'intermediate' | 'advanced'
-                                })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                              >
-                                <option value="intro">Introduction</option>
-                                <option value="basic">Basic</option>
-                                <option value="intermediate">Intermediate</option>
-                                <option value="advanced">Advanced</option>
-                              </select>
-                              {studyGroups.length > 0 && (
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Target Study Groups
-                                  </label>
-                                  <div className="space-y-2">
-                                    {studyGroups.map((group) => (
-                                      <label key={group.code} className="flex items-center">
-                                        <input
-                                          type="checkbox"
-                                          checked={selectedStudyGroups.includes(group.code)}
-                                          onChange={(e) => {
-                                            if (e.target.checked) {
-                                              setSelectedStudyGroups([...selectedStudyGroups, group.code]);
-                                            } else {
-                                              setSelectedStudyGroups(selectedStudyGroups.filter(code => code !== group.code));
-                                            }
-                                          }}
-                                          className="rounded focus:ring-purple-500 text-purple-600"
-                                        />
-                                        <span className="ml-2 text-sm text-gray-700">
-                                          {group.name} ({group.code})
-                                        </span>
-                                      </label>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                              <div className="flex gap-2">
-                                <button type="submit" className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
-                                  {editingSubtopic ? 'Update Subtopic' : 'Create Subtopic'}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => { setShowSubtopicForm(null); resetForms(); }}
-                                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
+                          <Space onClick={(e) => e.stopPropagation()}>
+                            <Tag>{subtopics[topic.id]?.length || 0} subtopics</Tag>
+                            {canEdit && (
+                              <>
+                                <Button
+                                  size="small"
+                                  icon={<EditOutlined />}
+                                  onClick={(e) => { e.stopPropagation(); handleEditTopic(topic); }}
                                 >
-                                  Cancel
-                                </button>
-                              </div>
-                            </form>
-                          </div>
-                        )}
-
-                        {/* Subtopics */}
-                        {expandedTopics.has(topic.id) && subtopics[topic.id] && (
-                          <div className="pl-12">
-                            {subtopics[topic.id].map((subtopic) => (
-                              <div key={subtopic.id} className="p-3 border-l-2 border-gray-200 bg-gray-50">
-                                <div className="flex items-center justify-between">
-                                  <div>
-                                    <div className="flex items-center gap-2">
-                                      <h5 className="font-medium text-gray-900">{subtopic.name}</h5>
-                                      <span className={`px-2 py-1 rounded-full text-xs ${getDifficultyColor(subtopic.difficulty_level)}`}>
-                                        {subtopic.difficulty_level}
-                                      </span>
+                                  Edit
+                                </Button>
+                                <Button
+                                  size="small"
+                                  danger
+                                  icon={<DeleteOutlined />}
+                                  onClick={(e) => { e.stopPropagation(); handleDeleteTopic(topic); }}
+                                >
+                                  Delete
+                                </Button>
+                                <Button
+                                  size="small"
+                                  // type="primary"
+                                 style={{color:"#722ed1", borderColor: '#722ed1' }}
+                                   icon={<PlusOutlined />}
+                                  onClick={(e) => { e.stopPropagation(); setShowSubtopicForm(topic.id); }}
+                                >
+                                  Subtopic
+                                </Button>
+                              </>
+                            )}
+                          </Space>
+                        </div>
+                      }
+                    >
+                      {/* Subtopics */}
+                      {subtopics[topic.id] && subtopics[topic.id].length > 0 && (
+                        <div style={{ marginTop: '8px' }}>
+                          {subtopics[topic.id].map((subtopic) => (
+                            <Card
+                              key={subtopic.id}
+                              size="small"
+                              style={{ marginBottom: '8px', backgroundColor: '#fafafa' }}
+                            >
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                <div style={{ flex: 1 }}>
+                                  <Space align="center">
+                                    <Text strong>{subtopic.name}</Text>
+                                    <Tag color={getDifficultyColor(subtopic.difficulty_level)}>
+                                      {subtopic.difficulty_level}
+                                    </Tag>
+                                  </Space>
+                                  {subtopic.definition && (
+                                    <div style={{ marginTop: '8px' }}>
+                                      <Text type="secondary" style={{ fontSize: '14px' }}>{subtopic.definition}</Text>
                                     </div>
-                                    {subtopic.definition && (
-                                      <p className="text-sm text-gray-600 mt-1">{subtopic.definition}</p>
-                                    )}
-                                    {subtopic.notes && (
-                                      <p className="text-sm text-gray-500 mt-1 italic">{subtopic.notes}</p>
-                                    )}
-                                  </div>
-                                  {canEdit && (
-                                    <div className="flex gap-1">
-                                      <button
-                                        onClick={() => handleEditSubtopic(subtopic)}
-                                        className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
-                                      >
-                                        Edit
-                                      </button>
-                                      <button
-                                        onClick={() => handleDeleteSubtopic(subtopic)}
-                                        className="px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700"
-                                      >
-                                        Delete
-                                      </button>
+                                  )}
+                                  {subtopic.notes && (
+                                    <div style={{ marginTop: '4px' }}>
+                                      <Text type="secondary" italic style={{ fontSize: '14px' }}>{subtopic.notes}</Text>
                                     </div>
                                   )}
                                 </div>
+                                {canEdit && (
+                                  <Space>
+                                    <Button
+                                      size="small"
+                                      icon={<EditOutlined />}
+                                      onClick={() => handleEditSubtopic(subtopic)}
+                                    >
+                                      Edit
+                                    </Button>
+                                    <Button
+                                      size="small"
+                                      danger
+                                      icon={<DeleteOutlined />}
+                                      onClick={() => handleDeleteSubtopic(subtopic)}
+                                    >
+                                      Delete
+                                    </Button>
+                                  </Space>
+                                )}
                               </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))
-          )}
-        </div>
-      </div>
+                            </Card>
+                          ))}
+                        </div>
+                      )}
+                    </Panel>
+                  ))}
+                </Collapse>
+              )}
+            </Panel>
+          ))}
+        </Collapse>
+      )}
 
-      {/* Confirmation Modal */}
-      <ConfirmationModal
-        isOpen={confirmationModal.isOpen}
-        title={confirmationModal.title}
-        message={confirmationModal.message}
-        itemName={confirmationModal.itemName}
-        onConfirm={confirmationModal.onConfirm}
-        onCancel={handleCancelConfirmation}
-        isLoading={confirmationModal.isLoading}
-      />
+      {/* Module Modal */}
+      <Modal
+        title={editingModule ? 'Edit Module' : 'Create New Module'}
+        open={showModuleForm}
+        onCancel={() => { setShowModuleForm(false); resetForms(); }}
+        footer={null}
+        width={600}
+      >
+        <Form onFinish={handleCreateModule} layout="vertical">
+          <Form.Item label="Module Name" required>
+            <Input
+              placeholder="Module name"
+              value={moduleForm.name}
+              onChange={(e) => setModuleForm({...moduleForm, name: e.target.value})}
+              required
+            />
+          </Form.Item>
+          <Form.Item label="Description">
+            <TextArea
+              placeholder="Description (optional)"
+              value={moduleForm.description}
+              onChange={(e) => setModuleForm({...moduleForm, description: e.target.value})}
+              rows={3}
+            />
+          </Form.Item>
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+            <Button onClick={() => { setShowModuleForm(false); resetForms(); }}>
+              Cancel
+            </Button>
+            <Button type="primary" htmlType="submit">
+              {editingModule ? 'Update Module' : 'Create Module'}
+            </Button>
+          </div>
+        </Form>
+      </Modal>
+
+      {/* Topic Modal */}
+      <Modal
+        title={editingTopic ? 'Edit Topic' : 'Create New Topic'}
+        open={showTopicForm !== null}
+        onCancel={() => { setShowTopicForm(null); resetForms(); }}
+        footer={null}
+        width={600}
+      >
+        <Form onFinish={(e) => handleCreateTopic(e, showTopicForm!)} layout="vertical">
+          <Form.Item label="Topic Name" required>
+            <Input
+              placeholder="Topic name"
+              value={topicForm.name}
+              onChange={(e) => setTopicForm({...topicForm, name: e.target.value})}
+              required
+            />
+          </Form.Item>
+          <Form.Item label="Description">
+            <TextArea
+              placeholder="Description (optional)"
+              value={topicForm.description}
+              onChange={(e) => setTopicForm({...topicForm, description: e.target.value})}
+              rows={3}
+            />
+          </Form.Item>
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+            <Button onClick={() => { setShowTopicForm(null); resetForms(); }}>
+              Cancel
+            </Button>
+            <Button type="primary" htmlType="submit" style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}>
+              {editingTopic ? 'Update Topic' : 'Create Topic'}
+            </Button>
+          </div>
+        </Form>
+      </Modal>
+
+      {/* Subtopic Modal */}
+      <Modal
+        title={editingSubtopic ? 'Edit Subtopic' : 'Create New Subtopic'}
+        open={showSubtopicForm !== null}
+        onCancel={() => { setShowSubtopicForm(null); resetForms(); }}
+        footer={null}
+        width={700}
+      >
+        <Form onFinish={(e) => handleCreateSubtopic(e, showSubtopicForm!)} layout="vertical">
+          <Form.Item label="Subtopic Name" required>
+            <Input
+              placeholder="Subtopic name"
+              value={subtopicForm.name}
+              onChange={(e) => setSubtopicForm({...subtopicForm, name: e.target.value})}
+              required
+            />
+          </Form.Item>
+          <Form.Item label="Definition">
+            <TextArea
+              placeholder="Definition (optional)"
+              value={subtopicForm.definition}
+              onChange={(e) => setSubtopicForm({...subtopicForm, definition: e.target.value})}
+              rows={2}
+            />
+          </Form.Item>
+          <Form.Item label="Notes">
+            <TextArea
+              placeholder="Notes (optional)"
+              value={subtopicForm.notes}
+              onChange={(e) => setSubtopicForm({...subtopicForm, notes: e.target.value})}
+              rows={2}
+            />
+          </Form.Item>
+          <Form.Item label="Difficulty Level">
+            <Select
+              value={subtopicForm.difficulty_level}
+              onChange={(value) => setSubtopicForm({
+                ...subtopicForm,
+                difficulty_level: value as 'intro' | 'basic' | 'intermediate' | 'advanced'
+              })}
+            >
+              <Select.Option value="intro">Introduction</Select.Option>
+              <Select.Option value="basic">Basic</Select.Option>
+              <Select.Option value="intermediate">Intermediate</Select.Option>
+              <Select.Option value="advanced">Advanced</Select.Option>
+            </Select>
+          </Form.Item>
+          {studyGroups.length > 0 && (
+            <Form.Item label="Target Study Groups">
+              <Checkbox.Group
+                value={selectedStudyGroups}
+                onChange={(checkedValues) => setSelectedStudyGroups(checkedValues as string[])}
+              >
+                <Space direction="vertical">
+                  {studyGroups.map((group) => (
+                    <Checkbox key={group.code} value={group.code}>
+                      {group.name} ({group.code})
+                    </Checkbox>
+                  ))}
+                </Space>
+              </Checkbox.Group>
+            </Form.Item>
+          )}
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+            <Button onClick={() => { setShowSubtopicForm(null); resetForms(); }}>
+              Cancel
+            </Button>
+            <Button type="primary" htmlType="submit" style={{ backgroundColor: '#722ed1', borderColor: '#722ed1' }}>
+              {editingSubtopic ? 'Update Subtopic' : 'Create Subtopic'}
+            </Button>
+          </div>
+        </Form>
+      </Modal>
     </div>
   );
 };

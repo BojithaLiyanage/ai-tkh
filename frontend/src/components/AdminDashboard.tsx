@@ -6,6 +6,10 @@ import FiberDatabaseManagement from './FiberDatabaseManagement';
 import QuestionBankManagement from './QuestionBankManagement';
 import Navbar from './Navbar';
 import { contentApi, fiberApi, questionApi, type ContentStats, type QuestionStats, type FiberClass } from '../services/api';
+import { Card, Statistic, Spin, Button, Menu, Layout } from 'antd';
+import { BookOutlined, ExperimentOutlined, QuestionCircleOutlined, ArrowRightOutlined, HomeOutlined, ToolOutlined } from '@ant-design/icons';
+
+const { Sider, Content: AntContent } = Layout;
 
 const AdminHome: React.FC = () => {
   const navigate = useNavigate();
@@ -41,192 +45,123 @@ const AdminHome: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="text-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-        <p className="text-gray-600 mt-4">Loading statistics...</p>
+      <div className="flex justify-center items-center h-96">
+        <Spin size="large" tip="Loading statistics..." />
       </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto">
-      <h1 className="text-3xl font-bold text-gray-900 mb-6 mt-10">Dashboard Overview</h1>
+    <div className="max-w-7xl mx-auto p-6">
+      <h1 className="text-3xl font-bold text-gray-900 mb-8">Dashboard Overview</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Module Summary */}
-        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200 hover:shadow-xl transition-shadow">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">Module Summary</h2>
+        <Card
+          hoverable
+          className="shadow-md"
+          styles={{ body: { padding: '24px' } }}
+        >
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-semibold text-gray-800">Module Summary</h2>
             <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
+              <BookOutlined className="text-2xl text-blue-600" />
             </div>
           </div>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-              <span className="text-gray-600 text-sm">Total Modules</span>
-              <span className="text-2xl font-bold text-blue-600">{contentStats?.total_modules || 0}</span>
-            </div>
-            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-              <span className="text-gray-600 text-sm">Topics</span>
-              <span className="text-xl font-semibold text-gray-900">{contentStats?.total_topics || 0}</span>
-            </div>
-            <button
-              onClick={() => navigate('/dashboard/admin-tools/content-library')}
-              className="w-full mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-            >
-              Manage Modules
-            </button>
+          <div className="space-y-4 mb-6">
+            <Statistic
+              title="Total Modules"
+              value={contentStats?.total_modules || 0}
+              valueStyle={{ color: '#1890ff', fontSize: '28px', fontWeight: 'bold' }}
+            />
+            <Statistic
+              title="Topics"
+              value={contentStats?.total_topics || 0}
+              valueStyle={{ fontSize: '20px' }}
+            />
           </div>
-        </div>
+          <Button
+            type="primary"
+            block
+            size="large"
+            icon={<ArrowRightOutlined />}
+            onClick={() => navigate('/dashboard/admin-tools/content-library')}
+          >
+            Manage Modules
+          </Button>
+        </Card>
 
         {/* Fibers Summary */}
-        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200 hover:shadow-xl transition-shadow">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">Fibers Summary</h2>
+        <Card
+          hoverable
+          className="shadow-md"
+          styles={{ body: { padding: '24px' } }}
+        >
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-semibold text-gray-800">Fibers Summary</h2>
             <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-              <span className="text-2xl">🧵</span>
+              <ExperimentOutlined className="text-2xl text-purple-600" />
             </div>
           </div>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-              <span className="text-gray-600 text-sm">Total Fibers</span>
-              <span className="text-2xl font-bold text-purple-600">{fiberCount}</span>
-            </div>
-            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-              <span className="text-gray-600 text-sm">Classes</span>
-              <span className="text-xl font-semibold text-gray-900">{fiberClasses.length}</span>
-            </div>
-            <button
-              onClick={() => navigate('/dashboard/admin-tools/fiber-database')}
-              className="w-full mt-4 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
-            >
-              Manage Fibers
-            </button>
+          <div className="space-y-4 mb-6">
+            <Statistic
+              title="Total Fibers"
+              value={fiberCount}
+              valueStyle={{ color: '#722ed1', fontSize: '28px', fontWeight: 'bold' }}
+            />
+            <Statistic
+              title="Classes"
+              value={fiberClasses.length}
+              valueStyle={{ fontSize: '20px' }}
+            />
           </div>
-        </div>
+          <Button
+            type="primary"
+            block
+            size="large"
+            icon={<ArrowRightOutlined />}
+            onClick={() => navigate('/dashboard/admin-tools/fiber-database')}
+            style={{ backgroundColor: '#722ed1', borderColor: '#722ed1' }}
+          >
+            Manage Fibers
+          </Button>
+        </Card>
 
         {/* Question Bank Summary */}
-        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200 hover:shadow-xl transition-shadow">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">Question Bank</h2>
+        <Card
+          hoverable
+          className="shadow-md"
+          styles={{ body: { padding: '24px' } }}
+        >
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-semibold text-gray-800">Question Bank</h2>
             <div className="w-12 h-12 bg-pink-100 rounded-lg flex items-center justify-center">
-              <span className="text-2xl">❓</span>
+              <QuestionCircleOutlined className="text-2xl text-pink-600" />
             </div>
           </div>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-              <span className="text-gray-600 text-sm">Total Questions</span>
-              <span className="text-2xl font-bold text-pink-600">{questionStats?.total_questions || 0}</span>
-            </div>
-            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-              <span className="text-gray-600 text-sm">Fibers Covered</span>
-              <span className="text-xl font-semibold text-gray-900">{questionStats?.total_fibers_with_questions || 0}</span>
-            </div>
-            <button
-              onClick={() => navigate('/dashboard/admin-tools/question-bank')}
-              className="w-full mt-4 px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors text-sm font-medium"
-            >
-              Manage Questions
-            </button>
+          <div className="space-y-4 mb-6">
+            <Statistic
+              title="Total Questions"
+              value={questionStats?.total_questions || 0}
+              valueStyle={{ color: '#eb2f96', fontSize: '28px', fontWeight: 'bold' }}
+            />
+            <Statistic
+              title="Fibers Covered"
+              value={questionStats?.total_fibers_with_questions || 0}
+              valueStyle={{ fontSize: '20px' }}
+            />
           </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const AdminTools: React.FC = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  const getActiveTab = () => {
-    if (location.pathname.includes('content-library')) return 'content';
-    if (location.pathname.includes('fiber-database')) return 'fibers';
-    if (location.pathname.includes('question-bank')) return 'questions';
-    return 'content';
-  };
-
-  const activeTab = getActiveTab();
-
-  return (
-    <div className="h-full flex">
-      {/* Sidebar */}
-      <div className="w-64 bg-white border-r border-gray-200 flex-shrink-0 overflow-y-auto">
-        <div className="p-4">
-          <h2 className="text-lg font-bold text-gray-900 mb-4">Admin Tools</h2>
-
-          {/* Content Library Section */}
-          <button
-            onClick={() => navigate('/dashboard/admin-tools/content-library')}
-            className={`w-full text-left p-3 rounded-lg mb-2 transition-colors ${
-              activeTab === 'content'
-                ? 'bg-blue-50 border-l-4 border-blue-600'
-                : 'hover:bg-gray-50'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <span className={`font-medium ${activeTab === 'content' ? 'text-blue-600' : 'text-gray-900'}`}>
-                Content Library
-              </span>
-            </div>
-          </button>
-
-          {/* Fiber Database Section */}
-          <button
-            onClick={() => navigate('/dashboard/admin-tools/fiber-database')}
-            className={`w-full text-left p-3 rounded-lg mb-2 transition-colors ${
-              activeTab === 'fibers'
-                ? 'bg-purple-50 border-l-4 border-purple-600'
-                : 'hover:bg-gray-50'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <span className={`font-medium ${activeTab === 'fibers' ? 'text-purple-600' : 'text-gray-900'}`}>
-                Fiber Database
-              </span>
-            </div>
-          </button>
-
-          {/* Question Bank Section */}
-          <button
+          <Button
+            type="primary"
+            block
+            size="large"
+            icon={<ArrowRightOutlined />}
             onClick={() => navigate('/dashboard/admin-tools/question-bank')}
-            className={`w-full text-left p-3 rounded-lg transition-colors ${
-              activeTab === 'questions'
-                ? 'bg-pink-50 border-l-4 border-pink-600'
-                : 'hover:bg-gray-50'
-            }`}
+            style={{ backgroundColor: '#eb2f96', borderColor: '#eb2f96' }}
           >
-            <div className="flex items-center gap-3">
-              <span className={`font-medium ${activeTab === 'questions' ? 'text-pink-600' : 'text-gray-900'}`}>
-                Question Bank
-              </span>
-            </div>
-          </button>
-        </div>
-      </div>
-
-      {/* Tool Content - Full Screen */}
-      <div className="flex-1 overflow-hidden">
-        <Routes>
-          <Route path="content-library" element={
-            <div className="h-full w-full">
-              <ContentLibrary onClose={() => {}} />
-            </div>
-          } />
-          <Route path="fiber-database" element={
-            <div className="h-full">
-              <FiberDatabaseManagement onClose={() => {}} />
-            </div>
-          } />
-          <Route path="question-bank" element={
-            <div className="h-full">
-              <QuestionBankManagement onClose={() => {}} />
-            </div>
-          } />
-          <Route path="*" element={<Navigate to="content-library" replace />} />
-        </Routes>
+            Manage Questions
+          </Button>
+        </Card>
       </div>
     </div>
   );
@@ -241,35 +176,94 @@ const AdminDashboard: React.FC = () => {
     return <div className="loading">Access denied...</div>;
   }
 
-  const isAdminToolsActive = location.pathname.includes('/admin-tools');
+  const getSelectedKey = () => {
+    if (location.pathname.includes('/admin-home')) return 'home';
+    if (location.pathname.includes('/content-library')) return 'content';
+    if (location.pathname.includes('/fiber-database')) return 'fibers';
+    if (location.pathname.includes('/question-bank')) return 'questions';
+    return 'home';
+  };
 
-  const navbarTabs = [
+  const getOpenKeys = () => {
+    if (location.pathname.includes('/admin-tools')) return ['admin-tools'];
+    return [];
+  };
+
+  const menuItems = [
     {
-      id: 'home',
+      key: 'home',
+      icon: <HomeOutlined />,
       label: 'Home',
-      isActive: !isAdminToolsActive,
-      onClick: () => navigate('/dashboard/admin-home')
+      onClick: () => navigate('/dashboard/admin-home'),
     },
     {
-      id: 'admin-tools',
+      key: 'admin-tools',
+      icon: <ToolOutlined />,
       label: 'Admin Tools',
-      isActive: isAdminToolsActive,
-      onClick: () => navigate('/dashboard/admin-tools/content-library')
-    }
+      children: [
+        {
+          key: 'content',
+          icon: <BookOutlined />,
+          label: 'Content Library',
+          onClick: () => navigate('/dashboard/admin-tools/content-library'),
+        },
+        {
+          key: 'fibers',
+          icon: <ExperimentOutlined />,
+          label: 'Fiber Database',
+          onClick: () => navigate('/dashboard/admin-tools/fiber-database'),
+        },
+        {
+          key: 'questions',
+          icon: <QuestionCircleOutlined />,
+          label: 'Question Bank',
+          onClick: () => navigate('/dashboard/admin-tools/question-bank'),
+        },
+      ],
+    },
   ];
 
   return (
     <>
-      <Navbar tabs={navbarTabs} />
-      <div className="bg-gray-50 overflow-hidden" style={{ height: 'calc(100vh - 64px)' }}>
-        <div className="h-full overflow-y-auto">
-          <Routes>
-            <Route path="admin-home" element={<AdminHome />} />
-            <Route path="admin-tools/*" element={<AdminTools />} />
-            <Route path="*" element={<Navigate to="admin-home" replace />} />
-          </Routes>
-        </div>
-      </div>
+      <Navbar tabs={[]} />
+      <Layout style={{ height: 'calc(100vh - 64px)' }}>
+        {/* Unified Sidebar */}
+        <Sider width={250} theme="light" className="border-r border-gray-200">
+          <Menu
+            mode="inline"
+            selectedKeys={[getSelectedKey()]}
+            defaultOpenKeys={getOpenKeys()}
+            items={menuItems}
+            className="border-r-0"
+            style={{ height: 'calc(100% - 65px)' }}
+          />
+        </Sider>
+
+        {/* Main Content */}
+        <AntContent className="overflow-hidden bg-gray-50">
+          <div className="h-full overflow-y-auto">
+            <Routes>
+              <Route path="admin-home" element={<AdminHome />} />
+              <Route path="admin-tools/content-library" element={
+                <div className="h-full w-full">
+                  <ContentLibrary onClose={() => {}} />
+                </div>
+              } />
+              <Route path="admin-tools/fiber-database" element={
+                <div className="h-full">
+                  <FiberDatabaseManagement onClose={() => {}} />
+                </div>
+              } />
+              <Route path="admin-tools/question-bank" element={
+                <div className="h-full">
+                  <QuestionBankManagement onClose={() => {}} />
+                </div>
+              } />
+              <Route path="*" element={<Navigate to="admin-home" replace />} />
+            </Routes>
+          </div>
+        </AntContent>
+      </Layout>
     </>
   );
 };
