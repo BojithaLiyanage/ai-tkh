@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { Form, Input, Button, Card, Alert, Typography, Space } from 'antd';
 import { MailOutlined, LockOutlined, LoginOutlined } from '@ant-design/icons';
+import FiberBackground from './FiberBackground';
 
 const { Title, Text } = Typography;
 
@@ -28,9 +29,10 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="w-full flex justify-center items-center min-h-screen p-5 bg-gray-50">
+    <div className="w-full flex justify-center items-center min-h-screen p-5 bg-gray-50 relative overflow-hidden">
+      <FiberBackground />
       <Card
-        className="w-full max-w-md shadow-lg"
+        className="w-full max-w-md shadow-lg relative z-10"
         styles={{ body: { padding: '40px' } }}
       >
         <Space direction="vertical" size="large" className="w-full">

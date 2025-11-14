@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import type { ClientType } from '../services/api';
 import { Form, Input, Button, Card, Alert, Typography, Space, Select } from 'antd';
 import { UserOutlined, MailOutlined, LockOutlined, IdcardOutlined, BankOutlined, ExperimentOutlined, UserAddOutlined } from '@ant-design/icons';
+import FiberBackground from './FiberBackground';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -39,9 +40,10 @@ const Signup: React.FC = () => {
   };
 
   return (
-    <div className="flex justify-center items-center min-h-screen p-5 bg-gray-50">
+    <div className="flex justify-center items-center min-h-screen p-5 bg-gray-50 relative overflow-hidden">
+      <FiberBackground />
       <Card
-        className="w-full max-w-lg shadow-lg"
+        className="w-full max-w-lg shadow-lg relative z-10"
         styles={{ body: { padding: '40px' } }}
       >
         <Space direction="vertical" size="large" className="w-full">
