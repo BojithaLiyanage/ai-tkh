@@ -255,33 +255,40 @@ const ChatView: React.FC<{
     <>
       <div className="flex gap-4 p-4 h-full overflow-hidden">
         {/* Collapsed Panel - Floating Buttons */}
-        {isPanelCollapsed && (
-          <div className="flex flex-col gap-2">
-            <Tooltip title="Show Chat History" placement="right">
-              <Button
-                shape="circle"
-                icon={<HistoryOutlined />}
-                onClick={() => setIsPanelCollapsed(false)}
-                className="shadow-lg"
-              />
-            </Tooltip>
-            <Divider className="my-2" />
-            <Tooltip title="New Conversation" placement="right">
-              <Button
-                type="primary"
-                shape="circle"
-                icon={<PlusCircleOutlined />}
-                onClick={handleNewChat}
-                className="shadow-lg"
-              />
-            </Tooltip>
-          </div>
-        )}
+        <div
+          className={`flex flex-col gap-2 transition-all duration-3000 ease-in-out ${
+            isPanelCollapsed ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 pointer-events-none w-0'
+          }`}
+        >
+          <Tooltip title="Show Chat History" placement="right">
+            <Button
+              shape="circle"
+              icon={<HistoryOutlined />}
+              onClick={() => setIsPanelCollapsed(false)}
+              className="shadow-lg hover:shadow-xl transition-shadow duration-200"
+            />
+          </Tooltip>
+          <Divider className="my-2" />
+          <Tooltip title="New Conversation" placement="right">
+            <Button
+              type="primary"
+              shape="circle"
+              icon={<PlusCircleOutlined />}
+              onClick={handleNewChat}
+              className="shadow-lg hover:shadow-xl transition-shadow duration-200"
+            />
+          </Tooltip>
+        </div>
 
         {/* Side Panel - Conversation History */}
-        {!isPanelCollapsed && (
-          <div className="w-80 flex-shrink-0 h-full flex flex-col">
-            <Card className="h-full shadow-md flex flex-col" styles={{ body: { padding: 0, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' } }}>
+        <div
+          className={`h-full flex flex-col transition-all duration-300 ease-in-out ${
+            isPanelCollapsed
+              ? 'w-0 opacity-0 -translate-x-4 pointer-events-none overflow-hidden'
+              : 'w-80 opacity-100 translate-x-0 flex-shrink-0'
+          }`}
+        >
+          <Card className="h-full shadow-md flex flex-col" styles={{ body: { padding: 0, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' } }}>
               <div className="p-4 border-b border-gray-200 flex-shrink-0">
                 <div className="flex justify-between items-center mb-3">
                   <Space>
@@ -375,7 +382,6 @@ const ChatView: React.FC<{
               </div>
             </Card>
           </div>
-        )}
 
         {/* Main Chat Area */}
         <div className="flex-1 flex flex-col min-w-0 h-full">

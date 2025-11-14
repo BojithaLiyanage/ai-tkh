@@ -1,5 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Select, Spin, message } from 'antd';
+import { Select, Spin, message, Tabs, Card, Empty, Tag, Space, Badge } from 'antd';
+import {
+  BarChartOutlined,
+  LineChartOutlined,
+  SwapOutlined,
+  FilterOutlined,
+  RiseOutlined,
+  FallOutlined,
+  AimOutlined
+} from '@ant-design/icons';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -31,12 +40,12 @@ ChartJS.register(
 
 const PROPERTIES = [
   { value: 'density_g_cm3', label: 'Density (g/cm³)', unit: 'g/cm³', type: 'single' },
-  { value: 'fineness', label: 'Fineness (μm)', unit: 'μm', type: 'range' }, // avg of min/max
-  { value: 'staple_length', label: 'Staple Length (mm)', unit: 'mm', type: 'range' }, // avg of min/max
-  { value: 'tenacity', label: 'Tenacity (CN/Tex)', unit: 'CN/Tex', type: 'range' }, // avg of min/max
-  { value: 'elongation', label: 'Elongation (%)', unit: '%', type: 'range' }, // avg of min/max
+  { value: 'fineness', label: 'Fineness (μm)', unit: 'μm', type: 'range' },
+  { value: 'staple_length', label: 'Staple Length (mm)', unit: 'mm', type: 'range' },
+  { value: 'tenacity', label: 'Tenacity (CN/Tex)', unit: 'CN/Tex', type: 'range' },
+  { value: 'elongation', label: 'Elongation (%)', unit: '%', type: 'range' },
   { value: 'moisture_regain_percent', label: 'Moisture Regain (%)', unit: '%', type: 'single' },
-  { value: 'elastic_modulus', label: 'Elastic Modulus (GPa)', unit: 'GPa', type: 'range' }, // avg of min/max
+  { value: 'elastic_modulus', label: 'Elastic Modulus (GPa)', unit: 'GPa', type: 'range' },
 ];
 
 // Helper function to get property value from fiber data
@@ -165,13 +174,9 @@ const CompareTab: React.FC = () => {
 
   // Filter fibers by selected classes and property data availability
   const validData = data.filter(fiber => {
-    // If no fiber classes selected, show all fibers
     const classMatches = selectedFiberClasses.length === 0 ||
       (fiber.fiber_class && selectedFiberClasses.includes(fiber.fiber_class.name));
-
-    // Also must have data for the selected property
     const hasPropertyData = getPropertyValue(fiber, selectedProperty) !== null;
-
     return classMatches && hasPropertyData;
   });
 
@@ -185,13 +190,12 @@ const CompareTab: React.FC = () => {
   const maxFiber = validData[yAxisData.indexOf(maxValue)];
   const minFiber = validData[yAxisData.indexOf(minValue)];
 
-  // Calculate Y-axis domain for consistent scaling (linear scale from 0)
+  // Calculate Y-axis domain
   const yMax = yAxisData.length > 0 ? Math.max(...yAxisData) : 100;
   const yPadding = yMax * 0.1;
   const yDomainMax = Math.ceil(yMax + yPadding);
 
-  // Calculate the minimum required width for the chart content
-  const MIN_CHART_WIDTH = Math.max(validData.length * 40, 600); // 600px is a safety minimum
+  const MIN_CHART_WIDTH = Math.max(validData.length * 40, 600);
 
   const chartData = {
     labels: xAxisData,
@@ -216,9 +220,7 @@ const CompareTab: React.FC = () => {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: {
-        display: false,
-      },
+      legend: { display: false },
       tooltip: {
         backgroundColor: '#ffffff',
         titleColor: '#111827',
@@ -240,28 +242,20 @@ const CompareTab: React.FC = () => {
           autoSkip: false,
           maxRotation: 45,
           minRotation: 45,
-          font: {
-            size: 11,
-          },
+          font: { size: 11 },
           color: '#4b5563',
         },
-        grid: {
-          display: false,
-        },
+        grid: { display: false },
       },
       y: {
         beginAtZero: true,
         min: 0,
         max: yDomainMax,
         ticks: {
-          font: {
-            size: 12,
-          },
+          font: { size: 12 },
           color: '#4b5563',
         },
-        grid: {
-          color: '#e5e7eb',
-        },
+        grid: { color: '#e5e7eb' },
       },
     },
   };
@@ -275,7 +269,7 @@ const CompareTab: React.FC = () => {
     return String(value);
   };
 
-  // Get all property keys from FiberDetail - using pairs for min/max properties
+  // Get all property keys from FiberDetail
   const allFiberProperties = [
     { key: 'fiber_id', label: 'Fiber ID', category: 'Basic Info' },
     { key: 'name', label: 'Name', category: 'Basic Info' },
@@ -336,7 +330,6 @@ const CompareTab: React.FC = () => {
   const getPropertyValue2 = (fiber: FiberDetail | null, prop: any): string => {
     if (!fiber) return 'N/A';
 
-    // If it's a range property (has minKey and maxKey)
     if (prop.minKey && prop.maxKey) {
       const min = (fiber as any)[prop.minKey];
       const max = (fiber as any)[prop.maxKey];
@@ -347,333 +340,387 @@ const CompareTab: React.FC = () => {
       return 'N/A';
     }
 
-    // Otherwise get single value
     const value = (fiber as any)[prop.key];
     return formatPropertyValue(value);
   };
 
-  return (
-    <div className="flex-1 p-4 overflow-y-auto">
-      <div className="max-w-7xl mx-auto">
-        {/* Tab Navigation */}
-        <div className="mb-6 flex gap-2 border-b border-gray-300">
-          <button
-            onClick={() => setActiveTab('chart-comparison')}
-            className={`px-6 py-3 font-medium text-sm transition-colors border-b-2 ${
-              activeTab === 'chart-comparison'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            Chart Comparison
-          </button>
-          <button
-            onClick={() => setActiveTab('pair-comparison')}
-            className={`px-6 py-3 font-medium text-sm transition-colors border-b-2 ${
-              activeTab === 'pair-comparison'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            Pair Comparison
-          </button>
+  if (loading) {
+    return (
+      <div className="flex-1 p-6 overflow-y-auto bg-gray-50">
+        <div className="flex justify-center items-center h-96">
+          <Spin size="large" tip="Loading fiber data..." />
         </div>
+      </div>
+    );
+  }
 
-        {loading ? (
-          <div className="flex justify-center items-center h-96">
-            <Spin size="large" tip="Loading fiber data..." />
-          </div>
-        ) : data.length === 0 ? (
-          <div className="flex justify-center items-center h-96">
-            <div className="text-center">
-              <div className="text-lg font-semibold text-gray-700 mb-2">No Fiber Data Available</div>
-              <div className="text-sm text-gray-500">
-                No fibers are currently available for comparison. Please ensure fibers have been added to the database.
+  if (data.length === 0) {
+    return (
+      <div className="flex-1 p-6 overflow-y-auto bg-gray-50">
+        <Card className="shadow-sm">
+          <Empty
+            description={
+              <div className="text-center">
+                <div className="text-lg font-semibold text-gray-700 mb-2">No Fiber Data Available</div>
+                <div className="text-sm text-gray-500">
+                  No fibers are currently available for comparison. Please ensure fibers have been added to the database.
+                </div>
+              </div>
+            }
+          />
+        </Card>
+      </div>
+    );
+  }
+
+  const tabItems = [
+    {
+      key: 'chart-comparison',
+      label: (
+        <Space>
+          <BarChartOutlined />
+          <span>Chart Comparison</span>
+        </Space>
+      ),
+      children: (
+        <>
+          {/* Controls */}
+          <Card className="mb-6 shadow-md" styles={{ body: { padding: '24px' } }}>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Fiber Class Filter */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Filter by Fiber Class
+                </label>
+                <Select
+                  mode="multiple"
+                  placeholder="All Classes"
+                  value={selectedFiberClasses}
+                  onChange={setSelectedFiberClasses}
+                  className="w-full"
+                  size="large"
+                  maxTagCount="responsive"
+                  suffixIcon={<FilterOutlined />}
+                >
+                  {fiberClasses.map(fiberClass => (
+                    <Option key={fiberClass.id} value={fiberClass.name}>
+                      <Tag color="blue">{fiberClass.name}</Tag>
+                    </Option>
+                  ))}
+                </Select>
+              </div>
+
+              {/* Property Selector */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Select Property to Compare
+                </label>
+                <Select
+                  value={selectedProperty}
+                  onChange={setSelectedProperty}
+                  className="w-full"
+                  size="large"
+                >
+                  {PROPERTIES.map(property => (
+                    <Option key={property.value} value={property.value}>
+                      {property.label}
+                    </Option>
+                  ))}
+                </Select>
+              </div>
+
+              {/* Chart Type Selector */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Chart Type
+                </label>
+                <Select
+                  value={chartType}
+                  onChange={setChartType}
+                  className="w-full"
+                  size="large"
+                >
+                  <Option value="bar">
+                    <Space>
+                      <BarChartOutlined />
+                      <span>Bar Chart</span>
+                    </Space>
+                  </Option>
+                  <Option value="line">
+                    <Space>
+                      <LineChartOutlined />
+                      <span>Line Chart</span>
+                    </Space>
+                  </Option>
+                </Select>
               </div>
             </div>
-          </div>
-        ) : (
-          <>
-            {/* TAB 1: CHART COMPARISON */}
-              {activeTab === 'chart-comparison' && (
-                <>
-                  <div className="mb-2">
-                    <h2 className="text-2xl font-semibold text-gray-900 mb-2">Chart Comparison</h2>
+
+            {/* Info Badge */}
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <Space>
+                <Badge status="processing" />
+                <span className="text-sm text-gray-600">
+                  Comparing <strong>{validData.length}</strong> fibers
+                </span>
+              </Space>
+            </div>
+          </Card>
+
+          {/* Chart and Statistics Container */}
+          <Card className="shadow-md" styles={{ body: { padding: '24px' } }}>
+            <div className="flex gap-6">
+              {/* Chart Section - Left 2/3 */}
+              <div className="flex-1" style={{ width: '66.666%' }}>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  {currentProperty?.label} Comparison
+                </h3>
+
+                {/* Chart Wrapper */}
+                <div className="overflow-x-auto" style={{ width: '100%' }}>
+                  <div style={{ minWidth: `${MIN_CHART_WIDTH}px`, height: '400px' }}>
+                    {chartType === 'bar' ? (
+                      <Bar data={chartData} options={chartOptions} />
+                    ) : (
+                      <Line data={chartData} options={chartOptions} />
+                    )}
                   </div>
-
-                  {/* Controls */}
-                  <div className="mb-2 bg-white py-3 p-5 rounded-lg shadow-sm border border-gray-200">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      {/* Fiber Class Filter */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Filter by Fiber Class
-                        </label>
-                        <Select
-                          mode="multiple"
-                          placeholder="All Classes"
-                          value={selectedFiberClasses}
-                          onChange={setSelectedFiberClasses}
-                          className="w-full"
-                          size="large"
-                          maxTagCount="responsive"
-                        >
-                          {fiberClasses.map(fiberClass => (
-                            <Option key={fiberClass.id} value={fiberClass.name}>
-                              {fiberClass.name}
-                            </Option>
-                          ))}
-                        </Select>
-                      </div>
-
-                      {/* Property Selector */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Select Property to Compare
-                        </label>
-                        <Select
-                          value={selectedProperty}
-                          onChange={setSelectedProperty}
-                          className="w-full"
-                          size="large"
-                        >
-                          {PROPERTIES.map(property => (
-                            <Option key={property.value} value={property.value}>
-                              {property.label}
-                            </Option>
-                          ))}
-                        </Select>
-                      </div>
-
-                      {/* Chart Type Selector */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Chart Type
-                        </label>
-                        <Select
-                          value={chartType}
-                          onChange={setChartType}
-                          className="w-full"
-                          size="large"
-                        >
-                          <Option value="bar">
-                            <div className="flex items-center gap-2">
-                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                <rect x="2" y="10" width="3" height="8" />
-                                <rect x="7" y="6" width="3" height="12" />
-                                <rect x="12" y="2" width="3" height="16" />
-                              </svg>
-                              Bar Chart
-                            </div>
-                          </Option>
-                          <Option value="line">
-                            <div className="flex items-center gap-2">
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 20 20">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2 18L7 10L12 14L18 4" />
-                              </svg>
-                              Line Chart
-                            </div>
-                          </Option>
-                        </Select>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Chart and Statistics Container */}
-                  <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                    <div className="flex gap-6">
-                      {/* Chart Section - Left 2/3 */}
-                      <div className="flex-1" style={{ width: '66.666%' }}>
-                        <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                          {currentProperty?.label} Comparison
-                        </h3>
-
-                        {/* Chart Wrapper: Handles the Horizontal Scroll */}
-                        <div className="overflow-x-auto" style={{ width: '100%' }}>
-                          {/* Chart Canvas: Forced to be wide enough to scroll */}
-                          <div style={{ minWidth: `${MIN_CHART_WIDTH}px`, height: '400px' }}>
-                            {chartType === 'bar' ? (
-                              <Bar data={chartData} options={chartOptions} />
-                            ) : (
-                              <Line data={chartData} options={chartOptions} />
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Axis labels */}
-                        <div className="mt-6 flex justify-center gap-8 text-sm font-medium text-gray-700 pb-2">
-                          <div className="text-center">
-                            <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">X-Axis</div>
-                            <div>Fiber Type</div>
-                          </div>
-                          <div className="h-8 w-px bg-gray-300"></div>
-                          <div className="text-center">
-                            <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Y-Axis</div>
-                            <div>{currentProperty?.label}</div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Statistics Section - Right 1/3 */}
-                      <div className="border-l border-gray-200 pl-6" style={{ width: '33.333%' }}>
-                        <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                          Statistics
-                        </h3>
-
-                        {/* Statistics Summary */}
-                        <div className="space-y-2 mb-6">
-                          <div className="bg-blue-50 p-3 rounded-lg">
-                            <div className="text-xs text-gray-600 mb-0.5">Maximum</div>
-                            <div className="text-lg font-bold text-blue-600">
-                              {maxValue.toFixed(2)}
-                            </div>
-                            <div className="text-xs text-gray-500">{currentProperty?.unit}</div>
-                            <div className="text-xs text-blue-400 mt-1">
-                              Fiber: {maxFiber?.name || 'N/A'}
-                            </div>
-                          </div>
-                          <div className="bg-green-50 p-3 rounded-lg">
-                            <div className="text-xs text-gray-600 mb-0.5">Minimum</div>
-                            <div className="text-lg font-bold text-green-600">
-                              {minValue.toFixed(2)}
-                            </div>
-                            <div className="text-xs text-gray-500">{currentProperty?.unit}</div>
-                            <div className="text-xs text-green-400 mt-1">
-                              Fiber: {minFiber?.name || 'N/A'}
-                            </div>
-                          </div>
-                          <div className="bg-purple-50 p-3 rounded-lg">
-                            <div className="text-xs text-gray-600 mb-0.5">Average</div>
-                            <div className="text-lg font-bold text-purple-600">
-                              {yAxisData.length > 0
-                                ? (yAxisData.reduce((a, b) => a + b, 0) / yAxisData.length).toFixed(2)
-                                : 'N/A'}
-                            </div>
-                            <div className="text-xs text-gray-500">{currentProperty?.unit}</div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {/* TAB 2: PAIR COMPARISON */}
-              {activeTab === 'pair-comparison' && (
-                <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                  <h2 className="text-2xl font-semibold text-gray-900 mb-6">Compare Two Fibers</h2>
-
-                  {/* Fiber Selection Controls */}
-                  <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Fiber 1 Selector */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Select First Fiber
-                      </label>
-                      <Select
-                        placeholder="Search and choose a fiber..."
-                        value={fiber1Id}
-                        onChange={setFiber1Id}
-                        className="w-full"
-                        size="large"
-                        allowClear
-                        showSearch
-                        filterOption={(input, option) => {
-                          const label = option?.children?.toString() || '';
-                          return label.toLowerCase().includes(input.toLowerCase());
-                        }}
-                      >
-                        {data.map(fiber => (
-                          <Option key={fiber.id} value={fiber.id}>
-                            {fiber.name} {fiber.fiber_class ? `(${fiber.fiber_class.name})` : ''}
-                          </Option>
-                        ))}
-                      </Select>
-                    </div>
-
-                    {/* Fiber 2 Selector */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Select Second Fiber
-                      </label>
-                      <Select
-                        placeholder="Search and choose a fiber..."
-                        value={fiber2Id}
-                        onChange={setFiber2Id}
-                        className="w-full"
-                        size="large"
-                        allowClear
-                        showSearch
-                        filterOption={(input, option) => {
-                          const label = option?.children?.toString() || '';
-                          return label.toLowerCase().includes(input.toLowerCase());
-                        }}
-                      >
-                        {data.map(fiber => (
-                          <Option key={fiber.id} value={fiber.id}>
-                            {fiber.name} {fiber.fiber_class ? `(${fiber.fiber_class.name})` : ''}
-                          </Option>
-                        ))}
-                      </Select>
-                    </div>
-                  </div>
-
-                  {/* Comparison Table */}
-                  {fiber1Details && fiber2Details ? (
-                    <div className="overflow-x-auto">
-                      <table className="w-full border-collapse">
-                        <thead>
-                          <tr className="bg-gray-100 border-b border-gray-300">
-                            <th className="text-left px-4 py-3 font-semibold text-gray-700 border-r border-gray-300 w-1/3">
-                              Property
-                            </th>
-                            <th className="text-left px-4 py-3 font-semibold text-gray-700 border-r border-gray-300 w-1/3">
-                              {fiber1Details.name} {fiber1Details.fiber_class ? `(${fiber1Details.fiber_class.name})` : ''}
-                            </th>
-                            <th className="text-left px-4 py-3 font-semibold text-gray-700 w-1/3">
-                              {fiber2Details.name} {fiber2Details.fiber_class ? `(${fiber2Details.fiber_class.name})` : ''}
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {allFiberProperties.map((prop, idx) => {
-                            const formattedVal1 = getPropertyValue2(fiber1Details, prop);
-                            const formattedVal2 = getPropertyValue2(fiber2Details, prop);
-
-                            return (
-                              <tr
-                                key={prop.key}
-                                className={`border-b border-gray-200 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
-                              >
-                                <td className="px-4 py-3 font-medium text-gray-800 border-r border-gray-200">
-                                  <div className="text-xs text-gray-500 mb-1">{prop.category}</div>
-                                  {prop.label}
-                                </td>
-                                <td className="px-4 py-3 border-r border-gray-200">
-                                  {formattedVal1}
-                                </td>
-                                <td className="px-4 py-3">
-                                  {formattedVal2}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <div className="text-center py-12 text-gray-500">
-                      {loadingFiber1 || loadingFiber2 ? (
-                        <Spin tip="Loading fiber details..." />
-                      ) : (
-                        <div className="text-lg">Select two fibers to compare all their properties</div>
-                      )}
-                    </div>
-                  )}
                 </div>
-              )}
-            </>
+
+                {/* Axis labels */}
+                <div className="mt-6 flex justify-center gap-8 text-sm font-medium text-gray-700 pb-2">
+                  <div className="text-center">
+                    <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">X-Axis</div>
+                    <div>Fiber Type</div>
+                  </div>
+                  <div className="h-8 w-px bg-gray-300"></div>
+                  <div className="text-center">
+                    <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Y-Axis</div>
+                    <div>{currentProperty?.label}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Statistics Section - Right 1/3 */}
+              <div className="border-l border-gray-200 pl-6" style={{ width: '33.333%' }}>
+                <div className="flex items-center gap-2 mb-4">
+                  <AimOutlined className="text-purple-600 text-lg" />
+                  <h3 className="text-lg font-semibold text-gray-900 m-0">
+                    Statistics
+                  </h3>
+                </div>
+
+                {/* Statistics Summary */}
+                <Space direction="vertical" size="middle" className="w-full">
+                  <Card
+                    className="shadow-sm border-l-4 border-l-blue-500"
+                    styles={{ body: { padding: '16px' } }}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <RiseOutlined className="text-blue-600" />
+                          <span className="text-xs text-gray-600 font-medium uppercase">Maximum</span>
+                        </div>
+                        <div className="text-2xl font-bold text-blue-600 mb-1">
+                          {maxValue.toFixed(2)}
+                        </div>
+                        <div className="text-xs text-gray-500 mb-2">{currentProperty?.unit}</div>
+                        <Tag color="blue" className="text-xs">
+                          {maxFiber?.name || 'N/A'}
+                        </Tag>
+                      </div>
+                    </div>
+                  </Card>
+
+                  <Card
+                    className="shadow-sm border-l-4 border-l-green-500"
+                    styles={{ body: { padding: '16px' } }}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <FallOutlined className="text-green-600" />
+                          <span className="text-xs text-gray-600 font-medium uppercase">Minimum</span>
+                        </div>
+                        <div className="text-2xl font-bold text-green-600 mb-1">
+                          {minValue.toFixed(2)}
+                        </div>
+                        <div className="text-xs text-gray-500 mb-2">{currentProperty?.unit}</div>
+                        <Tag color="green" className="text-xs">
+                          {minFiber?.name || 'N/A'}
+                        </Tag>
+                      </div>
+                    </div>
+                  </Card>
+
+                  <Card
+                    className="shadow-sm border-l-4 border-l-purple-500"
+                    styles={{ body: { padding: '16px' } }}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <AimOutlined className="text-purple-600" />
+                          <span className="text-xs text-gray-600 font-medium uppercase">Average</span>
+                        </div>
+                        <div className="text-2xl font-bold text-purple-600 mb-1">
+                          {yAxisData.length > 0
+                            ? (yAxisData.reduce((a, b) => a + b, 0) / yAxisData.length).toFixed(2)
+                            : 'N/A'}
+                        </div>
+                        <div className="text-xs text-gray-500">{currentProperty?.unit}</div>
+                      </div>
+                    </div>
+                  </Card>
+                </Space>
+              </div>
+            </div>
+          </Card>
+        </>
+      ),
+    },
+    {
+      key: 'pair-comparison',
+      label: (
+        <Space>
+          <SwapOutlined />
+          <span>Pair Comparison</span>
+        </Space>
+      ),
+      children: (
+        <Card className="shadow-md" styles={{ body: { padding: '24px' } }}>
+          <div className="flex items-center gap-2 mb-6">
+            <SwapOutlined className="text-blue-600 text-xl" />
+            <h2 className="text-2xl font-semibold text-gray-900 m-0">Compare Two Fibers</h2>
+          </div>
+
+          {/* Fiber Selection Controls */}
+          <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Fiber 1 Selector */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select First Fiber
+              </label>
+              <Select
+                placeholder="Search and choose a fiber..."
+                value={fiber1Id}
+                onChange={setFiber1Id}
+                className="w-full"
+                size="large"
+                allowClear
+                showSearch
+                filterOption={(input, option) => {
+                  const label = option?.children?.toString() || '';
+                  return label.toLowerCase().includes(input.toLowerCase());
+                }}
+              >
+                {data.map(fiber => (
+                  <Option key={fiber.id} value={fiber.id}>
+                    {fiber.name} {fiber.fiber_class ? `(${fiber.fiber_class.name})` : ''}
+                  </Option>
+                ))}
+              </Select>
+            </div>
+
+            {/* Fiber 2 Selector */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select Second Fiber
+              </label>
+              <Select
+                placeholder="Search and choose a fiber..."
+                value={fiber2Id}
+                onChange={setFiber2Id}
+                className="w-full"
+                size="large"
+                allowClear
+                showSearch
+                filterOption={(input, option) => {
+                  const label = option?.children?.toString() || '';
+                  return label.toLowerCase().includes(input.toLowerCase());
+                }}
+              >
+                {data.map(fiber => (
+                  <Option key={fiber.id} value={fiber.id}>
+                    {fiber.name} {fiber.fiber_class ? `(${fiber.fiber_class.name})` : ''}
+                  </Option>
+                ))}
+              </Select>
+            </div>
+          </div>
+
+          {/* Comparison Table */}
+          {fiber1Details && fiber2Details ? (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-gray-100 border-b border-gray-300">
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700 border-r border-gray-300 w-1/3">
+                      Property
+                    </th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700 border-r border-gray-300 w-1/3">
+                      {fiber1Details.name} {fiber1Details.fiber_class ? `(${fiber1Details.fiber_class.name})` : ''}
+                    </th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700 w-1/3">
+                      {fiber2Details.name} {fiber2Details.fiber_class ? `(${fiber2Details.fiber_class.name})` : ''}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allFiberProperties.map((prop, idx) => {
+                    const formattedVal1 = getPropertyValue2(fiber1Details, prop);
+                    const formattedVal2 = getPropertyValue2(fiber2Details, prop);
+
+                    return (
+                      <tr
+                        key={prop.key}
+                        className={`border-b border-gray-200 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
+                      >
+                        <td className="px-4 py-3 font-medium text-gray-800 border-r border-gray-200">
+                          <div className="text-xs text-gray-500 mb-1">{prop.category}</div>
+                          {prop.label}
+                        </td>
+                        <td className="px-4 py-3 border-r border-gray-200">
+                          {formattedVal1}
+                        </td>
+                        <td className="px-4 py-3">
+                          {formattedVal2}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <Empty
+              description={
+                loadingFiber1 || loadingFiber2 ? (
+                  <Spin tip="Loading fiber details..." />
+                ) : (
+                  <div className="text-lg">Select two fibers to compare all their properties</div>
+                )
+              }
+            />
           )}
+        </Card>
+      ),
+    },
+  ];
+
+  return (
+    <div className="flex-1 p-6 overflow-y-auto bg-gray-50">
+      <div className="max-w-7xl mx-auto">
+        {/* Tabs */}
+        <Tabs
+          activeKey={activeTab}
+          onChange={setActiveTab}
+          items={tabItems}
+          size="large"
+          type="card"
+          className="bg-white rounded-lg shadow-sm"
+        />
       </div>
     </div>
   );
