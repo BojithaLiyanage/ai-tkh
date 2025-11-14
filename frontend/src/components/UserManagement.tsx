@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { authApi, type User, type AdminUserUpdate, type ClientType } from '../services/api';
 import { Table, Button, Tag, Space, Modal, Form, Input, Select, Alert, Spin, Switch } from 'antd';
-import { EditOutlined, CheckCircleOutlined, StopOutlined } from '@ant-design/icons';
+import { EditOutlined, CheckCircleOutlined, StopOutlined, PlusOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { format } from "date-fns";
 
@@ -14,12 +14,24 @@ interface EditUserData extends AdminUserUpdate {
   id: number;
 }
 
+interface NewUserData {
+  full_name: string;
+  email: string;
+  password: string;
+  user_type: 'client' | 'admin' | 'super_admin';
+  client_type?: ClientType;
+  organization?: string;
+  specialization?: string;
+}
+
 const UserManagement: React.FC<UserManagementProps> = ({ onUserUpdated }) => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [editingUser, setEditingUser] = useState<EditUserData | null>(null);
+  const [newUser, setNewUser] = useState<NewUserData | null>(null);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
+  const [creatingUser, setCreatingUser] = useState(false);
 
   const fetchUsers = async () => {
     try {
@@ -86,6 +98,51 @@ const UserManagement: React.FC<UserManagementProps> = ({ onUserUpdated }) => {
       console.error('Failed to toggle user status:', err);
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const handleOpenNewUserModal = () => {
+    setNewUser({
+      full_name: '',
+      email: '',
+      password: '',
+      user_type: 'client',
+      client_type: 'student',
+      organization: '',
+      specialization: ''
+    });
+  };
+
+  const handleCreateUser = async () => {
+    if (!newUser) return;
+
+    try {
+      setCreatingUser(true);
+
+      // Prepare data based on user type
+      const userData: any = {
+        full_name: newUser.full_name,
+        email: newUser.email,
+        password: newUser.password,
+        user_type: newUser.user_type,
+        client_type: newUser.user_type === 'client' ? (newUser.client_type || 'student') : 'student',
+      };
+
+      if (newUser.user_type === 'client') {
+        if (newUser.organization) userData.organization = newUser.organization;
+        if (newUser.specialization) userData.specialization = newUser.specialization;
+      }
+
+      await authApi.createUser(userData);
+      await fetchUsers();
+      setNewUser(null);
+      if (onUserUpdated) onUserUpdated();
+      setError('');
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to create user');
+      console.error('Failed to create user:', err);
+    } finally {
+      setCreatingUser(false);
     }
   };
 
@@ -235,8 +292,16 @@ const UserManagement: React.FC<UserManagementProps> = ({ onUserUpdated }) => {
 
   return (
     <div className="bg-white w-full h-full flex flex-col p-6">
-      <div className="mb-6">
+      <div className="mb-6 flex justify-between items-center">
         <h2 className="text-2xl font-semibold text-gray-900">User Management</h2>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={handleOpenNewUserModal}
+          size="large"
+        >
+          Add New User
+        </Button>
       </div>
 
       {error && (
@@ -259,7 +324,12 @@ const UserManagement: React.FC<UserManagementProps> = ({ onUserUpdated }) => {
           columns={columns}
           dataSource={users}
           rowKey="id"
-          pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total) => `Total ${total} users` }}
+          pagination={{
+            pageSize: 10,
+            showSizeChanger: true,
+            pageSizeOptions: ['10', '20', '50', '100'],
+            showTotal: (total) => `Total ${total} users`
+          }}
           scroll={{ x: 1200 }}
         />
       )}
@@ -347,6 +417,106 @@ const UserManagement: React.FC<UserManagementProps> = ({ onUserUpdated }) => {
                 loading={actionLoading === editingUser.id}
               >
                 {actionLoading === editingUser.id ? 'Updating...' : 'Update User'}
+              </Button>
+            </div>
+          </Form>
+        )}
+      </Modal>
+
+      {/* Add New User Modal */}
+      <Modal
+        title="Add New User"
+        open={!!newUser}
+        onCancel={() => setNewUser(null)}
+        footer={null}
+        width={600}
+      >
+        {newUser && (
+          <Form layout="vertical" onFinish={handleCreateUser}>
+            <Form.Item label="Full Name" required>
+              <Input
+                value={newUser.full_name}
+                onChange={(e) => setNewUser({...newUser, full_name: e.target.value})}
+                placeholder="Enter full name"
+              />
+            </Form.Item>
+
+            <Form.Item label="Email" required>
+              <Input
+                type="email"
+                value={newUser.email}
+                onChange={(e) => setNewUser({...newUser, email: e.target.value})}
+                placeholder="Enter email address"
+              />
+            </Form.Item>
+
+            <Form.Item label="Password" required>
+              <Input.Password
+                value={newUser.password}
+                onChange={(e) => setNewUser({...newUser, password: e.target.value})}
+                placeholder="Enter password"
+              />
+            </Form.Item>
+
+            <Form.Item label="User Type" required>
+              <Select
+                value={newUser.user_type}
+                onChange={(value) => setNewUser({
+                  ...newUser,
+                  user_type: value as 'super_admin' | 'admin' | 'client'
+                })}
+              >
+                <Select.Option value="client">Client</Select.Option>
+                <Select.Option value="admin">Admin</Select.Option>
+                <Select.Option value="super_admin">Super Admin</Select.Option>
+              </Select>
+            </Form.Item>
+
+            {newUser.user_type === 'client' && (
+              <>
+                <Form.Item label="Client Type" required>
+                  <Select
+                    value={newUser.client_type || 'student'}
+                    onChange={(value) => setNewUser({
+                      ...newUser,
+                      client_type: value as ClientType
+                    })}
+                  >
+                    <Select.Option value="researcher">Researcher</Select.Option>
+                    <Select.Option value="industry_expert">Industry Expert</Select.Option>
+                    <Select.Option value="student">Student</Select.Option>
+                    <Select.Option value="undergraduate">Undergraduate</Select.Option>
+                  </Select>
+                </Form.Item>
+
+                <Form.Item label="Organization">
+                  <Input
+                    value={newUser.organization || ''}
+                    onChange={(e) => setNewUser({...newUser, organization: e.target.value})}
+                    placeholder="Enter organization (optional)"
+                  />
+                </Form.Item>
+
+                <Form.Item label="Specialization">
+                  <Input
+                    value={newUser.specialization || ''}
+                    onChange={(e) => setNewUser({...newUser, specialization: e.target.value})}
+                    placeholder="Enter specialization (optional)"
+                  />
+                </Form.Item>
+              </>
+            )}
+
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '24px' }}>
+              <Button onClick={() => setNewUser(null)}>
+                Cancel
+              </Button>
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={creatingUser}
+              >
+                {creatingUser ? 'Creating...' : 'Create User'}
               </Button>
             </div>
           </Form>

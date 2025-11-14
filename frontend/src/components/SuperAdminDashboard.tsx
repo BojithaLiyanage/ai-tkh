@@ -59,7 +59,7 @@ const SuperAdminHome: React.FC = () => {
     <div className="max-w-7xl mx-auto p-6">
       <h1 className="text-3xl font-bold text-gray-900 mb-8">Super Admin Dashboard</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-center">
         {/* Module Summary */}
         <Card hoverable className="shadow-md" styles={{ body: { padding: '24px' } }}>
           <div className="flex items-center justify-between mb-6">
@@ -81,7 +81,8 @@ const SuperAdminHome: React.FC = () => {
             />
           </div>
           <Button
-            type="primary"
+            variant="filled"
+            color='primary'
             block
             size="large"
             icon={<ArrowRightOutlined />}
@@ -112,12 +113,12 @@ const SuperAdminHome: React.FC = () => {
             />
           </div>
           <Button
-            type="primary"
+            variant="filled"
+            color='purple'
             block
             size="large"
             icon={<ArrowRightOutlined />}
             onClick={() => navigate('/dashboard/admin-tools/fiber-database')}
-            style={{ backgroundColor: '#722ed1', borderColor: '#722ed1' }}
           >
             Manage Fibers
           </Button>
@@ -144,12 +145,12 @@ const SuperAdminHome: React.FC = () => {
             />
           </div>
           <Button
-            type="primary"
+            variant="filled"
+            color='pink'
             block
             size="large"
             icon={<ArrowRightOutlined />}
             onClick={() => navigate('/dashboard/admin-tools/question-bank')}
-            style={{ backgroundColor: '#eb2f96', borderColor: '#eb2f96' }}
           >
             Manage Questions
           </Button>
@@ -163,51 +164,28 @@ const SuperAdminHome: React.FC = () => {
               <UserOutlined className="text-2xl text-green-600" />
             </div>
           </div>
-          <div className="mb-6">
+          <div className="space-y-4 mb-6">
             <Statistic
               title="Total Users"
               value={userStats?.total_users || 0}
               valueStyle={{ color: '#52c41a', fontSize: '28px', fontWeight: 'bold' }}
             />
+            <Statistic
+              title="Clients"
+              value={userStats?.client_users || 0}
+              valueStyle={{ fontSize: '20px' }}
+            />
           </div>
           <Button
-            type="primary"
+            variant="filled"
+            color='green'
             block
             size="large"
             icon={<ArrowRightOutlined />}
             onClick={() => navigate('/dashboard/admin-tools/users')}
-            style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
           >
             Manage Users
           </Button>
-        </Card>
-
-        {/* User Breakdown Card */}
-        <Card className="shadow-md lg:col-span-4" styles={{ body: { padding: '24px' } }}>
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">User Breakdown</h2>
-          <div className="grid grid-cols-3 gap-4">
-            <Card className="text-center" style={{ backgroundColor: '#f0fdf4', borderColor: '#86efac' }}>
-              <Statistic
-                title="Clients"
-                value={userStats?.client_users || 0}
-                valueStyle={{ color: '#16a34a', fontSize: '24px', fontWeight: 'bold' }}
-              />
-            </Card>
-            <Card className="text-center" style={{ backgroundColor: '#eff6ff', borderColor: '#93c5fd' }}>
-              <Statistic
-                title="Admins"
-                value={userStats?.admin_users || 0}
-                valueStyle={{ color: '#2563eb', fontSize: '24px', fontWeight: 'bold' }}
-              />
-            </Card>
-            <Card className="text-center" style={{ backgroundColor: '#faf5ff', borderColor: '#d8b4fe' }}>
-              <Statistic
-                title="Super Admins"
-                value={userStats?.super_admin_users || 0}
-                valueStyle={{ color: '#9333ea', fontSize: '24px', fontWeight: 'bold' }}
-              />
-            </Card>
-          </div>
         </Card>
       </div>
     </div>
