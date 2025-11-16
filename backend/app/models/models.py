@@ -508,6 +508,52 @@ class Question(Base):
     )
 
 
+class QuizAttempt(Base):
+    __tablename__ = "quiz_attempts"
+    __table_args__ = (
+        Index('idx_quiz_attempts_user_id', 'user_id'),
+        Index('idx_quiz_attempts_fiber_id', 'fiber_id'),
+        Index('idx_quiz_attempts_user_fiber', 'user_id', 'fiber_id'),
+    )
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    fiber_id = Column(Integer, ForeignKey("fibers.id", ondelete="CASCADE"), nullable=False)
+    study_group_code = Column(String(1), ForeignKey("study_groups.code"), nullable=False)
+    score = Column(Integer, nullable=True)  # Score out of 100
+    total_questions = Column(Integer, nullable=False)
+    correct_answers = Column(Integer, nullable=False, default=0)
+    is_completed = Column(Boolean, default=False)
+    submitted_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=func.current_timestamp())
+    updated_at = Column(DateTime, default=func.current_timestamp(), onupdate=func.current_timestamp())
+
+    # Relationships
+    user = relationship("User", backref="quiz_attempts")
+    fiber = relationship("Fiber", backref="quiz_attempts")
+    study_group = relationship("StudyGroup", backref="quiz_attempts")
+    answers = relationship("QuizAnswer", back_populates="quiz_attempt", cascade="all,delete")
+
+
+class QuizAnswer(Base):
+    __tablename__ = "quiz_answers"
+    __table_args__ = (
+        Index('idx_quiz_answers_attempt_id', 'quiz_attempt_id'),
+        Index('idx_quiz_answers_question_id', 'question_id'),
+    )
+
+    id = Column(Integer, primary_key=True)
+    quiz_attempt_id = Column(Integer, ForeignKey("quiz_attempts.id", ondelete="CASCADE"), nullable=False)
+    question_id = Column(Integer, ForeignKey("questions.id", ondelete="CASCADE"), nullable=False)
+    selected_answer = Column(String(500), nullable=True)
+    is_correct = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=func.current_timestamp())
+
+    # Relationships
+    quiz_attempt = relationship("QuizAttempt", back_populates="answers")
+    question = relationship("Question", backref="quiz_answers")
+
+
 # ==================================================
 # Pydantic Response Models
 # ==================================================
