@@ -346,7 +346,7 @@ const CompareTab: React.FC<{ defaultTab?: string }> = ({ defaultTab = 'chart-com
 
   if (loading) {
     return (
-      <div className="flex-1 p-6 overflow-y-auto bg-gray-50">
+      <div className="flex-1 p-3 overflow-y-auto bg-gray-50">
         <div className="flex justify-center items-center h-96">
           <Spin size="large" tip="Loading fiber data..." />
         </div>
@@ -356,7 +356,7 @@ const CompareTab: React.FC<{ defaultTab?: string }> = ({ defaultTab = 'chart-com
 
   if (data.length === 0) {
     return (
-      <div className="flex-1 p-6 overflow-y-auto bg-gray-50">
+      <div className="flex-1 p-3 overflow-y-auto bg-gray-50">
         <Card className="shadow-sm">
           <Empty
             description={
@@ -712,7 +712,7 @@ const CompareTab: React.FC<{ defaultTab?: string }> = ({ defaultTab = 'chart-com
   const currentTabContent = tabItems.find(item => item.key === activeTab)?.children;
 
   return (
-    <div className="flex-1 p-6 overflow-y-auto bg-gray-50">
+    <div className="flex-1 p-3 overflow-y-auto bg-gray-50">
       <div className="max-w-7xl mx-auto">
         {currentTabContent}
       </div>
