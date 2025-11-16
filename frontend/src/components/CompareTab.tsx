@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Select, Spin, message, Tabs, Card, Empty, Tag, Space, Badge } from 'antd';
+import { Select, Spin, message, Card, Empty, Tag, Space, Badge } from 'antd';
 import {
   BarChartOutlined,
   LineChartOutlined,
@@ -85,8 +85,8 @@ const getPropertyValue = (fiber: FiberComparison, propertyKey: string): number |
   }
 };
 
-const CompareTab: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<string>('chart-comparison');
+const CompareTab: React.FC<{ defaultTab?: string }> = ({ defaultTab = 'chart-comparison' }) => {
+  const [activeTab] = useState<string>(defaultTab);
   const [selectedProperty, setSelectedProperty] = useState<string>('density_g_cm3');
   const [chartType, setChartType] = useState<'bar' | 'line'>('bar');
   const [selectedFiberClasses, setSelectedFiberClasses] = useState<string[]>([]);
@@ -709,21 +709,24 @@ const CompareTab: React.FC = () => {
     },
   ];
 
+  const currentTabContent = tabItems.find(item => item.key === activeTab)?.children;
+
   return (
     <div className="flex-1 p-6 overflow-y-auto bg-gray-50">
       <div className="max-w-7xl mx-auto">
-        {/* Tabs */}
-        <Tabs
-          activeKey={activeTab}
-          onChange={setActiveTab}
-          items={tabItems}
-          size="large"
-          type="card"
-          className="bg-white rounded-lg shadow-sm"
-        />
+        {currentTabContent}
       </div>
     </div>
   );
+};
+
+// Export individual views
+export const ChartComparisonView: React.FC = () => {
+  return <CompareTab defaultTab="chart-comparison" />;
+};
+
+export const PairComparisonView: React.FC = () => {
+  return <CompareTab defaultTab="pair-comparison" />;
 };
 
 export default CompareTab;

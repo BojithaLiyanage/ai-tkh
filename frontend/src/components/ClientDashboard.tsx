@@ -16,7 +16,9 @@ import {
   DeleteOutlined,
   MenuOutlined,
   HistoryOutlined,
-  CommentOutlined
+  CommentOutlined,
+  BarChartOutlined,
+  LineChartOutlined
 } from '@ant-design/icons';
 
 const { TextArea } = Input;
@@ -26,7 +28,7 @@ import type { OnboardingStatus, ChatbotConversationRead, FiberCard } from '../se
 import ClientOnboarding from './ClientOnboarding';
 import ChatMessage from './ChatMessage';
 import Navbar from './Navbar';
-import CompareTab from './CompareTab';
+import { ChartComparisonView, PairComparisonView } from './CompareTab';
 
 const { Sider, Content: AntContent } = Layout;
 
@@ -759,6 +761,7 @@ const ClientDashboard: React.FC = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [conversationToDelete, setConversationToDelete] = useState<number | null>(null);
   const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
+  const [isMainSidebarCollapsed, setIsMainSidebarCollapsed] = useState(true);
 
   useEffect(() => {
     const checkOnboardingStatus = async () => {
@@ -777,10 +780,17 @@ const ClientDashboard: React.FC = () => {
   }, [user]);
 
   const getSelectedKey = () => {
-    if (location.pathname.includes('/chat')) return 'chat';
-    if (location.pathname.includes('/compare')) return 'compare';
-    if (location.pathname.includes('/assessments')) return 'assessments';
-    return 'chat';
+    if (location.pathname.includes('/chat')) return ['chat'];
+    if (location.pathname.includes('/compare/chart')) return ['chart-comparison'];
+    if (location.pathname.includes('/compare/pair')) return ['pair-comparison'];
+    if (location.pathname.includes('/compare')) return ['chart-comparison']; // Default to chart
+    if (location.pathname.includes('/assessments')) return ['assessments'];
+    return ['chat'];
+  };
+
+  const getOpenKeys = () => {
+    if (location.pathname.includes('/compare')) return ['compare'];
+    return [];
   };
 
   const menuItems = [
@@ -794,7 +804,20 @@ const ClientDashboard: React.FC = () => {
       key: 'compare',
       icon: <SwapOutlined />,
       label: 'Compare',
-      onClick: () => navigate('/dashboard/compare'),
+      children: [
+        {
+          key: 'chart-comparison',
+          icon: <BarChartOutlined />,
+          label: 'Chart Comparison',
+          onClick: () => navigate('/dashboard/compare/chart'),
+        },
+        {
+          key: 'pair-comparison',
+          icon: <LineChartOutlined />,
+          label: 'Pair Comparison',
+          onClick: () => navigate('/dashboard/compare/pair'),
+        },
+      ],
     },
     {
       key: 'assessments',
@@ -828,14 +851,31 @@ const ClientDashboard: React.FC = () => {
     <>
       <Navbar tabs={[]} />
       <Layout style={{ height: 'calc(100vh - 64px)' }}>
-        {/* Sidebar */}
-        <Sider width={250} theme="light" className="border-r border-gray-200">
+        {/* Sidebar - Hover to Expand */}
+        <Sider
+          collapsible
+          collapsed={isMainSidebarCollapsed}
+          onCollapse={(collapsed) => setIsMainSidebarCollapsed(collapsed)}
+          trigger={null}
+          width={250}
+          collapsedWidth={80}
+          theme="light"
+          className="border-r border-gray-200"
+          style={{
+            overflow: 'auto',
+            transition: 'all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1)',
+          }}
+          onMouseEnter={() => setIsMainSidebarCollapsed(false)}
+          onMouseLeave={() => setIsMainSidebarCollapsed(true)}
+        >
           <Menu
             mode="inline"
-            selectedKeys={[getSelectedKey()]}
+            selectedKeys={getSelectedKey()}
+            defaultOpenKeys={getOpenKeys()}
             items={menuItems}
             className="border-r-0"
             style={{ height: '100%' }}
+            inlineCollapsed={isMainSidebarCollapsed}
           />
         </Sider>
 
@@ -873,7 +913,9 @@ const ClientDashboard: React.FC = () => {
                   </div>
                 }
               />
-              <Route path="compare" element={<div className="h-full overflow-y-auto"><CompareTab /></div>} />
+              <Route path="compare/chart" element={<div className="h-full overflow-y-auto"><ChartComparisonView /></div>} />
+              <Route path="compare/pair" element={<div className="h-full overflow-y-auto"><PairComparisonView /></div>} />
+              <Route path="compare" element={<Navigate to="compare/chart" replace />} />
               <Route path="assessments" element={<AssessmentsView />} />
               <Route path="*" element={<Navigate to="chat" replace />} />
             </Routes>
