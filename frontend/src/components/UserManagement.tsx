@@ -3,7 +3,6 @@ import { authApi, type User, type AdminUserUpdate, type ClientType } from '../se
 import { Table, Button, Tag, Space, Modal, Form, Input, Select, Alert, Spin, Switch } from 'antd';
 import { EditOutlined, CheckCircleOutlined, StopOutlined, PlusOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { format } from "date-fns";
 
 interface UserManagementProps {
   onClose?: () => void;
@@ -163,16 +162,6 @@ const UserManagement: React.FC<UserManagementProps> = ({ onUserUpdated }) => {
       case 'undergraduate': return 'geekblue';
       default: return 'default';
     }
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
   };
 
   const columns: ColumnsType<User> = [

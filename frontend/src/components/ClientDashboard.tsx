@@ -253,103 +253,130 @@ const ChatView: React.FC<{
 
   return (
     <>
-      <div className="flex gap-4 p-4 h-full overflow-hidden">
-        {/* Collapsed Panel - Floating Buttons */}
-        <div
-          className={`flex flex-col gap-2 transition-all duration-3000 ease-in-out ${
-            isPanelCollapsed ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 pointer-events-none w-0'
-          }`}
+      <Layout className="h-full" style={{ background: 'transparent' }}>
+        {/* Ant Design Sider for Chat History */}
+        <Sider
+          collapsible
+          collapsed={isPanelCollapsed}
+          onCollapse={(collapsed) => setIsPanelCollapsed(collapsed)}
+          trigger={null}
+          collapsedWidth={60}
+          width={320}
+          theme="light"
+          className="shadow-md relative"
+          style={{
+            background: '#fff',
+            overflow: 'hidden',
+            transition: 'all 0.2s cubic-bezier(0.645, 0.045, 0.355, 1)',
+          }}
         >
-          <Tooltip title="Show Chat History" placement="right">
-            <Button
-              shape="circle"
-              icon={<HistoryOutlined />}
-              onClick={() => setIsPanelCollapsed(false)}
-              className="shadow-lg hover:shadow-xl transition-shadow duration-200"
-            />
-          </Tooltip>
-          <Divider className="my-2" />
-          <Tooltip title="New Conversation" placement="right">
-            <Button
-              type="primary"
-              shape="circle"
-              icon={<PlusCircleOutlined />}
-              onClick={handleNewChat}
-              className="shadow-lg hover:shadow-xl transition-shadow duration-200"
-            />
-          </Tooltip>
-        </div>
+          {/* Collapsed State - Icon Buttons */}
+          <div
+            className="absolute inset-0 flex flex-col items-center pt-4 transition-opacity duration-300"
+            style={{
+              opacity: isPanelCollapsed ? 1 : 0,
+              visibility: isPanelCollapsed ? 'visible' : 'hidden',
+              pointerEvents: isPanelCollapsed ? 'auto' : 'none',
+              zIndex: isPanelCollapsed ? 2 : 1,
+            }}
+          >
+            <Tooltip title="Show Chat History" placement="right">
+              <Button
+                shape="circle"
+                size="large"
+                icon={<HistoryOutlined />}
+                onClick={() => setIsPanelCollapsed(false)}
+                className="shadow-lg hover:shadow-xl transition-all duration-200"
+              />
+            </Tooltip>
+            <Divider className="my-2 w-8" />
+            <Tooltip title="New Conversation" placement="right">
+              <Button
+                type="primary"
+                shape="circle"
+                size="large"
+                icon={<PlusCircleOutlined />}
+                onClick={handleNewChat}
+                className="shadow-lg hover:shadow-xl transition-all duration-200"
+              />
+            </Tooltip>
+          </div>
 
-        {/* Side Panel - Conversation History */}
-        <div
-          className={`h-full flex flex-col transition-all duration-300 ease-in-out ${
-            isPanelCollapsed
-              ? 'w-0 opacity-0 -translate-x-4 pointer-events-none overflow-hidden'
-              : 'w-80 opacity-100 translate-x-0 flex-shrink-0'
-          }`}
-        >
-          <Card className="h-full shadow-md flex flex-col" styles={{ body: { padding: 0, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' } }}>
-              <div className="p-4 border-b border-gray-200 flex-shrink-0">
-                <div className="flex justify-between items-center mb-3">
-                  <Space>
-                    <HistoryOutlined className="text-blue-600 text-lg" />
-                    <h3 className="text-lg font-semibold text-gray-900 m-0">Chat History</h3>
-                  </Space>
-                  <Tooltip title="Hide Panel">
-                    <Button
-                      type="text"
-                      size="small"
-                      icon={<MenuOutlined />}
-                      onClick={() => setIsPanelCollapsed(true)}
-                    />
-                  </Tooltip>
-                </div>
-                <Button
-                  type="primary"
-                  block
-                  icon={<PlusCircleOutlined />}
-                  onClick={handleNewChat}
-                  className="shadow-sm"
-                >
-                  New Conversation
-                </Button>
+          {/* Expanded State - Full Panel */}
+          <div
+            className="absolute inset-0 flex flex-col transition-opacity duration-300"
+            style={{
+              opacity: isPanelCollapsed ? 0 : 1,
+              visibility: isPanelCollapsed ? 'hidden' : 'visible',
+              pointerEvents: isPanelCollapsed ? 'none' : 'auto',
+              zIndex: isPanelCollapsed ? 1 : 2,
+            }}
+          >
+            <div className="p-4 border-b border-gray-200 flex-shrink-0">
+              <div className="flex justify-between items-center mb-3">
+                <Space>
+                  <HistoryOutlined className="text-blue-600 text-lg" />
+                  <h3 className="text-lg font-semibold text-gray-900 m-0 whitespace-nowrap overflow-hidden">
+                    Chat History
+                  </h3>
+                </Space>
+                <Tooltip title="Collapse Panel">
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<MenuOutlined />}
+                    onClick={() => setIsPanelCollapsed(true)}
+                    className="hover:bg-gray-100 transition-colors duration-200"
+                  />
+                </Tooltip>
               </div>
+              <Button
+                type="primary"
+                block
+                icon={<PlusCircleOutlined />}
+                onClick={handleNewChat}
+                className="shadow-sm transition-all duration-200"
+              >
+                New Conversation
+              </Button>
+            </div>
 
-              <div className="flex-1 overflow-y-auto p-3">
-                {loadingHistory ? (
-                  <div className="text-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
-                    <p className="text-gray-500 text-sm">Loading conversations...</p>
-                  </div>
-                ) : conversationHistory.length === 0 ? (
-                  <div className="text-center py-12">
-                    <CommentOutlined className="text-4xl text-gray-300 mb-3" />
-                    <p className="text-gray-500 text-sm font-medium mb-1">No conversations yet</p>
-                    <p className="text-gray-400 text-xs">Start a new chat to begin</p>
-                  </div>
-                ) : (
-                  <Space direction="vertical" size="small" className="w-full">
-                    {conversationHistory.map((conversation) => (
-                      <Card
-                        key={conversation.id}
-                        hoverable
-                        size="small"
-                        onClick={() => loadConversation(conversation)}
-                        className={`cursor-pointer transition-all ${
-                          conversationId === conversation.id
-                            ? 'border-2 border-blue-500 shadow-md'
-                            : 'border border-gray-200'
-                        }`}
-                        styles={{ body: { padding: '12px' } }}
-                      >
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex items-center gap-2 flex-1">
-                            <CommentOutlined className={conversationId === conversation.id ? 'text-blue-600' : 'text-gray-400'} />
+            <div className="flex-1 overflow-y-auto overflow-x-hidden p-3">
+              {loadingHistory ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
+                  <p className="text-gray-500 text-sm">Loading conversations...</p>
+                </div>
+              ) : conversationHistory.length === 0 ? (
+                <div className="text-center py-12">
+                  <CommentOutlined className="text-4xl text-gray-300 mb-3" />
+                  <p className="text-gray-500 text-sm font-medium mb-1">No conversations yet</p>
+                  <p className="text-gray-400 text-xs">Start a new chat to begin</p>
+                </div>
+              ) : (
+                <Space direction="vertical" size="small" className="w-full">
+                  {conversationHistory.map((conversation) => (
+                    <Card
+                      key={conversation.id}
+                      hoverable
+                      size="small"
+                      onClick={() => loadConversation(conversation)}
+                      className={`cursor-pointer transition-all duration-200 ${
+                        conversationId === conversation.id
+                          ? 'border-2 border-blue-500 shadow-md'
+                          : 'border border-gray-200'
+                      }`}
+                      styles={{ body: { padding: '12px', minHeight: '100px',height:"100px" } }}
+                    >
+                      <div className="flex flex-col h-full justify-between">
+                        <div className="flex items-start justify-between mb-2 flex-shrink-0">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <CommentOutlined className={`flex-shrink-0 ${conversationId === conversation.id ? 'text-blue-600' : 'text-gray-400'}`} />
                             <span className="text-sm font-medium text-gray-900 truncate">
                               {new Date(conversation.started_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                             </span>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-shrink-0">
                             {conversation.is_active && (
                               <Badge status="success" />
                             )}
@@ -364,27 +391,34 @@ const ChatView: React.FC<{
                             </Tooltip>
                           </div>
                         </div>
-                        <p className="text-xs text-gray-600 mb-2 line-clamp-2">
+                        <p className="text-xs text-gray-600 mb-2 flex-1 overflow-hidden" style={{
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          lineHeight: '1.4em',
+                          maxHeight: '2.8em'
+                        }}>
                           {conversation.messages[0]?.content || 'New conversation'}
                         </p>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-400">
+                        <div className="flex items-center justify-between flex-shrink-0">
+                          <span className="text-xs text-gray-400 truncate">
                             {new Date(conversation.started_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                           </span>
-                          <Tag color={conversation.is_active ? 'blue' : 'default'} className="text-xs m-0">
-                            {conversation.messages.length} messages
+                          <Tag color={conversation.is_active ? 'blue' : 'default'} className="text-xs m-0 flex-shrink-0 overflow-hidden">
+                            {conversation.messages.length} msg
                           </Tag>
                         </div>
-                      </Card>
-                    ))}
-                  </Space>
-                )}
-              </div>
-            </Card>
+                      </div>
+                    </Card>
+                  ))}
+                </Space>
+              )}
+            </div>
           </div>
+        </Sider>
 
         {/* Main Chat Area */}
-        <div className="flex-1 flex flex-col min-w-0 h-full">
+        <AntContent className="flex-1 flex flex-col min-w-0 h-full p-4" style={{ background: 'transparent' }}>
           <div className="flex-shrink-0 mb-4">
             <h2 className="text-2xl font-semibold text-gray-900">
               {conversationId ? 'Chat' : 'AI Chatbot'}
@@ -496,8 +530,8 @@ const ChatView: React.FC<{
               </>
             )}
           </div>
-        </div>
-      </div>
+        </AntContent>
+      </Layout>
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
