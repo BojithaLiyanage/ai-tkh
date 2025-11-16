@@ -1,12 +1,36 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Tooltip } from 'antd';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { Tooltip, Layout, Menu, Card, Progress, Tag, Button, Input, Badge, Divider, Space } from 'antd';
+import {
+  MessageOutlined,
+  SwapOutlined,
+  FileTextOutlined,
+  RobotOutlined,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  LockOutlined,
+  TrophyOutlined,
+  RocketOutlined,
+  SendOutlined,
+  PlusCircleOutlined,
+  DeleteOutlined,
+  MenuOutlined,
+  HistoryOutlined,
+  CommentOutlined,
+  BarChartOutlined,
+  LineChartOutlined
+} from '@ant-design/icons';
+
+const { TextArea } = Input;
 import { useAuth } from '../contexts/AuthContext';
 import { clientApi, chatbotApi } from '../services/api';
 import type { OnboardingStatus, ChatbotConversationRead, FiberCard } from '../services/api';
 import ClientOnboarding from './ClientOnboarding';
 import ChatMessage from './ChatMessage';
 import Navbar from './Navbar';
-import CompareTab from './CompareTab';
+import { ChartComparisonView, PairComparisonView } from './CompareTab';
+
+const { Sider, Content: AntContent } = Layout;
 
 interface StructureImage {
   fiber_name: string;
@@ -72,45 +96,52 @@ const ThinkingLoader: React.FC = () => {
   );
 };
 
-const ClientDashboard: React.FC = () => {
-  const { user } = useAuth();
-  const [onboardingStatus, setOnboardingStatus] = useState<OnboardingStatus | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'chatbot' | 'assessments' | 'compare'>('chatbot');
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [inputMessage, setInputMessage] = useState('');
-  const [isSending, setIsSending] = useState(false);
-  const [conversationId, setConversationId] = useState<number | null>(null);
-  const [isConversationActive, setIsConversationActive] = useState(false);
-  const [conversationHistory, setConversationHistory] = useState<ChatbotConversationRead[]>([]);
-  const [loadingHistory, setLoadingHistory] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [conversationToDelete, setConversationToDelete] = useState<number | null>(null);
-  const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
-
-  useEffect(() => {
-    const checkOnboardingStatus = async () => {
-      if (user && user.user_type === 'client') {
-        try {
-          const status = await clientApi.getOnboardingStatus();
-          setOnboardingStatus(status);
-        } catch (error) {
-          console.error('Error checking onboarding status:', error);
-        }
-      }
-      setLoading(false);
-    };
-
-    checkOnboardingStatus();
-  }, [user]);
-
-  // Fetch conversation history when chatbot tab is active
-  useEffect(() => {
-    if (activeTab === 'chatbot' && user) {
-      fetchConversationHistory();
-    }
-  }, [activeTab, user]);
-
+// Chat View Component
+const ChatView: React.FC<{
+  user: any;
+  messages: Message[];
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
+  inputMessage: string;
+  setInputMessage: React.Dispatch<React.SetStateAction<string>>;
+  isSending: boolean;
+  setIsSending: React.Dispatch<React.SetStateAction<boolean>>;
+  conversationId: number | null;
+  setConversationId: React.Dispatch<React.SetStateAction<number | null>>;
+  isConversationActive: boolean;
+  setIsConversationActive: React.Dispatch<React.SetStateAction<boolean>>;
+  conversationHistory: ChatbotConversationRead[];
+  setConversationHistory: React.Dispatch<React.SetStateAction<ChatbotConversationRead[]>>;
+  loadingHistory: boolean;
+  setLoadingHistory: React.Dispatch<React.SetStateAction<boolean>>;
+  showDeleteModal: boolean;
+  setShowDeleteModal: React.Dispatch<React.SetStateAction<boolean>>;
+  conversationToDelete: number | null;
+  setConversationToDelete: React.Dispatch<React.SetStateAction<number | null>>;
+  isPanelCollapsed: boolean;
+  setIsPanelCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
+}> = ({
+  user,
+  messages,
+  setMessages,
+  inputMessage,
+  setInputMessage,
+  isSending,
+  setIsSending,
+  conversationId,
+  setConversationId,
+  isConversationActive,
+  setIsConversationActive,
+  conversationHistory,
+  setConversationHistory,
+  loadingHistory,
+  setLoadingHistory,
+  showDeleteModal,
+  setShowDeleteModal,
+  conversationToDelete,
+  setConversationToDelete,
+  isPanelCollapsed,
+  setIsPanelCollapsed,
+}) => {
   const fetchConversationHistory = async () => {
     setLoadingHistory(true);
     try {
@@ -129,7 +160,6 @@ const ClientDashboard: React.FC = () => {
       setConversationId(response.conversation_id);
       setIsConversationActive(true);
       setMessages([{ role: 'ai', content: 'Hello! How can I assist you with textile and fiber questions today?' }]);
-      // Refresh history to show new chat
       fetchConversationHistory();
     } catch (error) {
       console.error('Error starting conversation:', error);
@@ -138,22 +168,16 @@ const ClientDashboard: React.FC = () => {
   };
 
   const loadConversation = async (conversation: ChatbotConversationRead) => {
-    // Set the conversation as active or inactive based on its state
     setConversationId(conversation.id);
     setIsConversationActive(conversation.is_active);
-
-    // Load the conversation messages
     setMessages(conversation.messages.map(msg => ({
       role: msg.role as 'user' | 'ai',
       content: msg.content
     })));
-
-    // If it's an inactive conversation, reactivate it when user starts typing
-    // This will be handled in handleSendMessage
   };
 
   const openDeleteModal = (deleteId: number, e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent selecting the conversation when clicking delete
+    e.stopPropagation();
     setConversationToDelete(deleteId);
     setShowDeleteModal(true);
   };
@@ -169,14 +193,12 @@ const ClientDashboard: React.FC = () => {
     try {
       await chatbotApi.deleteConversation(conversationToDelete);
 
-      // If the deleted conversation was currently active, clear the chat
       if (conversationToDelete === conversationId) {
         setConversationId(null);
         setMessages([]);
         setIsConversationActive(false);
       }
 
-      // Refresh history
       fetchConversationHistory();
       closeDeleteModal();
     } catch (error) {
@@ -192,16 +214,14 @@ const ClientDashboard: React.FC = () => {
     const userMessage = inputMessage.trim();
     setInputMessage('');
 
-    // Add user message to chat
     setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
     setIsSending(true);
 
     try {
-      // If conversation is inactive, reactivate it first
       if (!isConversationActive) {
         await chatbotApi.continueConversation(conversationId);
         setIsConversationActive(true);
-        fetchConversationHistory(); // Refresh to update active status
+        fetchConversationHistory();
       }
 
       const response = await chatbotApi.sendMessage(userMessage, conversationId);
@@ -213,7 +233,6 @@ const ClientDashboard: React.FC = () => {
         relatedVideos: response.related_videos
       }]);
 
-      // Refresh history to show updated message count
       fetchConversationHistory();
     } catch (error) {
       console.error('Error sending message:', error);
@@ -223,12 +242,590 @@ const ClientDashboard: React.FC = () => {
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
   };
+
+  useEffect(() => {
+    fetchConversationHistory();
+  }, []);
+
+  return (
+    <>
+      <Layout className="h-full" style={{ background: 'transparent' }}>
+        {/* Ant Design Sider for Chat History */}
+        <Sider
+          collapsible
+          collapsed={isPanelCollapsed}
+          onCollapse={(collapsed) => setIsPanelCollapsed(collapsed)}
+          trigger={null}
+          collapsedWidth={60}
+          width={320}
+          theme="light"
+          className="shadow-md relative"
+          style={{
+            background: '#fff',
+            overflow: 'hidden',
+            transition: 'all 0.2s cubic-bezier(0.645, 0.045, 0.355, 1)',
+          }}
+        >
+          {/* Collapsed State - Icon Buttons */}
+          <div
+            className="absolute inset-0 flex flex-col items-center pt-4 transition-opacity duration-300"
+            style={{
+              opacity: isPanelCollapsed ? 1 : 0,
+              visibility: isPanelCollapsed ? 'visible' : 'hidden',
+              pointerEvents: isPanelCollapsed ? 'auto' : 'none',
+              zIndex: isPanelCollapsed ? 2 : 1,
+            }}
+          >
+            <Tooltip title="Show Chat History" placement="right">
+              <Button
+                shape="circle"
+                size="large"
+                icon={<HistoryOutlined />}
+                onClick={() => setIsPanelCollapsed(false)}
+                className="shadow-lg hover:shadow-xl transition-all duration-200"
+              />
+            </Tooltip>
+            <Divider className="my-2 w-8" />
+            <Tooltip title="New Conversation" placement="right">
+              <Button
+                type="primary"
+                shape="circle"
+                size="large"
+                icon={<PlusCircleOutlined />}
+                onClick={handleNewChat}
+                className="shadow-lg hover:shadow-xl transition-all duration-200"
+              />
+            </Tooltip>
+          </div>
+
+          {/* Expanded State - Full Panel */}
+          <div
+            className="absolute inset-0 flex flex-col transition-opacity duration-300"
+            style={{
+              opacity: isPanelCollapsed ? 0 : 1,
+              visibility: isPanelCollapsed ? 'hidden' : 'visible',
+              pointerEvents: isPanelCollapsed ? 'none' : 'auto',
+              zIndex: isPanelCollapsed ? 1 : 2,
+            }}
+          >
+            <div className="p-4 border-b border-gray-200 flex-shrink-0">
+              <div className="flex justify-between items-center mb-3">
+                <Space>
+                  <HistoryOutlined className="text-blue-600 text-lg" />
+                  <h3 className="text-lg font-semibold text-gray-900 m-0 whitespace-nowrap overflow-hidden">
+                    Chat History
+                  </h3>
+                </Space>
+                <Tooltip title="Collapse Panel">
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<MenuOutlined />}
+                    onClick={() => setIsPanelCollapsed(true)}
+                    className="hover:bg-gray-100 transition-colors duration-200"
+                  />
+                </Tooltip>
+              </div>
+              <Button
+                type="primary"
+                block
+                icon={<PlusCircleOutlined />}
+                onClick={handleNewChat}
+                className="shadow-sm transition-all duration-200"
+              >
+                New Conversation
+              </Button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto overflow-x-hidden p-3">
+              {loadingHistory ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
+                  <p className="text-gray-500 text-sm">Loading conversations...</p>
+                </div>
+              ) : conversationHistory.length === 0 ? (
+                <div className="text-center py-12">
+                  <CommentOutlined className="text-4xl text-gray-300 mb-3" />
+                  <p className="text-gray-500 text-sm font-medium mb-1">No conversations yet</p>
+                  <p className="text-gray-400 text-xs">Start a new chat to begin</p>
+                </div>
+              ) : (
+                <Space direction="vertical" size="small" className="w-full">
+                  {conversationHistory.map((conversation) => (
+                    <Card
+                      key={conversation.id}
+                      hoverable
+                      size="small"
+                      onClick={() => loadConversation(conversation)}
+                      className={`cursor-pointer transition-all duration-200 ${
+                        conversationId === conversation.id
+                          ? 'border-2 border-blue-500 shadow-md'
+                          : 'border border-gray-200'
+                      }`}
+                      styles={{ body: { padding: '12px', minHeight: '100px',height:"100px" } }}
+                    >
+                      <div className="flex flex-col h-full justify-between">
+                        <div className="flex items-start justify-between mb-2 flex-shrink-0">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <CommentOutlined className={`flex-shrink-0 ${conversationId === conversation.id ? 'text-blue-600' : 'text-gray-400'}`} />
+                            <span className="text-sm font-medium text-gray-900 truncate">
+                              {new Date(conversation.started_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            {conversation.is_active && (
+                              <Badge status="success" />
+                            )}
+                            <Tooltip title="Delete">
+                              <Button
+                                type="text"
+                                danger
+                                size="small"
+                                icon={<DeleteOutlined />}
+                                onClick={(e) => openDeleteModal(conversation.id, e)}
+                              />
+                            </Tooltip>
+                          </div>
+                        </div>
+                        <p className="text-xs text-gray-600 mb-2 flex-1 overflow-hidden" style={{
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          lineHeight: '1.4em',
+                          maxHeight: '2.8em'
+                        }}>
+                          {conversation.messages[0]?.content || 'New conversation'}
+                        </p>
+                        <div className="flex items-center justify-between flex-shrink-0">
+                          <span className="text-xs text-gray-400 truncate">
+                            {new Date(conversation.started_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                          <Tag color={conversation.is_active ? 'blue' : 'default'} className="text-xs m-0 flex-shrink-0 overflow-hidden">
+                            {conversation.messages.length} msg
+                          </Tag>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </Space>
+              )}
+            </div>
+          </div>
+        </Sider>
+
+        {/* Main Chat Area */}
+        <AntContent className="flex-1 flex flex-col min-w-0 h-full p-4" style={{ background: 'transparent' }}>
+          <div className="flex-shrink-0 mb-4">
+            <h2 className="text-2xl font-semibold text-gray-900">
+              {conversationId ? 'Chat' : 'AI Chatbot'}
+            </h2>
+          </div>
+
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+            {!conversationId || messages.length === 0 ? (
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-12 text-center flex-1 flex items-center justify-center overflow-y-auto">
+                <div className="max-w-md">
+                  <div className="mb-6 flex justify-center">
+                    <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center">
+                      <RobotOutlined className="text-4xl text-blue-600" />
+                    </div>
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-3">Welcome to AI Chatbot</h3>
+                  <p className="text-gray-600 text-base mb-6">
+                    I'm here to help you with textile and fiber-related questions. Ask me anything!
+                  </p>
+                  <div className="flex flex-col gap-2 mb-6">
+                    <Button
+                      type="primary"
+                      size="large"
+                      icon={<RocketOutlined />}
+                      onClick={handleNewChat}
+                      className="shadow-md"
+                    >
+                      Start New Conversation
+                    </Button>
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    <p className="mb-2 font-medium">Try asking about:</p>
+                    <div className="flex flex-wrap gap-2 justify-center">
+                      <Tag color="blue">Fiber properties</Tag>
+                      <Tag color="cyan">Material comparisons</Tag>
+                      <Tag color="geekblue">Textile structures</Tag>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Chat Messages */}
+                <div className="flex-1 bg-gray-50 rounded-lg p-6 space-y-4 overflow-y-auto">
+                  {messages.map((msg, index) => (
+                    <ChatMessage
+                      key={index}
+                      role={msg.role}
+                      content={msg.content}
+                      fiberCards={msg.fiberCards}
+                      structureImages={msg.structureImages}
+                      relatedVideos={msg.relatedVideos}
+                      userName={user.full_name || 'U'}
+                    />
+                  ))}
+                  {isSending && <ThinkingLoader />}
+                </div>
+
+                {/* Chat Input - Fixed at bottom */}
+                {/* <div className="p-6 flex-shrink-0"> */}
+                  <div className="w-full p-4">
+                    <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-4 hover:shadow-xl transition-shadow duration-200">
+                      <div className="flex gap-3 items-end">
+                        <div className="flex-1">
+                          <TextArea
+                            value={inputMessage}
+                            onChange={(e) => setInputMessage(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            placeholder={isConversationActive ? "Type your message..." : "Type to continue this conversation..."}
+                            disabled={isSending}
+                            autoSize={{ minRows: 1, maxRows: 4 }}
+                            className="border-0 focus:shadow-none resize-none"
+                            style={{
+                              fontSize: '15px',
+                              padding: '8px 0'
+                            }}
+                          />
+                        </div>
+                        <Button
+                          type="primary"
+                          icon={<SendOutlined />}
+                          onClick={handleSendMessage}
+                          disabled={isSending || !inputMessage.trim()}
+                          loading={isSending}
+                          className="shadow-md hover:shadow-lg transition-all duration-200"
+                          style={{
+                            height: '48px',
+                            borderRadius: '12px',
+                            background: isSending || !inputMessage.trim() ? undefined : 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
+                            border: 'none'
+                          }}
+                        >
+                          {!isSending && 'Send'}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Helper text for first time users */}
+                    {!conversationId && (
+                      <div className="mt-3 text-center">
+                        <p className="text-xs text-gray-400 flex items-center justify-center gap-1">
+                          <span>💡</span>
+                          <span>Tip: Ask questions about textile fibers, properties, or comparisons</span>
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                {/* </div> */}
+              </>
+            )}
+          </div>
+        </AntContent>
+      </Layout>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden animate-fadeIn">
+            <div className="bg-red-50 px-6 py-4 border-b border-red-100">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Delete Conversation</h3>
+                  <p className="text-sm text-gray-600">This action cannot be undone</p>
+                </div>
+              </div>
+            </div>
+            <div className="px-6 py-5">
+              <p className="text-gray-700 text-base">
+                Are you sure you want to delete this conversation? All messages and chat history will be permanently removed.
+              </p>
+            </div>
+            <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3">
+              <button
+                onClick={closeDeleteModal}
+                className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium shadow-sm"
+              >
+                Delete Conversation
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+// Assessments View Component
+const AssessmentsView: React.FC = () => {
+  return (
+    <div className="flex-1 p-8 overflow-y-auto bg-gray-50">
+      <div className="max-w-5xl mx-auto">
+        {/* Header Section */}
+        <div className="mb-8">
+          <div className="flex items-center gap-3 mb-2">
+            <TrophyOutlined className="text-3xl text-yellow-500" />
+            <h2 className="text-3xl font-bold text-gray-900">Your Assessments</h2>
+          </div>
+          <p className="text-gray-600">Track your progress and complete assessments to improve your skills</p>
+        </div>
+
+        {/* Overall Progress Card */}
+        <Card className="mb-6 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-1">Overall Progress</h3>
+              <p className="text-sm text-gray-600">You've completed 1 out of 3 assessments</p>
+            </div>
+            <div className="text-right">
+              <div className="text-3xl font-bold text-blue-600">33%</div>
+              <div className="text-xs text-gray-500">Completion Rate</div>
+            </div>
+          </div>
+          <Progress
+            percent={33}
+            strokeColor={{
+              '0%': '#1890ff',
+              '100%': '#52c41a',
+            }}
+            status="active"
+          />
+        </Card>
+
+        {/* Assessments List */}
+        <div className="space-y-4">
+          {/* Assessment 1 - Completed */}
+          <Card
+            hoverable
+            className="shadow-sm border-l-4 border-l-green-500"
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex gap-4 flex-1">
+                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <CheckCircleOutlined className="text-2xl text-green-600" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <h3 className="text-xl font-semibold text-gray-900">Initial Skills Assessment</h3>
+                    <Tag color="success" icon={<CheckCircleOutlined />}>
+                      Completed
+                    </Tag>
+                  </div>
+                  <p className="text-gray-600 mb-3">
+                    Basic skills evaluation to understand your current level of textile and fiber knowledge
+                  </p>
+                  <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
+                    <span>📅 Completed on: Jan 15, 2025</span>
+                    <span>⏱️ Duration: 30 minutes</span>
+                    <span>📊 Score: 85/100</span>
+                  </div>
+                  <Progress percent={85} strokeColor="#52c41a" showInfo={false} />
+                </div>
+              </div>
+              <Button type="primary" ghost>
+                View Results
+              </Button>
+            </div>
+          </Card>
+
+          {/* Assessment 2 - In Progress */}
+          <Card
+            hoverable
+            className="shadow-sm border-l-4 border-l-yellow-500"
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex gap-4 flex-1">
+                <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <ClockCircleOutlined className="text-2xl text-yellow-600" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <h3 className="text-xl font-semibold text-gray-900">Mid-Level Progress Check</h3>
+                    <Tag color="warning" icon={<ClockCircleOutlined />}>
+                      In Progress
+                    </Tag>
+                  </div>
+                  <p className="text-gray-600 mb-3">
+                    Assessment to track your learning progress and identify areas for improvement
+                  </p>
+                  <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
+                    <span>📅 Started on: Jan 20, 2025</span>
+                    <span>⏱️ Duration: 45 minutes</span>
+                    <span>📝 Progress: 12/20 questions</span>
+                  </div>
+                  <Progress percent={60} status="active" strokeColor="#faad14" showInfo={false} />
+                </div>
+              </div>
+              <Button type="primary">
+                Continue Assessment
+              </Button>
+            </div>
+          </Card>
+
+          {/* Assessment 3 - Locked */}
+          <Card
+            className="shadow-sm border-l-4 border-l-gray-300 opacity-75"
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex gap-4 flex-1">
+                <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <LockOutlined className="text-2xl text-gray-500" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <h3 className="text-xl font-semibold text-gray-700">Advanced Certification Test</h3>
+                    <Tag color="default" icon={<LockOutlined />}>
+                      Locked
+                    </Tag>
+                  </div>
+                  <p className="text-gray-500 mb-3">
+                    Final comprehensive assessment for certification eligibility
+                  </p>
+                  <div className="flex items-center gap-4 text-sm text-gray-400 mb-3">
+                    <span>📅 Available from: Feb 1, 2025</span>
+                    <span>⏱️ Duration: 60 minutes</span>
+                    <span>🎯 Passing Score: 80%</span>
+                  </div>
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-start gap-2">
+                    <span className="text-yellow-600">⚠️</span>
+                    <p className="text-sm text-yellow-800">
+                      Complete the Mid-Level Progress Check to unlock this assessment
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <Button disabled>
+                Locked
+              </Button>
+            </div>
+          </Card>
+        </div>
+
+        {/* Help Section */}
+        <Card className="mt-6 bg-blue-50 border-blue-200">
+          <div className="flex gap-3">
+            <div className="text-2xl">💡</div>
+            <div>
+              <h4 className="font-semibold text-gray-900 mb-1">Need Help?</h4>
+              <p className="text-sm text-gray-600 mb-2">
+                Assessments help you track your progress and identify areas where you can improve. Take your time and review the learning materials before starting.
+              </p>
+              <Button type="link" className="p-0 h-auto text-blue-600">
+                View Study Materials →
+              </Button>
+            </div>
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+const ClientDashboard: React.FC = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [onboardingStatus, setOnboardingStatus] = useState<OnboardingStatus | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Chat state
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [inputMessage, setInputMessage] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const [conversationId, setConversationId] = useState<number | null>(null);
+  const [isConversationActive, setIsConversationActive] = useState(false);
+  const [conversationHistory, setConversationHistory] = useState<ChatbotConversationRead[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [conversationToDelete, setConversationToDelete] = useState<number | null>(null);
+  const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
+  const [isMainSidebarCollapsed, setIsMainSidebarCollapsed] = useState(true);
+
+  useEffect(() => {
+    const checkOnboardingStatus = async () => {
+      if (user && user.user_type === 'client') {
+        try {
+          const status = await clientApi.getOnboardingStatus();
+          setOnboardingStatus(status);
+        } catch (error) {
+          console.error('Error checking onboarding status:', error);
+        }
+      }
+      setLoading(false);
+    };
+
+    checkOnboardingStatus();
+  }, [user]);
+
+  const getSelectedKey = () => {
+    if (location.pathname.includes('/chat')) return ['chat'];
+    if (location.pathname.includes('/compare/chart')) return ['chart-comparison'];
+    if (location.pathname.includes('/compare/pair')) return ['pair-comparison'];
+    if (location.pathname.includes('/compare')) return ['chart-comparison']; // Default to chart
+    if (location.pathname.includes('/assessments')) return ['assessments'];
+    return ['chat'];
+  };
+
+  const getOpenKeys = () => {
+    if (location.pathname.includes('/compare')) return ['compare'];
+    return [];
+  };
+
+  const menuItems = [
+    {
+      key: 'chat',
+      icon: <MessageOutlined />,
+      label: 'Chat',
+      onClick: () => navigate('/dashboard/chat'),
+    },
+    {
+      key: 'compare',
+      icon: <SwapOutlined />,
+      label: 'Compare',
+      children: [
+        {
+          key: 'chart-comparison',
+          icon: <BarChartOutlined />,
+          label: 'Chart Comparison',
+          onClick: () => navigate('/dashboard/compare/chart'),
+        },
+        {
+          key: 'pair-comparison',
+          icon: <LineChartOutlined />,
+          label: 'Pair Comparison',
+          onClick: () => navigate('/dashboard/compare/pair'),
+        },
+      ],
+    },
+    {
+      key: 'assessments',
+      icon: <FileTextOutlined />,
+      label: 'Assessments',
+      onClick: () => navigate('/dashboard/assessments'),
+    },
+  ];
 
   if (!user || user.user_type !== 'client') {
     return <div className="loading">Access denied...</div>;
@@ -250,295 +847,81 @@ const ClientDashboard: React.FC = () => {
     return <ClientOnboarding />;
   }
 
-  const navbarTabs = [
-    {
-      id: 'chatbot',
-      label: 'Chatbot',
-      isActive: activeTab === 'chatbot',
-      onClick: () => setActiveTab('chatbot')
-    },
-    {
-      id: 'compare',
-      label: 'Compare',
-      isActive: activeTab === 'compare',
-      onClick: () => setActiveTab('compare')
-    },
-    {
-      id: 'assessments',
-      label: 'Assessments',
-      isActive: activeTab === 'assessments',
-      onClick: () => setActiveTab('assessments')
-    }
-  ];
-
   return (
     <>
-      <Navbar tabs={navbarTabs} />
-      <div className="bg-gray-50 flex overflow-hidden" style={{ height: 'calc(100vh - 64px)' }}>
-        {activeTab === 'chatbot' && (
-          <div className="flex-1 flex gap-4 p-4">
-              {/* Collapsed Panel - Floating Button */}
-              {isPanelCollapsed && (
-                <div className="flex flex-col gap-2">
-                  <Tooltip title="Show History" placement="bottom">
-                    <button
-                      onClick={() => setIsPanelCollapsed(false)}
-                      className="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all shadow-md flex items-center justify-center"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                      </svg>
-                    </button>
-                  </Tooltip>
-                  <Tooltip title="New Chat" placement="bottom">
-                    <button
-                      onClick={handleNewChat}
-                      className="w-8 h-8 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all shadow-lg flex items-center justify-center"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                    </button>
-                  </Tooltip>
-                </div>
-              )}
+      <Navbar tabs={[]} />
+      <Layout style={{ height: 'calc(100vh - 64px)' }}>
+        {/* Sidebar - Hover to Expand */}
+        <Sider
+          collapsible
+          collapsed={isMainSidebarCollapsed}
+          onCollapse={(collapsed) => setIsMainSidebarCollapsed(collapsed)}
+          trigger={null}
+          width={250}
+          collapsedWidth={80}
+          theme="light"
+          className="border-r border-gray-200"
+          style={{
+            overflow: 'auto',
+            transition: 'all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1)',
+          }}
+          onMouseEnter={() => setIsMainSidebarCollapsed(false)}
+          onMouseLeave={() => setIsMainSidebarCollapsed(true)}
+        >
+          <Menu
+            mode="inline"
+            selectedKeys={getSelectedKey()}
+            defaultOpenKeys={getOpenKeys()}
+            items={menuItems}
+            className="border-r-0"
+            style={{ height: '100%' }}
+            inlineCollapsed={isMainSidebarCollapsed}
+          />
+        </Sider>
 
-              {/* Side Panel - Conversation History */}
-              {!isPanelCollapsed && (
-                <div className="w-80 bg-white border border-gray-200 rounded-lg p-4 h-full overflow-y-auto relative flex-shrink-0">
-                  <Tooltip title="Hide Panel" placement="bottom">
-                    <button
-                      onClick={() => setIsPanelCollapsed(true)}
-                      className="absolute top-4 right-3 w-8 h-8 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </Tooltip>
-                  <div className="flex justify-between items-center mb-4 pr-10">
-                    <h3 className="text-lg font-semibold text-gray-900">Chats</h3>
-                    <Tooltip title="Start new conversation" placement="bottom">
-                      <button
-                        onClick={handleNewChat}
-                        className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
-                      >
-                        + New Chat
-                      </button>
-                    </Tooltip>
-                  </div>
-                  {loadingHistory ? (
-                    <div className="text-center py-8">
-                      <p className="text-gray-500">Loading...</p>
-                    </div>
-                  ) : conversationHistory.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-gray-500 text-sm">No past conversations yet</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {conversationHistory.map((conversation) => (
-                        <div
-                          key={conversation.id}
-                          onClick={() => loadConversation(conversation)}
-                          className={`p-3 border rounded-lg cursor-pointer transition-colors relative group ${
-                            conversationId === conversation.id
-                              ? 'border-blue-500 bg-blue-50'
-                              : 'border-gray-200 hover:bg-gray-50'
-                          }`}
-                        >
-                          <div className="flex justify-between items-start mb-2">
-                            <span className="text-sm font-medium text-gray-900">
-                              {new Date(conversation.started_at).toLocaleDateString()}
-                            </span>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs text-gray-500">
-                                {conversation.messages.length} msgs
-                              </span>
-                              {conversation.is_active && (
-                                <Tooltip title="Active chat" placement="bottom">
-                                  <span className="w-2 h-2 bg-green-500 rounded-full block"></span>
-                                </Tooltip>
-                              )}
-                              <Tooltip title="Delete chat" placement="bottom">
-                                <button
-                                  onClick={(e) => openDeleteModal(conversation.id, e)}
-                                  className="opacity-0 group-hover:opacity-100 transition-opacity ml-1 text-red-500 hover:text-red-700"
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                                  </svg>
-                                </button>
-                              </Tooltip>
-                            </div>
-                          </div>
-                          <p className="text-xs text-gray-600 truncate">
-                            {conversation.messages[0]?.content || 'New conversation'}
-                          </p>
-                          <p className="text-xs text-gray-400 mt-1">
-                            {new Date(conversation.started_at).toLocaleTimeString()}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Main Chat Area */}
-              <div className="flex-1 flex flex-col h-full overflow-hidden">
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">
-                  {conversationId ? 'Chat' : 'AI Chatbot'}
-                </h2>
-
-                {!conversationId || messages.length === 0 ? (
-                  <div className="bg-gray-50 rounded-lg p-12 text-center flex-1 flex items-center justify-center">
-                    <div>
-                      <p className="text-gray-500 text-lg mb-4">Click "+ New Chat" to start a conversation</p>
-                      <p className="text-gray-400 text-sm">Or select a past conversation from the left panel</p>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    {/* Chat Messages */}
-                    <div className="flex-1 bg-gray-50 rounded-lg p-6 space-y-4 overflow-y-auto">
-                      {messages.map((msg, index) => (
-                        <ChatMessage
-                          key={index}
-                          role={msg.role}
-                          content={msg.content}
-                          fiberCards={msg.fiberCards}
-                          structureImages={msg.structureImages}
-                          relatedVideos={msg.relatedVideos}
-                          userName={user.full_name || 'U'}
-                        />
-                      ))}
-                      {isSending && <ThinkingLoader />}
-                    </div>
-
-                    {/* Chat Input - Always show when conversation is loaded */}
-                    <div className="flex space-x-2 mt-1 mr-5">
-                    <input
-                      type="text"
-                      value={inputMessage}
-                      onChange={(e) => setInputMessage(e.target.value)}
-                      onKeyDown={handleKeyDown}
-                      placeholder={isConversationActive ? "Type your message..." : "Type to continue this conversation..."}
-                      className="flex-1 m-4 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      disabled={isSending}
+        {/* Main Content */}
+        <AntContent className="overflow-hidden bg-gray-50">
+          <div className="h-full">
+            <Routes>
+              <Route
+                path="chat"
+                element={
+                  <div className="h-full">
+                    <ChatView
+                      user={user}
+                      messages={messages}
+                      setMessages={setMessages}
+                      inputMessage={inputMessage}
+                      setInputMessage={setInputMessage}
+                      isSending={isSending}
+                      setIsSending={setIsSending}
+                      conversationId={conversationId}
+                      setConversationId={setConversationId}
+                      isConversationActive={isConversationActive}
+                      setIsConversationActive={setIsConversationActive}
+                      conversationHistory={conversationHistory}
+                      setConversationHistory={setConversationHistory}
+                      loadingHistory={loadingHistory}
+                      setLoadingHistory={setLoadingHistory}
+                      showDeleteModal={showDeleteModal}
+                      setShowDeleteModal={setShowDeleteModal}
+                      conversationToDelete={conversationToDelete}
+                      setConversationToDelete={setConversationToDelete}
+                      isPanelCollapsed={isPanelCollapsed}
+                      setIsPanelCollapsed={setIsPanelCollapsed}
                     />
-                    <button
-                      onClick={handleSendMessage}
-                      disabled={isSending || !inputMessage.trim()}
-                      className="px-6 py-3 m-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
-                    >
-                      {isSending ? 'Sending...' : 'Send'}
-                    </button>
-                    </div>
-                  </>
-                )}
-              </div>
+                  </div>
+                }
+              />
+              <Route path="compare/chart" element={<div className="h-full overflow-y-auto"><ChartComparisonView /></div>} />
+              <Route path="compare/pair" element={<div className="h-full overflow-y-auto"><PairComparisonView /></div>} />
+              <Route path="compare" element={<Navigate to="compare/chart" replace />} />
+              <Route path="assessments" element={<AssessmentsView />} />
+              <Route path="*" element={<Navigate to="chat" replace />} />
+            </Routes>
           </div>
-        )}
-
-        {activeTab === 'compare' && <CompareTab />}
-
-        {activeTab === 'assessments' && (
-          <div className="flex-1 p-8 overflow-y-auto">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Your Assessments</h2>
-
-              {/* Assessment List */}
-              <div className="space-y-4">
-                <div className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow duration-200">
-                  <div className="flex justify-between items-start mb-3">
-                    <h3 className="text-lg font-semibold text-gray-900">Initial Skills Assessment</h3>
-                    <span className="px-3 py-1 bg-green-100 text-green-800 text-sm font-medium rounded-full">
-                      Completed
-                    </span>
-                  </div>
-                  <p className="text-gray-600 mb-3">Basic skills evaluation to understand your current level</p>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-500">Completed on: Jan 15, 2025</span>
-                    <button className="text-blue-600 hover:text-blue-700 font-medium">View Results</button>
-                  </div>
-                </div>
-
-                <div className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow duration-200">
-                  <div className="flex justify-between items-start mb-3">
-                    <h3 className="text-lg font-semibold text-gray-900">Mid-Level Progress Check</h3>
-                    <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-sm font-medium rounded-full">
-                      In Progress
-                    </span>
-                  </div>
-                  <p className="text-gray-600 mb-3">Assessment to track your learning progress</p>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-500">Started on: Jan 20, 2025</span>
-                    <button className="text-blue-600 hover:text-blue-700 font-medium">Continue</button>
-                  </div>
-                </div>
-
-                <div className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow duration-200">
-                  <div className="flex justify-between items-start mb-3">
-                    <h3 className="text-lg font-semibold text-gray-900">Advanced Certification Test</h3>
-                    <span className="px-3 py-1 bg-gray-100 text-gray-800 text-sm font-medium rounded-full">
-                      Not Started
-                    </span>
-                  </div>
-                  <p className="text-gray-600 mb-3">Final assessment for certification eligibility</p>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-500">Available from: Feb 1, 2025</span>
-                    <button className="text-gray-400 cursor-not-allowed font-medium">Locked</button>
-                  </div>
-                </div>
-              </div>
-          </div>
-        )}
-      </div>
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden animate-fadeIn">
-            {/* Modal Header */}
-            <div className="bg-red-50 px-6 py-4 border-b border-red-100">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">Delete Conversation</h3>
-                  <p className="text-sm text-gray-600">This action cannot be undone</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Modal Body */}
-            <div className="px-6 py-5">
-              <p className="text-gray-700 text-base">
-                Are you sure you want to delete this conversation? All messages and chat history will be permanently removed.
-              </p>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3">
-              <button
-                onClick={closeDeleteModal}
-                className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmDelete}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium shadow-sm"
-              >
-                Delete Conversation
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+        </AntContent>
+      </Layout>
     </>
   );
 };
