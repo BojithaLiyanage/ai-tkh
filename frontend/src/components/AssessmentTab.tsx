@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
   Card, Button, Progress, Tag, Spin, Empty, message, Modal, Rate,
-  Statistic, Row, Col
+  Statistic, Row, Col, Input
 } from 'antd';
 import {
   TrophyOutlined, CheckCircleOutlined, FireOutlined,
-  ArrowRightOutlined, ArrowLeftOutlined, HistoryOutlined
+  ArrowRightOutlined, ArrowLeftOutlined, HistoryOutlined, SearchOutlined
 } from '@ant-design/icons';
 import { quizApi } from '../services/api';
 import type { FiberQuizCard, QuizAttemptStart, QuizHistoryItem } from '../services/api';
@@ -17,6 +17,24 @@ const QuizCardsView: React.FC<{
   onStartQuiz: (quiz: FiberQuizCard) => void;
   onReviewQuiz: (quiz: FiberQuizCard, attemptId: number) => void;
 }> = ({ quizzes, loading, onStartQuiz, onReviewQuiz }) => {
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Filter and sort quizzes: completed ones first, then by search query
+  const filteredQuizzes = quizzes
+    .filter((quiz) => {
+      const searchLower = searchQuery.toLowerCase();
+      return (
+        quiz.fiber_name.toLowerCase().includes(searchLower) ||
+        quiz.study_group_name.toLowerCase().includes(searchLower)
+      );
+    })
+    .sort((a, b) => {
+      // Sort completed quizzes first
+      if (a.is_completed && !b.is_completed) return -1;
+      if (!a.is_completed && b.is_completed) return 1;
+      return 0;
+    });
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -25,80 +43,137 @@ const QuizCardsView: React.FC<{
     );
   }
 
-  if (quizzes.length === 0) {
-    return <Empty description="No quizzes available" style={{ marginTop: '50px' }} />;
-  }
-
   return (
-    <div className="space-y-4 max-h-96 overflow-y-auto pr-4">
-      {quizzes.map((quiz) => (
-        <Card
-          key={quiz.fiber_id}
-          hoverable
-          className={`shadow-sm border-l-4 ${quiz.is_completed ? 'border-l-green-500' : 'border-l-blue-500'}`}
-        >
-          <div className="flex items-start justify-between">
-            <div className="flex gap-4 flex-1">
-              <div className={`w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                quiz.is_completed ? 'bg-green-100' : 'bg-blue-100'
-              }`}>
-                {quiz.is_completed ? (
-                  <CheckCircleOutlined className="text-2xl text-green-600" />
-                ) : (
-                  <FireOutlined className="text-2xl text-blue-600" />
-                )}
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <h3 className="text-xl font-semibold text-gray-900">{quiz.fiber_name}</h3>
-                  {quiz.is_completed && (
-                    <Tag color="success" icon={<CheckCircleOutlined />}>
-                      Completed
-                    </Tag>
-                  )}
-                </div>
-                <p className="text-gray-600 mb-3">
-                  Study Group: <span className="font-medium">{quiz.study_group_name}</span>
-                </p>
-                <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
-                  <span>📋 {quiz.question_count} questions</span>
-                  {quiz.is_completed && quiz.last_score !== null && (
-                    <>
-                      <span>📊 Last Score: {quiz.last_score}%</span>
-                      {quiz.last_attempt_date && (
-                        <span>📅 {new Date(quiz.last_attempt_date).toLocaleDateString()}</span>
+    <>
+      {/* Search Bar */}
+      <div className="mb-6">
+        <Input
+          placeholder="Search quizzes by name or study group..."
+          prefix={<SearchOutlined className="text-gray-400" />}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          allowClear
+        />
+      </div>
+
+      {/* Quiz Cards Grid - Scrollable */}
+      {filteredQuizzes.length === 0 ? (
+        <Empty description={searchQuery ? "No quizzes match your search" : "No quizzes available"} style={{ marginTop: '50px' }} />
+      ) : (
+        <div className="max-h-[calc(100vh-200px)] overflow-y-auto px-4 pb-4">
+          <Row gutter={[16, 16]}>
+            {filteredQuizzes.map((quiz) => (
+              <Col key={quiz.fiber_id} xs={24} sm={12} md={8} lg={6}>
+                <Card
+                  hoverable
+                  className="shadow-md rounded-xl overflow-hidden h-full"
+                  bodyStyle={{ padding: 0 }}
+                >
+                  {/* Header Banner with Question Count */}
+                  <div className={`relative h-24 ${
+                    quiz.is_completed
+                      ? 'bg-gradient-to-br from-green-100 via-green-50 to-blue-50'
+                      : 'bg-gradient-to-br from-blue-100 via-purple-50 to-pink-50'
+                  } flex items-center justify-center`}>
+                    <div className="absolute top-2 left-2 bg-gray-800 bg-opacity-80 text-white px-2 py-1 rounded-lg text-xs font-medium flex items-center gap-1">
+                      <span>{quiz.question_count} Questions</span>
+                      <FireOutlined />
+                    </div>
+                    {/* Decorative Icon */}
+                    <div className={`text-5xl opacity-20 ${
+                      quiz.is_completed ? 'text-green-600' : 'text-blue-600'
+                    }`}>
+                      {quiz.is_completed ? <CheckCircleOutlined /> : <FireOutlined />}
+                    </div>
+                  </div>
+
+                  {/* Card Content */}
+                  <div className="p-4 flex flex-col">
+                    {/* Quiz Title - Fixed 2 lines height */}
+                    <h3 className="text-base font-bold text-gray-900 mb-2 line-clamp-2 h-12 overflow-hidden">{quiz.fiber_name}</h3>
+
+                    {/* Accuracy Metric Only */}
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="relative w-10 h-10">
+                        <Progress
+                          type="circle"
+                          percent={quiz.is_completed && quiz.last_score !== null ? quiz.last_score : 100}
+                          size={40}
+                          strokeWidth={8}
+                          strokeColor={quiz.is_completed ? {
+                            '0%': '#ff4d4f',
+                            '50%': '#faad14',
+                            '100%': '#52c41a',
+                          } : '#d9d9d9'}
+                          format={() => ''}
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <span className="text-xs font-bold text-gray-700">
+                            {quiz.is_completed && quiz.last_score !== null ? `${quiz.last_score}%` : '—'}
+                          </span>
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-gray-500">
+                          {quiz.is_completed ? 'Accuracy' : 'Not Started'}
+                        </div>
+                        {quiz.is_completed && quiz.last_score !== null && (
+                          <div className="text-sm font-semibold text-gray-900">{quiz.last_score}%</div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Tags */}
+                    <div className="flex items-center gap-1 mb-3 flex-wrap">
+                      <Tag color="blue" className="rounded-md text-xs">{quiz.study_group_name}</Tag>
+                      {quiz.is_completed && (
+                        <Tag color="success" icon={<CheckCircleOutlined />} className="rounded-md text-xs">
+                          Completed
+                        </Tag>
                       )}
-                    </>
-                  )}
-                </div>
-                {quiz.is_completed && quiz.last_score !== null && (
-                  <Progress
-                    percent={quiz.last_score}
-                    strokeColor={{
-                      '0%': '#ff4d4f',
-                      '50%': '#faad14',
-                      '100%': '#52c41a',
-                    }}
-                    showInfo={false}
-                  />
-                )}
-              </div>
-            </div>
-            <div className="flex gap-2 flex-col">
-              <Button type="primary" onClick={() => onStartQuiz(quiz)}>
-                {quiz.is_completed ? 'Retake Quiz' : 'Start Quiz'}
-                <ArrowRightOutlined />
-              </Button>
-              {quiz.is_completed && quiz.last_attempt_date && (
-                <Button onClick={() => onReviewQuiz(quiz, quiz.fiber_id)}>
-                  Review
-                </Button>
-              )}
-            </div>
-          </div>
-        </Card>
-      ))}
-    </div>
+                    </div>
+
+                    {/* Footer Info */}
+                    <div className="text-xs text-gray-500 mb-3">
+                      <div className="flex items-center gap-1 mb-1">
+                        <HistoryOutlined />
+                        <span>
+                          {quiz.last_attempt_date
+                            ? new Date(quiz.last_attempt_date).toLocaleDateString()
+                            : 'Not attempted'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-2">
+                      <Button
+                        type="primary"
+                        onClick={() => onStartQuiz(quiz)}
+                        block
+                        size="small"
+                        className="flex-1"
+                      >
+                        {quiz.is_completed ? 'Retake' : 'Start'}
+                      </Button>
+                      {quiz.is_completed && quiz.last_attempt_date && (
+                        <Button
+                          onClick={() => onReviewQuiz(quiz, quiz.fiber_id)}
+                          size="small"
+                          icon={<ArrowRightOutlined />}
+                        >
+                          Review
+                          </Button>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+              </Col>
+            ))}
+          </Row>
+        </div>
+      )}
+    </>
   );
 };
 
@@ -442,49 +517,41 @@ const QuizHistoryView: React.FC<{
   const totalCorrectAnswers = history.reduce((sum, item) => sum + item.correct_answers, 0);
 
   return (
-    <div className="space-y-4">
-      {/* Summary Card */}
-      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 shadow-md">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Performance Summary</h3>
-        <Row gutter={16}>
-          <Col xs={24} sm={12} lg={6}>
-            <Statistic
-              title="Total Attempts"
-              value={totalAttempts}
-              prefix={<HistoryOutlined />}
-            />
+    <div className="flex flex-col h-full">
+      {/* Summary Card - Compact */}
+      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 shadow-sm mb-4">
+        <Row gutter={[16, 8]}>
+          <Col xs={12} sm={6}>
+            <div className="text-center">
+              <div className="text-xs text-gray-500 mb-1">Total Attempts</div>
+              <div className="text-xl font-bold text-gray-900">{totalAttempts}</div>
+            </div>
           </Col>
-          <Col xs={24} sm={12} lg={6}>
-            <Statistic
-              title="Average Score"
-              value={averageScore}
-              suffix="%"
-              valueStyle={{ color: '#1890ff' }}
-              prefix={<FireOutlined />}
-            />
+          <Col xs={12} sm={6}>
+            <div className="text-center">
+              <div className="text-xs text-gray-500 mb-1">Average Score</div>
+              <div className="text-xl font-bold text-blue-600">{averageScore}%</div>
+            </div>
           </Col>
-          <Col xs={24} sm={12} lg={6}>
-            <Statistic
-              title="Highest Score"
-              value={highestScore}
-              suffix="%"
-              valueStyle={{ color: '#52c41a' }}
-              prefix={<CheckCircleOutlined />}
-            />
+          <Col xs={12} sm={6}>
+            <div className="text-center">
+              <div className="text-xs text-gray-500 mb-1">Highest Score</div>
+              <div className="text-xl font-bold text-green-600">{highestScore}%</div>
+            </div>
           </Col>
-          <Col xs={24} sm={12} lg={6}>
-            <Statistic
-              title="Overall Accuracy"
-              value={totalQuestionsAnswered > 0 ? Math.round((totalCorrectAnswers / totalQuestionsAnswered) * 100) : 0}
-              suffix="%"
-              valueStyle={{ color: '#faad14' }}
-            />
+          <Col xs={12} sm={6}>
+            <div className="text-center">
+              <div className="text-xs text-gray-500 mb-1">Overall Accuracy</div>
+              <div className="text-xl font-bold text-orange-500">
+                {totalQuestionsAnswered > 0 ? Math.round((totalCorrectAnswers / totalQuestionsAnswered) * 100) : 0}%
+              </div>
+            </div>
           </Col>
         </Row>
       </Card>
 
-      {/* History List */}
-      <div className="space-y-3 max-h-96 overflow-y-auto pr-4">
+      {/* History List - Full Height */}
+      <div className="flex-1 overflow-y-auto pr-2 space-y-3">
         {history.map((item) => (
           <Card key={item.id} hoverable className="shadow-sm">
             <div className="flex items-center justify-between">
@@ -678,21 +745,18 @@ const AssessmentTab: React.FC<{ activeSubTab?: 'available' | 'results' }> = ({ a
 
     return (
       <>
-        <div className="flex-1 p-8 overflow-y-auto bg-gray-50">
-          <div className="max-w-5xl mx-auto">
+        <div className="flex-1 p-8 overflow-y-auto overflow-x-hidden bg-gray-50">
+          <div className="max-w-full mx-auto">
             {activeTab === 'available' && (
               <>
-                <div className="mb-8">
-                  <div className="flex items-center gap-3 mb-2">
-                    <TrophyOutlined className="text-3xl text-yellow-500" />
-                    <h2 className="text-3xl font-bold text-gray-900">Available Quizzes</h2>
+                <div className="mb-3">
+                  <div className="flex items-center gap-3">
+                    <TrophyOutlined className="text-2xl text-yellow-500" />
+                    <h2 className="text-2xl font-bold text-gray-900">Quiz Bank</h2>
                   </div>
-                  <p className="text-gray-600">
-                    Test your knowledge of textile fibers with our comprehensive quizzes
-                  </p>
                 </div>
 
-                
+
 
                 <QuizCardsView
                   quizzes={quizzes}
@@ -704,22 +768,21 @@ const AssessmentTab: React.FC<{ activeSubTab?: 'available' | 'results' }> = ({ a
             )}
 
             {activeTab === 'results' && (
-              <>
-                <div className="mb-8">
-                  <div className="flex items-center gap-3 mb-2">
-                    <TrophyOutlined className="text-3xl text-yellow-500" />
-                    <h2 className="text-3xl font-bold text-gray-900">Quiz Results</h2>
+              <div className="flex flex-col pb-4" style={{ height: 'calc(100vh - 100px)' }}>
+                <div className="mb-3">
+                  <div className="flex items-center gap-3">
+                    <TrophyOutlined className="text-2xl text-yellow-500" />
+                    <h2 className="text-2xl font-bold text-gray-900">Quiz Results</h2>
                   </div>
-                  <p className="text-gray-600">
-                    Review your previous quiz attempts and results
-                  </p>
                 </div>
 
-                <QuizHistoryView
-                  onReviewAttempt={handleReviewAttemptFromHistory}
-                  historyLoading={loading}
-                />
-              </>
+                <div className="flex-1 overflow-hidden">
+                  <QuizHistoryView
+                    onReviewAttempt={handleReviewAttemptFromHistory}
+                    historyLoading={loading}
+                  />
+                </div>
+              </div>
             )}
           </div>
         </div>

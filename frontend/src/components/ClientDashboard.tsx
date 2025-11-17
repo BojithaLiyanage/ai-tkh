@@ -659,7 +659,7 @@ const ClientDashboard: React.FC = () => {
       children: [
         {
           key: 'assessments-available',
-          label: 'Available Quizzes',
+          label: 'Quiz Bank',
           onClick: () => navigate('/dashboard/assessments/available'),
         },
         {
