@@ -1,15 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import { Tooltip, Layout, Menu, Card, Progress, Tag, Button, Input, Badge, Divider, Space } from 'antd';
+import { Tooltip, Layout, Menu, Card, Tag, Button, Input, Badge, Divider, Space } from 'antd';
 import {
   MessageOutlined,
   SwapOutlined,
   FileTextOutlined,
   RobotOutlined,
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  LockOutlined,
-  TrophyOutlined,
   RocketOutlined,
   SendOutlined,
   PlusCircleOutlined,
@@ -29,6 +25,7 @@ import ClientOnboarding from './ClientOnboarding';
 import ChatMessage from './ChatMessage';
 import Navbar from './Navbar';
 import { ChartComparisonView, PairComparisonView } from './CompareTab';
+import AssessmentTab from './AssessmentTab';
 
 const { Sider, Content: AntContent } = Layout;
 
@@ -579,170 +576,6 @@ const ChatView: React.FC<{
 };
 
 // Assessments View Component
-const AssessmentsView: React.FC = () => {
-  return (
-    <div className="flex-1 p-8 overflow-y-auto bg-gray-50">
-      <div className="max-w-5xl mx-auto">
-        {/* Header Section */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <TrophyOutlined className="text-3xl text-yellow-500" />
-            <h2 className="text-3xl font-bold text-gray-900">Your Assessments</h2>
-          </div>
-          <p className="text-gray-600">Track your progress and complete assessments to improve your skills</p>
-        </div>
-
-        {/* Overall Progress Card */}
-        <Card className="mb-6 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-1">Overall Progress</h3>
-              <p className="text-sm text-gray-600">You've completed 1 out of 3 assessments</p>
-            </div>
-            <div className="text-right">
-              <div className="text-3xl font-bold text-blue-600">33%</div>
-              <div className="text-xs text-gray-500">Completion Rate</div>
-            </div>
-          </div>
-          <Progress
-            percent={33}
-            strokeColor={{
-              '0%': '#1890ff',
-              '100%': '#52c41a',
-            }}
-            status="active"
-          />
-        </Card>
-
-        {/* Assessments List */}
-        <div className="space-y-4">
-          {/* Assessment 1 - Completed */}
-          <Card
-            hoverable
-            className="shadow-sm border-l-4 border-l-green-500"
-          >
-            <div className="flex items-start justify-between">
-              <div className="flex gap-4 flex-1">
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <CheckCircleOutlined className="text-2xl text-green-600" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <h3 className="text-xl font-semibold text-gray-900">Initial Skills Assessment</h3>
-                    <Tag color="success" icon={<CheckCircleOutlined />}>
-                      Completed
-                    </Tag>
-                  </div>
-                  <p className="text-gray-600 mb-3">
-                    Basic skills evaluation to understand your current level of textile and fiber knowledge
-                  </p>
-                  <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
-                    <span>📅 Completed on: Jan 15, 2025</span>
-                    <span>⏱️ Duration: 30 minutes</span>
-                    <span>📊 Score: 85/100</span>
-                  </div>
-                  <Progress percent={85} strokeColor="#52c41a" showInfo={false} />
-                </div>
-              </div>
-              <Button type="primary" ghost>
-                View Results
-              </Button>
-            </div>
-          </Card>
-
-          {/* Assessment 2 - In Progress */}
-          <Card
-            hoverable
-            className="shadow-sm border-l-4 border-l-yellow-500"
-          >
-            <div className="flex items-start justify-between">
-              <div className="flex gap-4 flex-1">
-                <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <ClockCircleOutlined className="text-2xl text-yellow-600" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <h3 className="text-xl font-semibold text-gray-900">Mid-Level Progress Check</h3>
-                    <Tag color="warning" icon={<ClockCircleOutlined />}>
-                      In Progress
-                    </Tag>
-                  </div>
-                  <p className="text-gray-600 mb-3">
-                    Assessment to track your learning progress and identify areas for improvement
-                  </p>
-                  <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
-                    <span>📅 Started on: Jan 20, 2025</span>
-                    <span>⏱️ Duration: 45 minutes</span>
-                    <span>📝 Progress: 12/20 questions</span>
-                  </div>
-                  <Progress percent={60} status="active" strokeColor="#faad14" showInfo={false} />
-                </div>
-              </div>
-              <Button type="primary">
-                Continue Assessment
-              </Button>
-            </div>
-          </Card>
-
-          {/* Assessment 3 - Locked */}
-          <Card
-            className="shadow-sm border-l-4 border-l-gray-300 opacity-75"
-          >
-            <div className="flex items-start justify-between">
-              <div className="flex gap-4 flex-1">
-                <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <LockOutlined className="text-2xl text-gray-500" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <h3 className="text-xl font-semibold text-gray-700">Advanced Certification Test</h3>
-                    <Tag color="default" icon={<LockOutlined />}>
-                      Locked
-                    </Tag>
-                  </div>
-                  <p className="text-gray-500 mb-3">
-                    Final comprehensive assessment for certification eligibility
-                  </p>
-                  <div className="flex items-center gap-4 text-sm text-gray-400 mb-3">
-                    <span>📅 Available from: Feb 1, 2025</span>
-                    <span>⏱️ Duration: 60 minutes</span>
-                    <span>🎯 Passing Score: 80%</span>
-                  </div>
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-start gap-2">
-                    <span className="text-yellow-600">⚠️</span>
-                    <p className="text-sm text-yellow-800">
-                      Complete the Mid-Level Progress Check to unlock this assessment
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <Button disabled>
-                Locked
-              </Button>
-            </div>
-          </Card>
-        </div>
-
-        {/* Help Section */}
-        <Card className="mt-6 bg-blue-50 border-blue-200">
-          <div className="flex gap-3">
-            <div className="text-2xl">💡</div>
-            <div>
-              <h4 className="font-semibold text-gray-900 mb-1">Need Help?</h4>
-              <p className="text-sm text-gray-600 mb-2">
-                Assessments help you track your progress and identify areas where you can improve. Take your time and review the learning materials before starting.
-              </p>
-              <Button type="link" className="p-0 h-auto text-blue-600">
-                View Study Materials →
-              </Button>
-            </div>
-          </div>
-        </Card>
-      </div>
-    </div>
-  );
-};
-
 const ClientDashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -823,7 +656,18 @@ const ClientDashboard: React.FC = () => {
       key: 'assessments',
       icon: <FileTextOutlined />,
       label: 'Assessments',
-      onClick: () => navigate('/dashboard/assessments'),
+      children: [
+        {
+          key: 'assessments-available',
+          label: 'Quiz Bank',
+          onClick: () => navigate('/dashboard/assessments/available'),
+        },
+        {
+          key: 'assessments-results',
+          label: 'Results',
+          onClick: () => navigate('/dashboard/assessments/results'),
+        },
+      ],
     },
   ];
 
@@ -916,7 +760,9 @@ const ClientDashboard: React.FC = () => {
               <Route path="compare/chart" element={<div className="h-full overflow-y-auto"><ChartComparisonView /></div>} />
               <Route path="compare/pair" element={<div className="h-full overflow-y-auto"><PairComparisonView /></div>} />
               <Route path="compare" element={<Navigate to="compare/chart" replace />} />
-              <Route path="assessments" element={<AssessmentsView />} />
+              <Route path="assessments/available" element={<AssessmentTab activeSubTab="available" />} />
+              <Route path="assessments/results" element={<AssessmentTab activeSubTab="results" />} />
+              <Route path="assessments" element={<Navigate to="assessments/available" replace />} />
               <Route path="*" element={<Navigate to="chat" replace />} />
             </Routes>
           </div>

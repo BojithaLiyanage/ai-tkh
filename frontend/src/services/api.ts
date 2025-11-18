@@ -801,4 +801,135 @@ export const questionApi = {
   },
 };
 
+// ========== QUIZ TYPES AND SERVICES ==========
+
+export interface FiberQuizCard {
+  fiber_id: number;
+  fiber_name: string;
+  study_group_code: string;
+  study_group_name: string;
+  question_count: number;
+  is_completed: boolean;
+  last_score?: number | null;
+  last_attempt_date?: string | null;
+}
+
+export interface QuizListResponse {
+  quizzes: FiberQuizCard[];
+  total_available: number;
+  completed_count: number;
+}
+
+export interface QuizQuestion {
+  id: number;
+  question: string;
+  options: string[];
+}
+
+export interface QuizAttemptStart {
+  attempt_id: number;
+  fiber_id: number;
+  fiber_name: string;
+  study_group_code: string;
+  study_group_name: string;
+  total_questions: number;
+  questions: QuizQuestion[];
+}
+
+export interface QuizAnswer {
+  question_id: number;
+  selected_answer?: string | null;
+}
+
+export interface QuizResultsResponse {
+  attempt_id: number;
+  score: number;
+  total_questions: number;
+  correct_answers: number;
+  percentage: number;
+  message: string;
+}
+
+export interface QuizAnswerDetail {
+  id: number;
+  quiz_attempt_id: number;
+  question_id: number;
+  selected_answer?: string | null;
+  is_correct: boolean;
+  created_at: string;
+}
+
+export interface QuizAttemptDetailRead {
+  id: number;
+  fiber_id: number;
+  fiber_name: string;
+  study_group_code: string;
+  study_group_name: string;
+  score?: number | null;
+  total_questions: number;
+  correct_answers: number;
+  is_completed: boolean;
+  submitted_at?: string | null;
+  created_at: string;
+  answers: QuizAnswerDetail[];
+}
+
+export interface QuizHistoryItem {
+  id: number;
+  fiber_id: number;
+  fiber_name: string;
+  study_group_code: string;
+  score: number;
+  total_questions: number;
+  correct_answers: number;
+  submitted_at: string;
+  created_at: string;
+}
+
+export const quizApi = {
+  // Get available quizzes for current user
+  getAvailableQuizzes: async (): Promise<QuizListResponse> => {
+    const response = await api.get('/quizzes/available');
+    return response.data;
+  },
+
+  // Start a quiz
+  startQuiz: async (fiberid: number, studyGroupCode: string): Promise<QuizAttemptStart> => {
+    const response = await api.post('/quizzes/start', {
+      fiber_id: fiberid,
+      study_group_code: studyGroupCode,
+    });
+    return response.data;
+  },
+
+  // Submit quiz answers
+  submitQuiz: async (attemptId: number, answers: QuizAnswer[]): Promise<QuizResultsResponse> => {
+    const response = await api.post(`/quizzes/${attemptId}/submit`, {
+      answers,
+    });
+    return response.data;
+  },
+
+  // Get quiz review
+  reviewQuiz: async (attemptId: number): Promise<QuizAttemptDetailRead> => {
+    const response = await api.get(`/quizzes/${attemptId}/review`);
+    return response.data;
+  },
+
+  // Get quiz history
+  getQuizHistory: async (params?: {
+    fiber_id?: number;
+    limit?: number;
+    offset?: number;
+  }): Promise<{
+    history: QuizHistoryItem[];
+    total: number;
+    limit: number;
+    offset: number;
+  }> => {
+    const response = await api.get('/quizzes/history', { params });
+    return response.data;
+  },
+};
+
 export default api;

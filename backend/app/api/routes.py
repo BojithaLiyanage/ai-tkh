@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import select
-from datetime import timedelta
+from datetime import timedelta, datetime, timezone
 from app.db.session import get_db
 from app.models.models import (
     Module, Topic, Subtopic, ContentBlock, Tag, SubtopicTag, StudyGroup, SubtopicStudyGroup, User, Client, ClientOnboarding,
-    FiberClass, FiberSubtype, SyntheticType, PolymerizationType, Fiber, ChatbotConversation, FiberVideoLink, FiberEmbedding, Question
+    FiberClass, FiberSubtype, SyntheticType, PolymerizationType, Fiber, ChatbotConversation, FiberVideoLink, FiberEmbedding, Question,
+    QuizAttempt, QuizAnswer
 )
 from app.schemas.schemas import (
     ModuleCreate, ModuleRead, TopicCreate, TopicRead,
@@ -20,9 +21,10 @@ from app.schemas.schemas import (
     FiberCreate, FiberRead, FiberUpdate, FiberSummaryRead,
     ChatMessage, ChatResponse, ChatbotConversationRead, StartConversationResponse, EndConversationResponse,
     FiberVideoLinkCreate, FiberVideoLinkRead, FiberVideoLinkUpdate, VideoPreview,
-    QuestionCreate, QuestionRead, QuestionUpdate, QuestionWithFiberRead
+    QuestionCreate, QuestionRead, QuestionUpdate, QuestionWithFiberRead,
+    QuizAttemptCreate, QuizAttemptStart, QuizAnswerSubmit, QuizAttemptRead, QuizAttemptDetailRead, QuizResultsResponse, FiberQuizCard, QuizListResponse, QuizAnswerRead
 )
-from typing import List
+from typing import List, Optional
 from app.core.auth import (
     get_password_hash, verify_password, create_access_token, get_user_by_email,
     get_current_active_user, get_current_admin_user, get_current_super_admin_user
@@ -2291,3 +2293,333 @@ def get_question_stats(
             status_code=500,
             detail=f"Error fetching question stats: {str(e)}"
         )
+
+
+# --- Quiz Attempts (Client-facing) ---
+
+@router.get("/quizzes/available", response_model=QuizListResponse)
+def get_available_quizzes(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Get available fiber quizzes filtered by user type"""
+    try:
+        # Get user's client type
+        client = db.query(Client).filter(Client.user_id == current_user.id).first()
+        if not client:
+            raise HTTPException(status_code=404, detail="Client profile not found")
+
+        # Map client types to study group codes
+        study_group_mapping = {
+            "student": "S",  # Undergraduate
+            "undergraduate": "U",
+            "researcher": "R",  # Research
+            "industry_expert": "I"  # Industry
+        }
+
+        study_group_code = study_group_mapping.get(client.client_type, "U")
+
+        # Get all fibers with questions for the user's study group
+        fibers_with_questions = db.query(Fiber).join(
+            Question, (Fiber.id == Question.fiber_id) & (Question.study_group_code == study_group_code)
+        ).distinct().all()
+
+        quiz_cards = []
+        completed_count = 0
+
+        for fiber in fibers_with_questions:
+            # Count questions for this fiber and study group
+            question_count = db.query(Question).filter(
+                Question.fiber_id == fiber.id,
+                Question.study_group_code == study_group_code
+            ).count()
+
+            # Get last attempt for this quiz
+            last_attempt = db.query(QuizAttempt).filter(
+                QuizAttempt.user_id == current_user.id,
+                QuizAttempt.fiber_id == fiber.id,
+                QuizAttempt.study_group_code == study_group_code,
+                QuizAttempt.is_completed == True
+            ).order_by(QuizAttempt.submitted_at.desc()).first()
+
+            is_completed = last_attempt is not None
+            if is_completed:
+                completed_count += 1
+
+            quiz_card = FiberQuizCard(
+                fiber_id=fiber.id,
+                fiber_name=fiber.name,
+                study_group_code=study_group_code,
+                study_group_name=get_study_group_name(study_group_code),
+                question_count=question_count,
+                is_completed=is_completed,
+                last_score=last_attempt.score if last_attempt else None,
+                last_attempt_date=last_attempt.submitted_at if last_attempt else None
+            )
+            quiz_cards.append(quiz_card)
+
+        return QuizListResponse(
+            quizzes=quiz_cards,
+            total_available=len(fibers_with_questions),
+            completed_count=completed_count
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/quizzes/start", response_model=QuizAttemptStart)
+def start_quiz(
+    quiz_data: QuizAttemptCreate,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Start a quiz attempt"""
+    try:
+        # Verify fiber exists
+        fiber = db.query(Fiber).filter(Fiber.id == quiz_data.fiber_id).first()
+        if not fiber:
+            raise HTTPException(status_code=404, detail="Fiber not found")
+
+        # Get questions for this fiber and study group
+        questions = db.query(Question).filter(
+            Question.fiber_id == quiz_data.fiber_id,
+            Question.study_group_code == quiz_data.study_group_code
+        ).all()
+
+        if not questions:
+            raise HTTPException(status_code=404, detail="No questions found for this quiz")
+
+        # Create a new quiz attempt
+        quiz_attempt = QuizAttempt(
+            user_id=current_user.id,
+            fiber_id=quiz_data.fiber_id,
+            study_group_code=quiz_data.study_group_code,
+            total_questions=len(questions),
+            correct_answers=0
+        )
+        db.add(quiz_attempt)
+        db.commit()
+        db.refresh(quiz_attempt)
+
+        # Get study group info
+        study_group = db.query(StudyGroup).filter(
+            StudyGroup.code == quiz_data.study_group_code
+        ).first()
+
+        # Prepare questions (without correct answers)
+        questions_list = [
+            {
+                "id": q.id,
+                "question": q.question,
+                "options": q.options
+            }
+            for q in questions
+        ]
+
+        return QuizAttemptStart(
+            attempt_id=quiz_attempt.id,
+            fiber_id=fiber.id,
+            fiber_name=fiber.name,
+            study_group_code=quiz_data.study_group_code,
+            study_group_name=study_group.name if study_group else quiz_data.study_group_code,
+            total_questions=len(questions),
+            questions=questions_list
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/quizzes/{attempt_id}/submit", response_model=QuizResultsResponse)
+def submit_quiz(
+    attempt_id: int,
+    quiz_answers: QuizAnswerSubmit,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Submit quiz answers and calculate score"""
+    try:
+        # Get the quiz attempt
+        quiz_attempt = db.query(QuizAttempt).filter(
+            QuizAttempt.id == attempt_id,
+            QuizAttempt.user_id == current_user.id
+        ).first()
+
+        if not quiz_attempt:
+            raise HTTPException(status_code=404, detail="Quiz attempt not found")
+
+        if quiz_attempt.is_completed:
+            raise HTTPException(status_code=400, detail="Quiz already submitted")
+
+        correct_count = 0
+
+        # Process each answer
+        for answer_data in quiz_answers.answers:
+            question = db.query(Question).filter(
+                Question.id == answer_data.question_id
+            ).first()
+
+            if not question:
+                continue
+
+            # Check if answer is correct
+            is_correct = answer_data.selected_answer == question.correct_answer
+            if is_correct:
+                correct_count += 1
+
+            # Save the answer
+            quiz_answer = QuizAnswer(
+                quiz_attempt_id=attempt_id,
+                question_id=answer_data.question_id,
+                selected_answer=answer_data.selected_answer,
+                is_correct=is_correct
+            )
+            db.add(quiz_answer)
+
+        # Calculate score
+        score = int((correct_count / quiz_attempt.total_questions) * 100) if quiz_attempt.total_questions > 0 else 0
+
+        # Update quiz attempt
+        quiz_attempt.score = score
+        quiz_attempt.correct_answers = correct_count
+        quiz_attempt.is_completed = True
+        quiz_attempt.submitted_at = datetime.now(timezone.utc)
+
+        db.commit()
+        db.refresh(quiz_attempt)
+
+        return QuizResultsResponse(
+            attempt_id=attempt_id,
+            score=score,
+            total_questions=quiz_attempt.total_questions,
+            correct_answers=correct_count,
+            percentage=float(score),
+            message=f"Quiz completed! You scored {score}% ({correct_count}/{quiz_attempt.total_questions} correct)"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/quizzes/{attempt_id}/review", response_model=QuizAttemptDetailRead)
+def review_quiz(
+    attempt_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Get detailed quiz attempt for review"""
+    try:
+        quiz_attempt = db.query(QuizAttempt).filter(
+            QuizAttempt.id == attempt_id,
+            QuizAttempt.user_id == current_user.id
+        ).options(
+            joinedload(QuizAttempt.answers)
+        ).first()
+
+        if not quiz_attempt:
+            raise HTTPException(status_code=404, detail="Quiz attempt not found")
+
+        # Get fiber info
+        fiber = db.query(Fiber).filter(Fiber.id == quiz_attempt.fiber_id).first()
+        study_group = db.query(StudyGroup).filter(
+            StudyGroup.code == quiz_attempt.study_group_code
+        ).first()
+
+        # Convert answers to schema with correct answers
+        answers_data = []
+        for answer in quiz_attempt.answers:
+            # Get the question to find the correct answer
+            question = db.query(Question).filter(Question.id == answer.question_id).first()
+            answers_data.append(
+                QuizAnswerRead.model_validate({
+                    "id": answer.id,
+                    "quiz_attempt_id": answer.quiz_attempt_id,
+                    "question_id": answer.question_id,
+                    "selected_answer": answer.selected_answer,
+                    "is_correct": answer.is_correct,
+                    "correct_answer": question.correct_answer if question else None,
+                    "created_at": answer.created_at
+                })
+            )
+
+        return QuizAttemptDetailRead(
+            id=quiz_attempt.id,
+            fiber_id=fiber.id,
+            fiber_name=fiber.name,
+            study_group_code=quiz_attempt.study_group_code,
+            study_group_name=study_group.name if study_group else quiz_attempt.study_group_code,
+            score=quiz_attempt.score,
+            total_questions=quiz_attempt.total_questions,
+            correct_answers=quiz_attempt.correct_answers,
+            is_completed=quiz_attempt.is_completed,
+            submitted_at=quiz_attempt.submitted_at,
+            created_at=quiz_attempt.created_at,
+            answers=answers_data
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/quizzes/history")
+def get_quiz_history(
+    fiber_id: Optional[int] = None,
+    limit: int = 50,
+    offset: int = 0,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Get user's quiz history"""
+    try:
+        query = db.query(QuizAttempt).filter(
+            QuizAttempt.user_id == current_user.id,
+            QuizAttempt.is_completed == True
+        )
+
+        if fiber_id:
+            query = query.filter(QuizAttempt.fiber_id == fiber_id)
+
+        total = query.count()
+        attempts = query.order_by(
+            QuizAttempt.submitted_at.desc()
+        ).limit(limit).offset(offset).all()
+
+        # Build response with fiber details
+        history = []
+        for attempt in attempts:
+            fiber = db.query(Fiber).filter(Fiber.id == attempt.fiber_id).first()
+            history.append({
+                "id": attempt.id,
+                "fiber_id": fiber.id,
+                "fiber_name": fiber.name,
+                "study_group_code": attempt.study_group_code,
+                "score": attempt.score,
+                "total_questions": attempt.total_questions,
+                "correct_answers": attempt.correct_answers,
+                "submitted_at": attempt.submitted_at,
+                "created_at": attempt.created_at
+            })
+
+        return {
+            "history": history,
+            "total": total,
+            "limit": limit,
+            "offset": offset
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+def get_study_group_name(code: str) -> str:
+    """Helper to get study group name from code"""
+    mapping = {
+        "S": "School",
+        "U": "Undergraduate",
+        "I": "Industry",
+        "R": "Research"
+    }
+    return mapping.get(code, code)

@@ -562,3 +562,102 @@ class QuestionWithFiberRead(BaseModel):
     correct_answer: str
     created_at: datetime
     updated_at: datetime
+
+
+# ---- quiz attempts and answers
+class QuizAnswerCreate(BaseModel):
+    question_id: int
+    selected_answer: Optional[str] = None
+
+
+class QuizAnswerRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    quiz_attempt_id: int
+    question_id: int
+    selected_answer: Optional[str] = None
+    is_correct: bool
+    correct_answer: Optional[str] = None
+    created_at: datetime
+
+
+class QuizAttemptCreate(BaseModel):
+    fiber_id: int
+    study_group_code: str = Field(..., min_length=1, max_length=1)
+
+
+class QuizAttemptStart(BaseModel):
+    """Response when starting a quiz"""
+    attempt_id: int
+    fiber_id: int
+    fiber_name: str
+    study_group_code: str
+    study_group_name: str
+    total_questions: int
+    questions: List[dict]  # List of {id, question, options}
+
+
+class QuizAnswerSubmit(BaseModel):
+    """Submit quiz answers"""
+    answers: List[QuizAnswerCreate]
+
+
+class QuizAttemptRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    user_id: int
+    fiber_id: int
+    study_group_code: str
+    score: Optional[int] = None
+    total_questions: int
+    correct_answers: int
+    is_completed: bool
+    submitted_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class QuizAttemptDetailRead(BaseModel):
+    """Detailed quiz attempt with answers for review"""
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    fiber_id: int
+    fiber_name: str
+    study_group_code: str
+    study_group_name: str
+    score: Optional[int] = None
+    total_questions: int
+    correct_answers: int
+    is_completed: bool
+    submitted_at: Optional[datetime] = None
+    created_at: datetime
+    answers: List[QuizAnswerRead]
+
+
+class QuizResultsResponse(BaseModel):
+    """Quiz completion response"""
+    attempt_id: int
+    score: int
+    total_questions: int
+    correct_answers: int
+    percentage: float
+    message: str
+
+
+class FiberQuizCard(BaseModel):
+    """Card representation of a fiber quiz"""
+    fiber_id: int
+    fiber_name: str
+    study_group_code: str
+    study_group_name: str
+    question_count: int
+    is_completed: bool
+    last_score: Optional[int] = None
+    last_attempt_date: Optional[datetime] = None
+
+
+class QuizListResponse(BaseModel):
+    """List of available quizzes for a user"""
+    quizzes: List[FiberQuizCard]
+    total_available: int
+    completed_count: int
