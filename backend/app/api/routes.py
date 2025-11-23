@@ -22,7 +22,8 @@ from app.schemas.schemas import (
     ChatMessage, ChatResponse, ChatbotConversationRead, StartConversationResponse, EndConversationResponse,
     FiberVideoLinkCreate, FiberVideoLinkRead, FiberVideoLinkUpdate, VideoPreview,
     QuestionCreate, QuestionRead, QuestionUpdate, QuestionWithFiberRead,
-    QuizAttemptCreate, QuizAttemptStart, QuizAnswerSubmit, QuizAttemptRead, QuizAttemptDetailRead, QuizResultsResponse, FiberQuizCard, QuizListResponse, QuizAnswerRead
+    QuizAttemptCreate, QuizAttemptStart, QuizAnswerSubmit, QuizAttemptRead, QuizAttemptDetailRead, QuizResultsResponse, FiberQuizCard, QuizListResponse, QuizAnswerRead,
+    TopicWithSubtopics, ModuleWithTopicsAndSubtopics, ContentStatsResponse
 )
 from typing import List, Optional
 from app.core.auth import (
@@ -489,6 +490,42 @@ def delete_module(
     db.delete(module)
     db.commit()
     return
+
+@router.get("/modules/with-topics-subtopics/all", response_model=list[ModuleWithTopicsAndSubtopics])
+def list_modules_with_all_data(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Fetch all modules with nested topics and subtopics in a single query.
+    Optimizes N+1 query problem by using joinedload for eager loading.
+    """
+    modules = db.execute(
+        select(Module)
+        .options(
+            joinedload(Module.topics).joinedload(Topic.subtopics)
+        )
+        .order_by(Module.order_index, Module.id)
+    ).unique().scalars().all()
+    return modules
+
+@router.get("/content/stats", response_model=ContentStatsResponse)
+def get_content_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get content statistics (total modules, topics, subtopics) in optimized queries.
+    """
+    total_modules = db.query(Module).count()
+    total_topics = db.query(Topic).count()
+    total_subtopics = db.query(Subtopic).count()
+
+    return ContentStatsResponse(
+        total_modules=total_modules,
+        total_topics=total_topics,
+        total_subtopics=total_subtopics
+    )
 
 @router.get("/modules/{module_id}/topics", response_model=list[TopicRead])
 def list_topics(

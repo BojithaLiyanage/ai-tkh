@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
+import { contentApi } from '../services/api';
 import {
   Collapse,
   Card,
@@ -119,22 +120,24 @@ const ContentLibrary: React.FC<ContentLibraryProps> = () => {
   const fetchAllContent = async () => {
     try {
       setLoading(true);
-      const modulesResponse = await api.get('/modules');
-      const modulesData = modulesResponse.data;
+      // Optimized: Single API call gets all modules with nested topics and subtopics
+      const modulesData = await contentApi.getAllModulesWithContent();
       setModules(modulesData);
 
-      // Fetch topics for each module
+      // Flatten topics and subtopics into lookup maps
       const topicsData: Record<number, Topic[]> = {};
       const subtopicsData: Record<number, Subtopic[]> = {};
 
       for (const module of modulesData) {
-        const topicsResponse = await api.get(`/modules/${module.id}/topics`);
-        topicsData[module.id] = topicsResponse.data;
+        if (module.topics) {
+          topicsData[module.id] = module.topics;
 
-        // Fetch subtopics for each topic
-        for (const topic of topicsResponse.data) {
-          const subtopicsResponse = await api.get(`/topics/${topic.id}/subtopics`);
-          subtopicsData[topic.id] = subtopicsResponse.data;
+          // Flatten subtopics from nested structure
+          for (const topic of module.topics) {
+            if (topic.subtopics) {
+              subtopicsData[topic.id] = topic.subtopics;
+            }
+          }
         }
       }
 

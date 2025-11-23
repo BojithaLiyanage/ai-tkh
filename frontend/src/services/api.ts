@@ -146,6 +146,41 @@ export interface UserStats {
   super_admin_users: number;
 }
 
+export interface Subtopic {
+  id: number;
+  slug?: string;
+  name: string;
+  definition?: string;
+  notes?: string;
+  difficulty_level: 'intro' | 'basic' | 'intermediate' | 'advanced';
+  order_index: number;
+  topic_id: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Topic {
+  id: number;
+  slug?: string;
+  name: string;
+  description?: string;
+  order_index: number;
+  module_id: number;
+  created_at: string;
+  updated_at: string;
+  subtopics?: Subtopic[];
+}
+
+export interface Module {
+  id: number;
+  name: string;
+  description?: string;
+  order_index: number;
+  created_at: string;
+  updated_at: string;
+  topics?: Topic[];
+}
+
 export interface ContentStats {
   total_modules: number;
   total_topics: number;
@@ -210,39 +245,16 @@ export const authApi = {
 };
 
 export const contentApi = {
+  // Get content statistics in a single optimized API call
   getContentStats: async (): Promise<ContentStats> => {
-    const [modulesResponse, topicsResponse, subtopicsResponse] = await Promise.all([
-      api.get('/modules'),
-      // We'll need to aggregate topics from all modules
-      api.get('/modules').then(async (res) => {
-        const modules = res.data;
-        let totalTopics = 0;
-        for (const module of modules) {
-          const topicsRes = await api.get(`/modules/${module.id}/topics`);
-          totalTopics += topicsRes.data.length;
-        }
-        return { data: { total: totalTopics } };
-      }),
-      // We'll need to aggregate subtopics from all topics
-      api.get('/modules').then(async (res) => {
-        const modules = res.data;
-        let totalSubtopics = 0;
-        for (const module of modules) {
-          const topicsRes = await api.get(`/modules/${module.id}/topics`);
-          for (const topic of topicsRes.data) {
-            const subtopicsRes = await api.get(`/topics/${topic.id}/subtopics`);
-            totalSubtopics += subtopicsRes.data.length;
-          }
-        }
-        return { data: { total: totalSubtopics } };
-      }),
-    ]);
+    const response = await api.get('/content/stats');
+    return response.data;
+  },
 
-    return {
-      total_modules: modulesResponse.data.length,
-      total_topics: topicsResponse.data.total,
-      total_subtopics: subtopicsResponse.data.total,
-    };
+  // Get all modules with nested topics and subtopics in a single call
+  getAllModulesWithContent: async (): Promise<Module[]> => {
+    const response = await api.get('/modules/with-topics-subtopics/all');
+    return response.data;
   },
 };
 
