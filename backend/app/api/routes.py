@@ -225,7 +225,7 @@ def refresh_access_token(http_request: Request, request: RefreshTokenRequest, re
         "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60  # in seconds
     }
 
-@router.get("/auth/me", response_model=UserRead)
+@router.get("/auth/me", response_model=UserWithClientRead)
 def get_current_user_info(current_user: User = Depends(get_current_active_user)):
     return current_user
 
