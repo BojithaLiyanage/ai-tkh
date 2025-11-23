@@ -54,10 +54,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         let userData = loadAuthData();
 
         if (!userData) {
-          // If not in storage, fetch from API
+          // If not in storage, try to fetch from API
           // This will use the httpOnly cookie automatically if it exists
-          userData = await authApi.getCurrentUser();
-          saveAuthData(userData);
+          try {
+            userData = await authApi.getCurrentUser();
+            saveAuthData(userData);
+          } catch (apiError: any) {
+            // If 401, user is simply not logged in (expected on first load)
+            if (apiError.response?.status === 401) {
+              userData = null;
+            } else {
+              // Re-throw other errors
+              throw apiError;
+            }
+          }
         }
 
         setUser(userData);
