@@ -4,18 +4,81 @@ const API_BASE_URL = 'http://localhost:8000/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
+  withCredentials: true,  // Enable sending cookies with requests
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
+let isRefreshing = false;
+let failedQueue: Array<{
+  onSuccess: (token: string) => void;
+  onError: (error: any) => void;
+}> = [];
+
+const processQueue = (error?: any) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.onError(error);
+    } else {
+      // With cookie-based auth, we don't need to pass token
+      prom.onSuccess('');
+    }
+  });
+
+  failedQueue = [];
+};
+
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
+  // Tokens are now managed via httpOnly cookies and sent automatically
+  // No need to manually set Authorization header
   return config;
 });
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        return new Promise((onSuccess, onError) => {
+          failedQueue.push({ onSuccess, onError });
+        })
+          .then(() => api(originalRequest))
+          .catch((err) => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        // With cookie-based auth, refresh endpoint will return new tokens
+        // and set them as httpOnly cookies automatically
+        await axios.post(
+          `${API_BASE_URL}/auth/refresh`,
+          { refresh_token: '' },  // Empty body, tokens come from cookies
+          { withCredentials: true }  // Ensure cookies are sent
+        );
+
+        // Tokens are now in cookies, no need to store them
+        processQueue();
+        return api(originalRequest);
+      } catch (err) {
+        processQueue(err);
+        // Clear localStorage (only user data stored there)
+        localStorage.removeItem('user_details');
+        localStorage.removeItem('token_expiry');
+        window.location.href = '/login';
+        return Promise.reject(err);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
 
 export type ClientType = 'researcher' | 'industry_expert' | 'student' | 'undergraduate';
 
@@ -55,7 +118,9 @@ export interface SignupData {
 
 export interface TokenResponse {
   access_token: string;
+  refresh_token?: string;
   token_type: string;
+  expires_in?: number;
 }
 
 export interface UserUpdate {
@@ -90,6 +155,11 @@ export interface ContentStats {
 export const authApi = {
   login: async (data: LoginData): Promise<TokenResponse> => {
     const response = await api.post('/auth/login', data);
+    return response.data;
+  },
+
+  refreshToken: async (refreshToken: string): Promise<TokenResponse> => {
+    const response = await api.post('/auth/refresh', { refresh_token: refreshToken });
     return response.data;
   },
 

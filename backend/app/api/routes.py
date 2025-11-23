@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Response, Request
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import select
 from datetime import timedelta, datetime, timezone
@@ -11,7 +11,7 @@ from app.models.models import (
 from app.schemas.schemas import (
     ModuleCreate, ModuleRead, TopicCreate, TopicRead,
     SubtopicCreate, SubtopicRead, ContentBlockCreate, ContentBlockRead,
-    TagCreate, TagRead, StudyGroupRead, UserCreate, UserLogin, UserRead, Token,
+    TagCreate, TagRead, StudyGroupRead, UserCreate, UserLogin, UserRead, Token, RefreshTokenRequest,
     UserUpdate, UserStats, ClientCreate, ClientRead, ClientUpdate, UserWithClientCreate, UserWithClientRead, AdminUserUpdate,
     ClientOnboardingCreate, ClientOnboardingRead, ClientOnboardingUpdate,
     FiberClassCreate, FiberClassRead, FiberClassUpdate,
@@ -26,7 +26,7 @@ from app.schemas.schemas import (
 )
 from typing import List, Optional
 from app.core.auth import (
-    get_password_hash, verify_password, create_access_token, get_user_by_email,
+    get_password_hash, verify_password, create_access_token, create_refresh_token, decode_token, get_user_by_email,
     get_current_active_user, get_current_admin_user, get_current_super_admin_user
 )
 from app.services.cloudinary import get_cloudinary_service
@@ -82,31 +82,147 @@ def signup(user_data: UserWithClientCreate, db: Session = Depends(get_db)):
     return db_user
 
 @router.post("/auth/login", response_model=Token)
-def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
+def login(user_credentials: UserLogin, response: Response, db: Session = Depends(get_db)):
+    from app.core.auth import create_refresh_token, ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_DAYS
+
     user = get_user_by_email(db, user_credentials.email)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password"
         )
-    
+
     if not verify_password(user_credentials.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password"
         )
-    
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Inactive user"
         )
-    
-    access_token_expires = timedelta(minutes=30)
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": user.email}, expires_delta=access_token_expires
     )
-    return {"access_token": access_token, "token_type": "bearer"}
+    refresh_token_expires = timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    refresh_token = create_refresh_token(
+        data={"sub": user.email}, expires_delta=refresh_token_expires
+    )
+    # Store refresh token in database
+    user.refresh_token = refresh_token
+    db.commit()
+
+    # Set httpOnly cookies for tokens
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,  # in seconds
+        httponly=True,
+        secure=False,  # False for local development, True for production with HTTPS
+        samesite="lax"
+    )
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,  # in seconds
+        httponly=True,
+        secure=False,  # False for local development, True for production with HTTPS
+        samesite="lax"
+    )
+
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60  # in seconds
+    }
+
+@router.post("/auth/refresh", response_model=Token)
+def refresh_access_token(http_request: Request, request: RefreshTokenRequest, response: Response, db: Session = Depends(get_db)):
+    """
+    Refresh access token using a refresh token.
+
+    Request body: {"refresh_token": "token_string"}
+    Alternatively, uses refresh_token cookie if available.
+    """
+    from app.core.auth import ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_DAYS
+
+    refresh_tok = request.refresh_token
+    # Fall back to cookie if request body doesn't have it
+    if not refresh_tok:
+        refresh_tok = http_request.cookies.get("refresh_token")
+
+    if not refresh_tok:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token is required"
+        )
+
+    # Decode and validate refresh token
+    token_data = decode_token(refresh_tok)
+    if not token_data or token_data.token_type != "refresh":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid refresh token"
+        )
+
+    # Get user from database and validate stored refresh token
+    user = get_user_by_email(db, token_data.email)
+    if not user or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid refresh token or user is inactive"
+        )
+
+    # Verify that the refresh token matches what's stored
+    if user.refresh_token != refresh_tok:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid refresh token"
+        )
+
+    # Create new access token
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    new_access_token = create_access_token(
+        data={"sub": user.email}, expires_delta=access_token_expires
+    )
+
+    # Optionally create a new refresh token
+    refresh_token_expires = timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    new_refresh_token = create_refresh_token(
+        data={"sub": user.email}, expires_delta=refresh_token_expires
+    )
+
+    # Update refresh token in database
+    user.refresh_token = new_refresh_token
+    db.commit()
+
+    # Set httpOnly cookies for new tokens
+    response.set_cookie(
+        key="access_token",
+        value=new_access_token,
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,  # in seconds
+        httponly=True,
+        secure=False,  # False for local development, True for production with HTTPS
+        samesite="lax"
+    )
+    response.set_cookie(
+        key="refresh_token",
+        value=new_refresh_token,
+        max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,  # in seconds
+        httponly=True,
+        secure=False,  # False for local development, True for production with HTTPS
+        samesite="lax"
+    )
+
+    return {
+        "access_token": new_access_token,
+        "refresh_token": new_refresh_token,
+        "token_type": "bearer",
+        "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60  # in seconds
+    }
 
 @router.get("/auth/me", response_model=UserRead)
 def get_current_user_info(current_user: User = Depends(get_current_active_user)):
