@@ -15,13 +15,13 @@ import {
   Checkbox,
   Spin,
   Space,
-  Typography
+  Typography,
+  message
 } from 'antd';
 import {
   PlusOutlined,
   EditOutlined,
-  DeleteOutlined,
-  ExclamationCircleOutlined
+  DeleteOutlined
 } from '@ant-design/icons';
 
 const { Panel } = Collapse;
@@ -78,6 +78,11 @@ const ContentLibrary: React.FC<ContentLibraryProps> = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  // Form instances
+  const [moduleFormInstance] = Form.useForm();
+  const [topicFormInstance] = Form.useForm();
+  const [subtopicFormInstance] = Form.useForm();
+
   // Form states
   const [showModuleForm, setShowModuleForm] = useState(false);
   const [showTopicForm, setShowTopicForm] = useState<number | null>(null);
@@ -108,9 +113,26 @@ const ContentLibrary: React.FC<ContentLibraryProps> = () => {
 
   const [selectedStudyGroups, setSelectedStudyGroups] = useState<string[]>([]);
 
+  // Delete confirmation modal state
+  const [deleteModal, setDeleteModal] = useState<{
+    visible: boolean;
+    type: 'module' | 'topic' | 'subtopic' | null;
+    item: Module | Topic | Subtopic | null;
+    message: string;
+  }>({
+    visible: false,
+    type: null,
+    item: null,
+    message: '',
+  });
+
   const isAdmin = user?.user_type === 'admin';
   const isSuperAdmin = user?.user_type === 'super_admin';
   const canEdit = isAdmin || isSuperAdmin;
+
+  useEffect(() => {
+    // User loaded, can now determine permissions
+  }, [user, canEdit]);
 
   useEffect(() => {
     fetchAllContent();
@@ -170,21 +192,27 @@ const ContentLibrary: React.FC<ContentLibraryProps> = () => {
     setEditingSubtopic(null);
   };
 
-  const handleCreateModule = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCreateModule = async (values: any) => {
+    const hideLoading = message.loading('Saving module...', 0);
     try {
       if (editingModule) {
-        await api.put(`/modules/${editingModule.id}`, moduleForm);
-        setSuccess('Module updated successfully!');
+        await api.put(`/modules/${editingModule.id}`, values);
+        hideLoading();
+        message.success('Module updated successfully!');
       } else {
-        await api.post('/modules', moduleForm);
-        setSuccess('Module created successfully!');
+        await api.post('/modules', values);
+        hideLoading();
+        message.success('Module created successfully!');
       }
       setShowModuleForm(false);
+      moduleFormInstance.resetFields();
       resetForms();
-      fetchAllContent();
-    } catch (err) {
-      setError(editingModule ? 'Failed to update module' : 'Failed to create module');
+      await fetchAllContent();
+    } catch (err: any) {
+      hideLoading();
+      const errorMsg = err?.response?.data?.detail || err?.message || (editingModule ? 'Failed to update module' : 'Failed to create module');
+      console.error('Error:', errorMsg);
+      message.error(errorMsg);
     }
   };
 
@@ -202,49 +230,44 @@ const ContentLibrary: React.FC<ContentLibraryProps> = () => {
     const topicCount = topics[module.id]?.length || 0;
     const subtopicCount = topics[module.id]?.reduce((acc, topic) => acc + (subtopics[topic.id]?.length || 0), 0) || 0;
 
-    let content = `This will permanently delete the module "${module.name}"`;
+    let message_text = `This will permanently delete the module "${module.name}"`;
     if (topicCount > 0) {
-      content += `, ${topicCount} topic${topicCount > 1 ? 's' : ''}`;
+      message_text += `, ${topicCount} topic${topicCount > 1 ? 's' : ''}`;
     }
     if (subtopicCount > 0) {
-      content += `, and ${subtopicCount} subtopic${subtopicCount > 1 ? 's' : ''}`;
+      message_text += `, and ${subtopicCount} subtopic${subtopicCount > 1 ? 's' : ''}`;
     }
-    content += '.';
+    message_text += '.';
 
-    Modal.confirm({
-      title: 'Delete Module',
-      icon: <ExclamationCircleOutlined />,
-      content,
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      onOk: async () => {
-        try {
-          await api.delete(`/modules/${module.id}`);
-          setSuccess('Module deleted successfully!');
-          fetchAllContent();
-        } catch (err) {
-          setError('Failed to delete module');
-        }
-      },
+    setDeleteModal({
+      visible: true,
+      type: 'module',
+      item: module,
+      message: message_text,
     });
   };
 
-  const handleCreateTopic = async (e: React.FormEvent, moduleId: number) => {
-    e.preventDefault();
+  const handleCreateTopic = async (values: any, moduleId: number) => {
+    const hideLoading = message.loading('Saving topic...', 0);
     try {
       if (editingTopic) {
-        await api.put(`/topics/${editingTopic.id}`, topicForm);
-        setSuccess('Topic updated successfully!');
+        await api.put(`/topics/${editingTopic.id}`, values);
+        hideLoading();
+        message.success('Topic updated successfully!');
       } else {
-        await api.post(`/modules/${moduleId}/topics`, topicForm);
-        setSuccess('Topic created successfully!');
+        await api.post(`/modules/${moduleId}/topics`, values);
+        hideLoading();
+        message.success('Topic created successfully!');
       }
       setShowTopicForm(null);
+      topicFormInstance.resetFields();
       resetForms();
-      fetchAllContent();
-    } catch (err) {
-      setError(editingTopic ? 'Failed to update topic' : 'Failed to create topic');
+      await fetchAllContent();
+    } catch (err: any) {
+      hideLoading();
+      const errorMsg = err?.response?.data?.detail || err?.message || (editingTopic ? 'Failed to update topic' : 'Failed to create topic');
+      console.error('Error:', errorMsg);
+      message.error(errorMsg);
     }
   };
 
@@ -261,44 +284,33 @@ const ContentLibrary: React.FC<ContentLibraryProps> = () => {
   const handleDeleteTopic = (topic: Topic) => {
     const subtopicCount = subtopics[topic.id]?.length || 0;
 
-    let content = `This will permanently delete the topic "${topic.name}"`;
+    let message_text = `This will permanently delete the topic "${topic.name}"`;
     if (subtopicCount > 0) {
-      content += ` and ${subtopicCount} subtopic${subtopicCount > 1 ? 's' : ''}`;
+      message_text += ` and ${subtopicCount} subtopic${subtopicCount > 1 ? 's' : ''}`;
     }
-    content += '.';
+    message_text += '.';
 
-    Modal.confirm({
-      title: 'Delete Topic',
-      icon: <ExclamationCircleOutlined />,
-      content,
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      onOk: async () => {
-        try {
-          await api.delete(`/topics/${topic.id}`);
-          setSuccess('Topic deleted successfully!');
-          fetchAllContent();
-        } catch (err) {
-          setError('Failed to delete topic');
-        }
-      },
+    setDeleteModal({
+      visible: true,
+      type: 'topic',
+      item: topic,
+      message: message_text,
     });
   };
 
-  const handleCreateSubtopic = async (e: React.FormEvent, topicId: number) => {
-    e.preventDefault();
+  const handleCreateSubtopic = async (values: any, topicId: number) => {
+    const hideLoading = message.loading('Saving subtopic...', 0);
     try {
       let subtopicId: number;
 
       if (editingSubtopic) {
-        await api.put(`/subtopics/${editingSubtopic.id}`, subtopicForm);
+        await api.put(`/subtopics/${editingSubtopic.id}`, values);
         subtopicId = editingSubtopic.id;
-        setSuccess('Subtopic updated successfully!');
+        message.success('Subtopic updated successfully!');
       } else {
-        const response = await api.post(`/topics/${topicId}/subtopics`, subtopicForm);
+        const response = await api.post(`/topics/${topicId}/subtopics`, values);
         subtopicId = response.data.id;
-        setSuccess('Subtopic created successfully!');
+        message.success('Subtopic created successfully!');
       }
 
       // Attach study groups if any selected (only for new subtopics or if study groups changed)
@@ -312,11 +324,16 @@ const ContentLibrary: React.FC<ContentLibraryProps> = () => {
         }
       }
 
+      hideLoading();
       setShowSubtopicForm(null);
+      subtopicFormInstance.resetFields();
       resetForms();
-      fetchAllContent();
-    } catch (err) {
-      setError(editingSubtopic ? 'Failed to update subtopic' : 'Failed to create subtopic');
+      await fetchAllContent();
+    } catch (err: any) {
+      hideLoading();
+      const errorMsg = err?.response?.data?.detail || err?.message || (editingSubtopic ? 'Failed to update subtopic' : 'Failed to create subtopic');
+      console.error('Error:', errorMsg);
+      message.error(errorMsg);
     }
   };
 
@@ -333,22 +350,11 @@ const ContentLibrary: React.FC<ContentLibraryProps> = () => {
   };
 
   const handleDeleteSubtopic = (subtopic: Subtopic) => {
-    Modal.confirm({
-      title: 'Delete Subtopic',
-      icon: <ExclamationCircleOutlined />,
-      content: `This will permanently delete the subtopic "${subtopic.name}" and all its content.`,
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      onOk: async () => {
-        try {
-          await api.delete(`/subtopics/${subtopic.id}`);
-          setSuccess('Subtopic deleted successfully!');
-          fetchAllContent();
-        } catch (err) {
-          setError('Failed to delete subtopic');
-        }
-      },
+    setDeleteModal({
+      visible: true,
+      type: 'subtopic',
+      item: subtopic,
+      message: `This will permanently delete the subtopic "${subtopic.name}" and all its content.`,
     });
   };
 
@@ -364,6 +370,31 @@ const ContentLibrary: React.FC<ContentLibraryProps> = () => {
       case 'intermediate': return 'warning';
       case 'advanced': return 'error';
       default: return 'default';
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteModal.item || !deleteModal.type) return;
+
+    const hideLoading = message.loading('Deleting...', 0);
+    try {
+      if (deleteModal.type === 'module') {
+        await contentApi.deleteModule((deleteModal.item as Module).id);
+      } else if (deleteModal.type === 'topic') {
+        await contentApi.deleteTopic((deleteModal.item as Topic).id);
+      } else if (deleteModal.type === 'subtopic') {
+        await contentApi.deleteSubtopic((deleteModal.item as Subtopic).id);
+      }
+
+      hideLoading();
+      message.success(`${deleteModal.type.charAt(0).toUpperCase() + deleteModal.type.slice(1)} deleted successfully!`);
+      setDeleteModal({ visible: false, type: null, item: null, message: '' });
+      await fetchAllContent();
+    } catch (err: any) {
+      hideLoading();
+      const errorMsg = err?.response?.data?.detail || err?.message || `Failed to delete ${deleteModal.type}`;
+      console.error('Delete error:', errorMsg);
+      message.error(errorMsg);
     }
   };
 
@@ -442,7 +473,10 @@ const ContentLibrary: React.FC<ContentLibraryProps> = () => {
                       </div>
                     )}
                   </div>
-                  <Space onClick={(e) => e.stopPropagation()}>
+                  <Space onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                  }} style={{ pointerEvents: 'auto' }}>
                     <Tag>{topics[module.id]?.length || 0} topics</Tag>
                     {canEdit && (
                       <>
@@ -457,7 +491,10 @@ const ContentLibrary: React.FC<ContentLibraryProps> = () => {
                           size="small"
                           danger
                           icon={<DeleteOutlined />}
-                          onClick={(e) => { e.stopPropagation(); handleDeleteModule(module); }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteModule(module);
+                          }}
                         >
                           Delete
                         </Button>
@@ -501,7 +538,10 @@ const ContentLibrary: React.FC<ContentLibraryProps> = () => {
                               </div>
                             )}
                           </div>
-                          <Space onClick={(e) => e.stopPropagation()}>
+                          <Space onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                          }} style={{ pointerEvents: 'auto' }}>
                             <Tag>{subtopics[topic.id]?.length || 0} subtopics</Tag>
                             {canEdit && (
                               <>
@@ -600,29 +640,27 @@ const ContentLibrary: React.FC<ContentLibraryProps> = () => {
       <Modal
         title={editingModule ? 'Edit Module' : 'Create New Module'}
         open={showModuleForm}
-        onCancel={() => { setShowModuleForm(false); resetForms(); }}
+        onCancel={() => { setShowModuleForm(false); resetForms(); moduleFormInstance.resetFields(); }}
         footer={null}
         width={600}
       >
-        <Form onFinish={handleCreateModule} layout="vertical">
-          <Form.Item label="Module Name" required>
-            <Input
-              placeholder="Module name"
-              value={moduleForm.name}
-              onChange={(e) => setModuleForm({...moduleForm, name: e.target.value})}
-              required
-            />
+        <Form
+          form={moduleFormInstance}
+          onFinish={handleCreateModule}
+          layout="vertical"
+          initialValues={editingModule ? moduleForm : { name: '', description: '', order_index: 0 }}
+        >
+          <Form.Item label="Module Name" name="name" rules={[{ required: true, message: 'Please enter module name' }]}>
+            <Input placeholder="Module name" />
           </Form.Item>
-          <Form.Item label="Description">
-            <TextArea
-              placeholder="Description (optional)"
-              value={moduleForm.description}
-              onChange={(e) => setModuleForm({...moduleForm, description: e.target.value})}
-              rows={3}
-            />
+          <Form.Item label="Description" name="description">
+            <TextArea placeholder="Description (optional)" rows={3} />
+          </Form.Item>
+          <Form.Item label="Order Index" name="order_index">
+            <Input type="number" placeholder="Order index" />
           </Form.Item>
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-            <Button onClick={() => { setShowModuleForm(false); resetForms(); }}>
+            <Button onClick={() => { setShowModuleForm(false); resetForms(); moduleFormInstance.resetFields(); }}>
               Cancel
             </Button>
             <Button type="primary" htmlType="submit">
@@ -636,29 +674,27 @@ const ContentLibrary: React.FC<ContentLibraryProps> = () => {
       <Modal
         title={editingTopic ? 'Edit Topic' : 'Create New Topic'}
         open={showTopicForm !== null}
-        onCancel={() => { setShowTopicForm(null); resetForms(); }}
+        onCancel={() => { setShowTopicForm(null); resetForms(); topicFormInstance.resetFields(); }}
         footer={null}
         width={600}
       >
-        <Form onFinish={(e) => handleCreateTopic(e, showTopicForm!)} layout="vertical">
-          <Form.Item label="Topic Name" required>
-            <Input
-              placeholder="Topic name"
-              value={topicForm.name}
-              onChange={(e) => setTopicForm({...topicForm, name: e.target.value})}
-              required
-            />
+        <Form
+          form={topicFormInstance}
+          onFinish={(values) => handleCreateTopic(values, showTopicForm!)}
+          layout="vertical"
+          initialValues={editingTopic ? topicForm : { name: '', description: '', order_index: 0 }}
+        >
+          <Form.Item label="Topic Name" name="name" rules={[{ required: true, message: 'Please enter topic name' }]}>
+            <Input placeholder="Topic name" />
           </Form.Item>
-          <Form.Item label="Description">
-            <TextArea
-              placeholder="Description (optional)"
-              value={topicForm.description}
-              onChange={(e) => setTopicForm({...topicForm, description: e.target.value})}
-              rows={3}
-            />
+          <Form.Item label="Description" name="description">
+            <TextArea placeholder="Description (optional)" rows={3} />
+          </Form.Item>
+          <Form.Item label="Order Index" name="order_index">
+            <Input type="number" placeholder="Order index" />
           </Form.Item>
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-            <Button onClick={() => { setShowTopicForm(null); resetForms(); }}>
+            <Button onClick={() => { setShowTopicForm(null); resetForms(); topicFormInstance.resetFields(); }}>
               Cancel
             </Button>
             <Button type="primary" htmlType="submit" style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}>
@@ -672,51 +708,39 @@ const ContentLibrary: React.FC<ContentLibraryProps> = () => {
       <Modal
         title={editingSubtopic ? 'Edit Subtopic' : 'Create New Subtopic'}
         open={showSubtopicForm !== null}
-        onCancel={() => { setShowSubtopicForm(null); resetForms(); }}
+        onCancel={() => { setShowSubtopicForm(null); resetForms(); subtopicFormInstance.resetFields(); }}
         footer={null}
         width={700}
       >
-        <Form onFinish={(e) => handleCreateSubtopic(e, showSubtopicForm!)} layout="vertical">
-          <Form.Item label="Subtopic Name" required>
-            <Input
-              placeholder="Subtopic name"
-              value={subtopicForm.name}
-              onChange={(e) => setSubtopicForm({...subtopicForm, name: e.target.value})}
-              required
-            />
+        <Form
+          form={subtopicFormInstance}
+          onFinish={(values) => handleCreateSubtopic(values, showSubtopicForm!)}
+          layout="vertical"
+          initialValues={editingSubtopic ? subtopicForm : { name: '', definition: '', notes: '', difficulty_level: 'basic', order_index: 0 }}
+        >
+          <Form.Item label="Subtopic Name" name="name" rules={[{ required: true, message: 'Please enter subtopic name' }]}>
+            <Input placeholder="Subtopic name" />
           </Form.Item>
-          <Form.Item label="Definition">
-            <TextArea
-              placeholder="Definition (optional)"
-              value={subtopicForm.definition}
-              onChange={(e) => setSubtopicForm({...subtopicForm, definition: e.target.value})}
-              rows={2}
-            />
+          <Form.Item label="Definition" name="definition">
+            <TextArea placeholder="Definition (optional)" rows={2} />
           </Form.Item>
-          <Form.Item label="Notes">
-            <TextArea
-              placeholder="Notes (optional)"
-              value={subtopicForm.notes}
-              onChange={(e) => setSubtopicForm({...subtopicForm, notes: e.target.value})}
-              rows={2}
-            />
+          <Form.Item label="Notes" name="notes">
+            <TextArea placeholder="Notes (optional)" rows={2} />
           </Form.Item>
-          <Form.Item label="Difficulty Level">
-            <Select
-              value={subtopicForm.difficulty_level}
-              onChange={(value) => setSubtopicForm({
-                ...subtopicForm,
-                difficulty_level: value as 'intro' | 'basic' | 'intermediate' | 'advanced'
-              })}
-            >
+          <Form.Item label="Difficulty Level" name="difficulty_level">
+            <Select>
               <Select.Option value="intro">Introduction</Select.Option>
               <Select.Option value="basic">Basic</Select.Option>
               <Select.Option value="intermediate">Intermediate</Select.Option>
               <Select.Option value="advanced">Advanced</Select.Option>
             </Select>
           </Form.Item>
+          <Form.Item label="Order Index" name="order_index">
+            <Input type="number" placeholder="Order index" />
+          </Form.Item>
           {studyGroups.length > 0 && (
-            <Form.Item label="Target Study Groups">
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>Target Study Groups</label>
               <Checkbox.Group
                 value={selectedStudyGroups}
                 onChange={(checkedValues) => setSelectedStudyGroups(checkedValues as string[])}
@@ -729,10 +753,10 @@ const ContentLibrary: React.FC<ContentLibraryProps> = () => {
                   ))}
                 </Space>
               </Checkbox.Group>
-            </Form.Item>
+            </div>
           )}
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-            <Button onClick={() => { setShowSubtopicForm(null); resetForms(); }}>
+            <Button onClick={() => { setShowSubtopicForm(null); resetForms(); subtopicFormInstance.resetFields(); }}>
               Cancel
             </Button>
             <Button type="primary" htmlType="submit" style={{ backgroundColor: '#722ed1', borderColor: '#722ed1' }}>
@@ -740,6 +764,20 @@ const ContentLibrary: React.FC<ContentLibraryProps> = () => {
             </Button>
           </div>
         </Form>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        title={`Delete ${deleteModal.type ? deleteModal.type.charAt(0).toUpperCase() + deleteModal.type.slice(1) : ''}`}
+        open={deleteModal.visible}
+        onOk={handleConfirmDelete}
+        onCancel={() => setDeleteModal({ visible: false, type: null, item: null, message: '' })}
+        okText="Delete"
+        cancelText="Cancel"
+        okButtonProps={{ danger: true }}
+        centered
+      >
+        <p>{deleteModal.message}</p>
       </Modal>
     </div>
   );

@@ -256,6 +256,21 @@ export const contentApi = {
     const response = await api.get('/modules/with-topics-subtopics/all');
     return response.data;
   },
+
+  // Delete a module
+  deleteModule: async (moduleId: number): Promise<void> => {
+    await api.delete(`/modules/${moduleId}`);
+  },
+
+  // Delete a topic
+  deleteTopic: async (topicId: number): Promise<void> => {
+    await api.delete(`/topics/${topicId}`);
+  },
+
+  // Delete a subtopic
+  deleteSubtopic: async (subtopicId: number): Promise<void> => {
+    await api.delete(`/subtopics/${subtopicId}`);
+  },
 };
 
 export interface OnboardingAnswer {
