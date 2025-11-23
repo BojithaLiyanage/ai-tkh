@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from fastapi import HTTPException, status, Depends
+from fastapi import HTTPException, status, Depends, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from sqlalchemy import select
@@ -15,9 +15,13 @@ from app.schemas.schemas import TokenData
 SECRET_KEY = getattr(settings, 'SECRET_KEY', "your-secret-key-change-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
+REFRESH_TOKEN_EXPIRE_DAYS = 7
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-security = HTTPBearer()
+
+# Use HTTPBearer directly - it handles both sync and async properly
+security = HTTPBearer(auto_error=False)
+
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
@@ -31,15 +35,53 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
         expire = datetime.now(timezone.utc) + expires_delta
     else:
         expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire})
+    to_encode.update({"exp": expire, "type": "access"})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
+
+def create_refresh_token(data: dict, expires_delta: Optional[timedelta] = None):
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.now(timezone.utc) + expires_delta
+    else:
+        expire = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    to_encode.update({"exp": expire, "type": "refresh"})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+def decode_token(token: str) -> Optional[TokenData]:
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get("sub")
+        token_type: str = payload.get("type", "access")
+        if email is None:
+            return None
+        return TokenData(email=email, token_type=token_type)
+    except JWTError:
+        return None
 
 def get_user_by_email(db: Session, email: str) -> Optional[User]:
     return db.execute(select(User).where(User.email == email)).scalar_one_or_none()
 
+def get_token_from_request(request: Request, credentials: Optional[HTTPAuthorizationCredentials] = None) -> Optional[str]:
+    """
+    Extract token from either Authorization header (Bearer token) or access_token cookie.
+    Priority: Bearer token > Cookie
+    """
+    # First try Bearer token from Authorization header
+    if credentials and credentials.credentials:
+        return credentials.credentials
+
+    # Then try cookie
+    access_token = request.cookies.get("access_token")
+    if access_token:
+        return access_token
+
+    return None
+
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
     db: Session = Depends(get_db)
 ) -> User:
     credentials_exception = HTTPException(
@@ -47,16 +89,28 @@ async def get_current_user(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    
+
     try:
-        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+        # Try to get token from Bearer header or cookies
+        token = get_token_from_request(request, credentials)
+
+        if not token:
+            raise credentials_exception
+
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+
         email: str = payload.get("sub")
+        token_type: str = payload.get("type", "access")  # Default to "access" for backward compatibility
+
         if email is None:
             raise credentials_exception
-        token_data = TokenData(email=email)
-    except JWTError:
+        # Only accept access tokens (not refresh tokens)
+        if token_type == "refresh":
+            raise credentials_exception
+        token_data = TokenData(email=email, token_type=token_type)
+    except JWTError as e:
         raise credentials_exception
-    
+
     user = get_user_by_email(db, email=token_data.email)
     if user is None:
         raise credentials_exception

@@ -4,18 +4,81 @@ const API_BASE_URL = 'http://localhost:8000/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
+  withCredentials: true,  // Enable sending cookies with requests
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
+let isRefreshing = false;
+let failedQueue: Array<{
+  onSuccess: (token: string) => void;
+  onError: (error: any) => void;
+}> = [];
+
+const processQueue = (error?: any) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.onError(error);
+    } else {
+      // With cookie-based auth, we don't need to pass token
+      prom.onSuccess('');
+    }
+  });
+
+  failedQueue = [];
+};
+
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
+  // Tokens are now managed via httpOnly cookies and sent automatically
+  // No need to manually set Authorization header
   return config;
 });
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        return new Promise((onSuccess, onError) => {
+          failedQueue.push({ onSuccess, onError });
+        })
+          .then(() => api(originalRequest))
+          .catch((err) => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        // With cookie-based auth, refresh endpoint will return new tokens
+        // and set them as httpOnly cookies automatically
+        await axios.post(
+          `${API_BASE_URL}/auth/refresh`,
+          { refresh_token: '' },  // Empty body, tokens come from cookies
+          { withCredentials: true }  // Ensure cookies are sent
+        );
+
+        // Tokens are now in cookies, no need to store them
+        processQueue();
+        return api(originalRequest);
+      } catch (err) {
+        processQueue(err);
+        // Clear localStorage (only user data stored there)
+        localStorage.removeItem('user_details');
+        localStorage.removeItem('token_expiry');
+        window.location.href = '/login';
+        return Promise.reject(err);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
 
 export type ClientType = 'researcher' | 'industry_expert' | 'student' | 'undergraduate';
 
@@ -55,7 +118,9 @@ export interface SignupData {
 
 export interface TokenResponse {
   access_token: string;
+  refresh_token?: string;
   token_type: string;
+  expires_in?: number;
 }
 
 export interface UserUpdate {
@@ -81,6 +146,41 @@ export interface UserStats {
   super_admin_users: number;
 }
 
+export interface Subtopic {
+  id: number;
+  slug?: string;
+  name: string;
+  definition?: string;
+  notes?: string;
+  difficulty_level: 'intro' | 'basic' | 'intermediate' | 'advanced';
+  order_index: number;
+  topic_id: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Topic {
+  id: number;
+  slug?: string;
+  name: string;
+  description?: string;
+  order_index: number;
+  module_id: number;
+  created_at: string;
+  updated_at: string;
+  subtopics?: Subtopic[];
+}
+
+export interface Module {
+  id: number;
+  name: string;
+  description?: string;
+  order_index: number;
+  created_at: string;
+  updated_at: string;
+  topics?: Topic[];
+}
+
 export interface ContentStats {
   total_modules: number;
   total_topics: number;
@@ -90,6 +190,11 @@ export interface ContentStats {
 export const authApi = {
   login: async (data: LoginData): Promise<TokenResponse> => {
     const response = await api.post('/auth/login', data);
+    return response.data;
+  },
+
+  refreshToken: async (refreshToken: string): Promise<TokenResponse> => {
+    const response = await api.post('/auth/refresh', { refresh_token: refreshToken });
     return response.data;
   },
 
@@ -140,39 +245,31 @@ export const authApi = {
 };
 
 export const contentApi = {
+  // Get content statistics in a single optimized API call
   getContentStats: async (): Promise<ContentStats> => {
-    const [modulesResponse, topicsResponse, subtopicsResponse] = await Promise.all([
-      api.get('/modules'),
-      // We'll need to aggregate topics from all modules
-      api.get('/modules').then(async (res) => {
-        const modules = res.data;
-        let totalTopics = 0;
-        for (const module of modules) {
-          const topicsRes = await api.get(`/modules/${module.id}/topics`);
-          totalTopics += topicsRes.data.length;
-        }
-        return { data: { total: totalTopics } };
-      }),
-      // We'll need to aggregate subtopics from all topics
-      api.get('/modules').then(async (res) => {
-        const modules = res.data;
-        let totalSubtopics = 0;
-        for (const module of modules) {
-          const topicsRes = await api.get(`/modules/${module.id}/topics`);
-          for (const topic of topicsRes.data) {
-            const subtopicsRes = await api.get(`/topics/${topic.id}/subtopics`);
-            totalSubtopics += subtopicsRes.data.length;
-          }
-        }
-        return { data: { total: totalSubtopics } };
-      }),
-    ]);
+    const response = await api.get('/content/stats');
+    return response.data;
+  },
 
-    return {
-      total_modules: modulesResponse.data.length,
-      total_topics: topicsResponse.data.total,
-      total_subtopics: subtopicsResponse.data.total,
-    };
+  // Get all modules with nested topics and subtopics in a single call
+  getAllModulesWithContent: async (): Promise<Module[]> => {
+    const response = await api.get('/modules/with-topics-subtopics/all');
+    return response.data;
+  },
+
+  // Delete a module
+  deleteModule: async (moduleId: number): Promise<void> => {
+    await api.delete(`/modules/${moduleId}`);
+  },
+
+  // Delete a topic
+  deleteTopic: async (topicId: number): Promise<void> => {
+    await api.delete(`/topics/${topicId}`);
+  },
+
+  // Delete a subtopic
+  deleteSubtopic: async (subtopicId: number): Promise<void> => {
+    await api.delete(`/subtopics/${subtopicId}`);
   },
 };
 

@@ -24,6 +24,7 @@ class User(Base):
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     user_type: Mapped[str] = mapped_column(String(15), server_default=text("'client'"))
     is_active: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
+    refresh_token: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, onupdate=lambda: datetime.now(timezone.utc))
 

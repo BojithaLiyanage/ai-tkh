@@ -111,10 +111,16 @@ class ClientOnboardingUpdate(BaseModel):
 
 class Token(BaseModel):
     access_token: str
+    refresh_token: Optional[str] = None
     token_type: str = "bearer"
+    expires_in: Optional[int] = None
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
 
 class TokenData(BaseModel):
     email: Optional[str] = None
+    token_type: Optional[str] = None  # "access" or "refresh"
 
 # ---- modules
 class ModuleCreate(BaseModel):
@@ -171,6 +177,36 @@ class SubtopicRead(BaseModel):
     topic_id: int
     created_at: datetime
     updated_at: datetime
+
+class TopicWithSubtopics(BaseModel):
+    """Topic with nested subtopics"""
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    slug: Optional[str] = None
+    name: str
+    description: Optional[str] = None
+    order_index: int
+    module_id: int
+    created_at: datetime
+    updated_at: datetime
+    subtopics: List[SubtopicRead] = Field(default_factory=list)
+
+class ModuleWithTopicsAndSubtopics(BaseModel):
+    """Module with nested topics and subtopics"""
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    name: str
+    description: Optional[str] = None
+    order_index: int
+    created_at: datetime
+    updated_at: datetime
+    topics: List[TopicWithSubtopics] = Field(default_factory=list)
+
+class ContentStatsResponse(BaseModel):
+    """Content statistics response"""
+    total_modules: int
+    total_topics: int
+    total_subtopics: int
 
 # ---- content blocks
 BlockType = Literal["text","image","list","quote","table","link","html","code"]
