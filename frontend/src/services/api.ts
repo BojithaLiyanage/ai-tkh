@@ -41,6 +41,12 @@ api.interceptors.response.use(
     const originalRequest = error.config;
 
     if (error.response?.status === 401 && !originalRequest._retry) {
+      // Don't retry /auth/me or /auth/refresh requests - let them fail
+      // These are handled specially by AuthContext
+      if (originalRequest.url?.includes('/auth/me') || originalRequest.url?.includes('/auth/refresh')) {
+        return Promise.reject(error);
+      }
+
       if (isRefreshing) {
         return new Promise((onSuccess, onError) => {
           failedQueue.push({ onSuccess, onError });

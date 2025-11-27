@@ -1638,41 +1638,31 @@ async def chat_with_bot(
             print(f"DEBUG: Intent does not require search, skipping database query")
             print(f"{'='*60}\n")
 
-        # Build enhanced system prompt with emphasis on using ONLY database info
-        system_prompt = """You are an expert textile and fiber knowledge assistant with comprehensive knowledge about fibers and their properties.
+        # Build user-specific system prompt based on client profile
+        from app.core.prompts import PromptTemplates, format_onboarding_to_dict
 
-**CRITICAL RULES:**
-- You MUST use ONLY the information provided in the "FIBER KNOWLEDGE BASE" below
-- DO NOT use your general knowledge about fibers unless NO context is provided
-- Present information authoritatively and naturally, as if it's your own expertise
-- NEVER use phrases like "according to the database", "based on the database", "the database shows", or similar meta-references
-- Simply state facts directly (e.g., "Cotton has a density of 1.52 g/cm³" NOT "According to the database, cotton has...")
-- When users ask follow-up questions, refer back to the fibers mentioned in the conversation history
+        # Get user's client details for personalization
+        client = current_user.client
+        client_type = client.client_type if client else None
+        organization = client.organization if client else None
+        specialization = client.specialization if client else None
 
-**Your Role:**
-- Provide accurate, authoritative information as a textile expert
-- Compare fibers using specific values and properties
-- Suggest fibers based on their characteristics and applications
-- Remember fibers discussed earlier in the conversation
+        # Get onboarding details if available
+        onboarding_details = None
+        if client and client.onboarding:
+            onboarding_details = format_onboarding_to_dict(client.onboarding.answers)
 
-**Guidelines:**
-- Present specific numerical values naturally (e.g., "Polyester melts at 260°C" not "The database indicates polyester melts at 260°C")
-- If no information is available for a query, state: "I don't have specific information about that."
-- For follow-up questions, remember which fibers were discussed previously
-- If asked about non-textile topics, respond: "I'm a textile and fiber expert. Please ask questions related to textiles, fibers, or related materials."
-- When users ask for structure images or diagrams, let them know that the images will be displayed alongside your response (images are provided automatically when available)
+        # Build the complete system prompt with user context and conversation history
+        system_prompt = PromptTemplates.build_complete_system_prompt(
+            client_type=client_type,
+            organization=organization,
+            specialization=specialization,
+            onboarding_details=onboarding_details,
+            fiber_context="",  # Will add fiber context separately below
+            conversation_messages=messages,  # Pass conversation history for context
+        )
 
-**Response Format - VERY IMPORTANT:**
-- **BE CONCISE BY DEFAULT**: Keep answers brief (1-3 sentences maximum)
-- For "what is" questions: Give a 1-2 sentence definition only (e.g., "Linen is a natural cellulose bast fiber derived from the flax plant, known for its strength and absorbency.")
-- For "which fibers", "list", "all", or "examples" questions: List ALL relevant fiber names found in the knowledge base (e.g., "The fibers made from wood pulp are: Lyocell, Viscose, Modal, Polynosic, Acetate, Triacetate, and Cuprammonium rayon.")
-- **IMPORTANT**: When user asks for "all examples" or uses words like "all", "list", or "examples", you MUST include ALL fibers from the context that match the criteria
-- **DO NOT include properties, specifications, classes, subtypes, applications, or technical details UNLESS explicitly asked**
-- ONLY expand with details when user explicitly uses words like: "more details", "tell me more", "properties", "specifications", "characteristics", "how", "why"
-- Avoid bullet points and long lists in initial responses
-- One fact per fiber maximum, unless details are requested
-- Speak naturally and authoritatively without referencing your knowledge source
-"""
+        print(f"DEBUG: System prompt built with {len(messages)} conversation messages for context")
 
         # Build message history for OpenAI with conversation context
         openai_messages = [
@@ -1723,7 +1713,6 @@ async def chat_with_bot(
         )
 
         bot_response = response.choices[0].message.content
-
         # Add AI response to conversation
         messages.append({"role": "ai", "content": bot_response})
 
