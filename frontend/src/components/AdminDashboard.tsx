@@ -9,7 +9,7 @@ import SuperAdminDashboard from './SuperAdminDashboard';
 import Navbar from './Navbar';
 import { contentApi, fiberApi, questionApi, knowledgeBaseApi, type ContentStats, type QuestionStats, type FiberClass, type KnowledgeBaseStats } from '../services/api';
 import { Card, Statistic, Spin, Button, Menu, Layout } from 'antd';
-import { BookOutlined, ExperimentOutlined, QuestionCircleOutlined, ArrowRightOutlined, HomeOutlined, ToolOutlined, FileTextOutlined, UserOutlined } from '@ant-design/icons';
+import { BookOutlined, ExperimentOutlined, QuestionCircleOutlined, ArrowRightOutlined, HomeOutlined, ToolOutlined, DatabaseOutlined, UserOutlined } from '@ant-design/icons';
 
 const { Sider, Content: AntContent } = Layout;
 
@@ -90,7 +90,8 @@ const AdminHome: React.FC<AdminHomeProps> = ({ userType }) => {
             />
           </div>
           <Button
-            type="primary"
+            variant="filled"
+            color='primary'
             block
             size="large"
             icon={<ArrowRightOutlined />}
@@ -125,12 +126,12 @@ const AdminHome: React.FC<AdminHomeProps> = ({ userType }) => {
             />
           </div>
           <Button
-            type="primary"
+            variant="filled"
+            color='purple'
             block
             size="large"
             icon={<ArrowRightOutlined />}
             onClick={() => navigate('/dashboard/admin-tools/fiber-database')}
-            style={{ backgroundColor: '#722ed1', borderColor: '#722ed1' }}
           >
             Manage Fibers
           </Button>
@@ -161,12 +162,12 @@ const AdminHome: React.FC<AdminHomeProps> = ({ userType }) => {
             />
           </div>
           <Button
-            type="primary"
+            variant="filled"
+            color='pink'
             block
             size="large"
             icon={<ArrowRightOutlined />}
             onClick={() => navigate('/dashboard/admin-tools/question-bank')}
-            style={{ backgroundColor: '#eb2f96', borderColor: '#eb2f96' }}
           >
             Manage Questions
           </Button>
@@ -180,34 +181,29 @@ const AdminHome: React.FC<AdminHomeProps> = ({ userType }) => {
         >
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-semibold text-gray-800">Knowledge Base</h2>
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-              <FileTextOutlined className="text-2xl text-green-600" />
+            <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+              <DatabaseOutlined className="text-2xl text-orange-600" />
             </div>
           </div>
           <div className="space-y-4 mb-6">
-            <div className="grid grid-cols-2 gap-4">
-              <Statistic
-                title="Total Documents"
-                value={kbStats?.total_documents || 0}
-                valueStyle={{ color: '#52c41a', fontSize: '24px', fontWeight: 'bold' }}
-              />
-              <Statistic
-                title="Published"
-                value={kbStats?.published_documents || 0}
-                valueStyle={{ color: '#1890ff', fontSize: '24px', fontWeight: 'bold' }}
-              />
-            </div>
-            <p className="text-sm text-gray-600">
-              AI-powered articles with automatic embedding generation
-            </p>
+            <Statistic
+              title="Total Documents"
+              value={kbStats?.total_documents || 0}
+              valueStyle={{ color: '#fa8c16', fontSize: '28px', fontWeight: 'bold' }}
+            />
+            <Statistic
+              title="Published"
+              value={kbStats?.published_documents || 0}
+              valueStyle={{ fontSize: '20px' }}
+            />
           </div>
           <Button
-            type="primary"
+            variant="filled"
+            color='orange'
             block
             size="large"
             icon={<ArrowRightOutlined />}
             onClick={() => navigate('/dashboard/admin-tools/knowledge-base')}
-            style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
           >
             Manage Knowledge Base
           </Button>
@@ -237,12 +233,12 @@ const AdminHome: React.FC<AdminHomeProps> = ({ userType }) => {
               </p>
             </div>
             <Button
-              type="primary"
+              variant="filled"
+              color='orange'
               block
               size="large"
               icon={<ArrowRightOutlined />}
               onClick={() => navigate('/dashboard/super-admin')}
-              style={{ backgroundColor: '#fa8c16', borderColor: '#fa8c16' }}
             >
               Super Admin Dashboard
             </Button>
@@ -309,7 +305,7 @@ const AdminDashboard: React.FC = () => {
         },
         {
           key: 'knowledge-base',
-          icon: <FileTextOutlined />,
+          icon: <DatabaseOutlined />,
           label: 'Knowledge Base',
           onClick: () => navigate('/dashboard/admin-tools/knowledge-base'),
         },

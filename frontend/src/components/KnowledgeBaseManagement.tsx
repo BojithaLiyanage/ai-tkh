@@ -68,8 +68,9 @@ const KnowledgeBaseManagement: React.FC = () => {
   const [viewingDocument, setViewingDocument] = useState<KnowledgeBaseDocument | null>(null);
   const [editingDocument, setEditingDocument] = useState<KnowledgeBaseDocument | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('');
   const [publishedFilter, setPublishedFilter] = useState<string>('');
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [documentToDelete, setDocumentToDelete] = useState<number | null>(null);
   const [form] = Form.useForm();
 
   console.log('[KB Management] Component rendered', { documentsCount: documents.length, loading, user });
@@ -80,7 +81,6 @@ const KnowledgeBaseManagement: React.FC = () => {
     try {
       const params = new URLSearchParams();
       if (searchTerm) params.append('search', searchTerm);
-      if (categoryFilter) params.append('category', categoryFilter);
       if (publishedFilter) params.append('is_published', publishedFilter);
 
       const url = `/admin/knowledge-base?${params}`;
@@ -109,7 +109,7 @@ const KnowledgeBaseManagement: React.FC = () => {
 
   useEffect(() => {
     fetchDocuments();
-  }, [searchTerm, categoryFilter, publishedFilter]);
+  }, [searchTerm, publishedFilter]);
 
   const handleSubmit = async (values: any) => {
     setLoading(true);
@@ -160,24 +160,35 @@ const KnowledgeBaseManagement: React.FC = () => {
   };
 
   const handleDelete = (id: number) => {
-    Modal.confirm({
-      title: 'Delete Document',
-      content: 'Are you sure you want to delete this document? This action cannot be undone.',
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      centered: true,
-      onOk: async () => {
-        try {
-          await api.delete(`/admin/knowledge-base/${id}`);
-          message.success('Document deleted successfully!');
-          fetchDocuments();
-        } catch (error) {
-          console.error('Error deleting document:', error);
-          message.error('Failed to delete document');
-        }
-      }
-    });
+    console.log('[KB Management] Delete button clicked for document ID:', id);
+    setDocumentToDelete(id);
+    setDeleteModalVisible(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!documentToDelete) return;
+
+    console.log('[KB Management] Confirmed delete for document ID:', documentToDelete);
+    setLoading(true);
+    try {
+      await api.delete(`/admin/knowledge-base/${documentToDelete}`);
+      message.success('Document deleted successfully!');
+      setDeleteModalVisible(false);
+      setDocumentToDelete(null);
+      fetchDocuments();
+    } catch (error: any) {
+      console.error('[KB Management] Error deleting document:', error);
+      console.error('[KB Management] Error response:', error.response?.data);
+      message.error(error.response?.data?.detail || 'Failed to delete document');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const cancelDelete = () => {
+    console.log('[KB Management] Delete cancelled');
+    setDeleteModalVisible(false);
+    setDocumentToDelete(null);
   };
 
   const togglePublish = async (id: number, currentStatus: boolean) => {
@@ -198,151 +209,175 @@ const KnowledgeBaseManagement: React.FC = () => {
   };
 
   return (
-    <div className="w-full h-full bg-gray-50 overflow-y-auto">
-      <div className="max-w-7xl mx-auto p-6">
-        {/* Header */}
-        <div className="mb-6">
-          <Title level={2}>Knowledge Base Management</Title>
-          <Paragraph type="secondary">
-            Create and manage AI-powered knowledge articles with automatic embedding generation
-          </Paragraph>
-        </div>
-
-        {/* Filters */}
-        <Card className="mb-6">
-          <Row gutter={16}>
+    <div className="w-full h-full bg-gray-50 flex flex-col">
+      {/* Fixed Top Bar */}
+      <div className="bg-white border-b border-gray-200 shadow-sm" style={{ position: 'sticky', top: 0, zIndex: 10 }}>
+        <div className="max-w-7xl mx-auto p-6">
+          <Row gutter={16} align="middle">
             <Col xs={24} sm={12} md={8}>
               <Search
                 placeholder="Search documents..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 allowClear
+                size="large"
               />
             </Col>
-            <Col xs={24} sm={12} md={8}>
-              <Input
-                placeholder="Filter by category..."
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-                allowClear
-              />
-            </Col>
-            <Col xs={24} sm={12} md={8}>
+            <Col xs={24} sm={6} md={4}>
               <Select
                 placeholder="All Documents"
                 value={publishedFilter}
                 onChange={setPublishedFilter}
                 style={{ width: '100%' }}
                 allowClear
+                size="large"
               >
                 <Option value="">All Documents</Option>
                 <Option value="true">Published Only</Option>
                 <Option value="false">Drafts Only</Option>
               </Select>
             </Col>
+            <Col xs={24} sm={6} md={12} style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => setShowEditor(true)}
+                size="large"
+              >
+                New Document
+              </Button>
+            </Col>
           </Row>
-          <Divider />
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => setShowEditor(true)}
-            size="large"
-          >
-            New Document
-          </Button>
-        </Card>
+        </div>
+      </div>
 
-        {/* Document List */}
-        {loading ? (
-          <div className="text-center py-12">
-            <Spin size="large" tip="Loading documents..." />
-          </div>
-        ) : documents.length === 0 ? (
-          <Empty description="No documents found" />
-        ) : (
-          <Row gutter={[16, 16]}>
-            {documents.map((doc) => (
-              <Col xs={24} key={doc.id}>
-                <Card
-                  hoverable
-                  extra={
-                    <Badge
-                      status={doc.is_published ? 'success' : 'warning'}
-                      text={doc.is_published ? 'Published' : 'Draft'}
-                    />
-                  }
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <Title level={4}>{doc.title}</Title>
-
-                      {doc.category && (
-                        <Text type="secondary">
-                          Category: <Text strong>{doc.category}</Text>
-                          {doc.subcategory && ` > ${doc.subcategory}`}
-                        </Text>
-                      )}
-
-                      {doc.content && (
-                        <Paragraph ellipsis={{ rows: 2 }} className="mt-2">
-                          {doc.content}
-                        </Paragraph>
-                      )}
-
-                      {doc.tags && doc.tags.length > 0 && (
-                        <div className="mt-2">
-                          {doc.tags.map((tag, idx) => (
-                            <Tag key={idx} color="blue">{tag}</Tag>
-                          ))}
-                        </div>
-                      )}
-
-                      <Text type="secondary" className="text-xs mt-2 block">
-                        Last updated: {new Date(doc.updated_at).toLocaleString()}
-                      </Text>
+      {/* Scrollable Content Area */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-7xl mx-auto p-6">
+          {/* Document List */}
+          {loading ? (
+            <div className="text-center py-12">
+              <Spin size="large" tip="Loading documents..." />
+            </div>
+          ) : documents.length === 0 ? (
+            <Empty description="No documents found" />
+          ) : (
+            <Row gutter={[16, 16]}>
+              {documents.map((doc) => (
+                <Col xs={24} sm={12} lg={8} key={doc.id}>
+                  <Card
+                    hoverable
+                    className="h-full shadow-md"
+                    styles={{ body: { padding: '24px', display: 'flex', flexDirection: 'column', height: '100%' } }}
+                  >
+                    {/* Status Badge */}
+                    <div className="mb-3">
+                      <Badge
+                        status={doc.is_published ? 'success' : 'warning'}
+                        text={doc.is_published ? 'Published' : 'Draft'}
+                      />
                     </div>
 
-                    <Space direction="vertical" size="small" className="ml-4">
-                      <Button
-                        icon={<EyeOutlined />}
-                        onClick={() => handleView(doc)}
-                        block
-                      >
-                        View
-                      </Button>
-                      <Button
-                        icon={<EditOutlined />}
-                        onClick={() => handleEdit(doc)}
-                        block
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        icon={doc.is_published ? <ClockCircleOutlined /> : <CheckCircleOutlined />}
-                        onClick={() => togglePublish(doc.id, doc.is_published)}
-                        type={doc.is_published ? 'default' : 'primary'}
-                        block
-                      >
-                        {doc.is_published ? 'Unpublish' : 'Publish'}
-                      </Button>
-                      <Button
-                        icon={<DeleteOutlined />}
-                        danger
-                        onClick={() => handleDelete(doc.id)}
-                        block
-                      >
-                        Delete
-                      </Button>
-                    </Space>
-                  </div>
-                </Card>
-              </Col>
-            ))}
-          </Row>
-        )}
+                    {/* Title */}
+                    <Title level={4} style={{ marginTop: 0, marginBottom: '12px' }}>
+                      {doc.title}
+                    </Title>
 
-        {/* View Modal */}
-        <Modal
+                    {/* Category */}
+                    {doc.category && (
+                      <Text type="secondary" className="block mb-2">
+                        <Text strong>{doc.category}</Text>
+                        {doc.subcategory && ` > ${doc.subcategory}`}
+                      </Text>
+                    )}
+
+                    {/* Content Preview */}
+                    {doc.content && (
+                      <Paragraph ellipsis={{ rows: 3 }} className="mb-3" style={{ flexGrow: 1 }}>
+                        {doc.content}
+                      </Paragraph>
+                    )}
+
+                    {/* Tags */}
+                    {doc.tags && doc.tags.length > 0 && (
+                      <div className="mb-3">
+                        {doc.tags.slice(0, 3).map((tag, idx) => (
+                          <Tag key={idx} color="blue">{tag}</Tag>
+                        ))}
+                        {doc.tags.length > 3 && (
+                          <Tag color="default">+{doc.tags.length - 3} more</Tag>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Last Updated */}
+                    <Text type="secondary" className="text-xs block mb-4">
+                      Updated: {new Date(doc.updated_at).toLocaleDateString()}
+                    </Text>
+
+                    {/* Action Buttons */}
+                    <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                      <Space.Compact style={{ width: '100%' }}>
+                        <Button
+                          icon={<EyeOutlined />}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleView(doc);
+                          }}
+                          size="small"
+                          style={{ flex: 1 }}
+                        >
+                          View
+                        </Button>
+                        <Button
+                          icon={<EditOutlined />}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEdit(doc);
+                          }}
+                          size="small"
+                          style={{ flex: 1 }}
+                        >
+                          Edit
+                        </Button>
+                      </Space.Compact>
+                      <Space.Compact style={{ width: '100%' }}>
+                        <Button
+                          icon={doc.is_published ? <ClockCircleOutlined /> : <CheckCircleOutlined />}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            togglePublish(doc.id, doc.is_published);
+                          }}
+                          type={doc.is_published ? 'default' : 'primary'}
+                          size="small"
+                          style={{ flex: 1 }}
+                        >
+                          {doc.is_published ? 'Unpublish' : 'Publish'}
+                        </Button>
+                        <Button
+                          icon={<DeleteOutlined />}
+                          danger
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(doc.id);
+                          }}
+                          size="small"
+                          style={{ flex: 1 }}
+                        >
+                          Delete
+                        </Button>
+                      </Space.Compact>
+                    </Space>
+                  </Card>
+                </Col>
+              ))}
+            </Row>
+          )}
+        </div>
+      </div>
+
+      {/* View Modal */}
+      <Modal
           title={viewingDocument?.title}
           open={showViewer}
           onCancel={() => {
@@ -410,8 +445,8 @@ const KnowledgeBaseManagement: React.FC = () => {
           )}
         </Modal>
 
-        {/* Editor Modal */}
-        <Modal
+      {/* Editor Modal */}
+      <Modal
           title={editingDocument ? 'Edit Document' : 'New Document'}
           open={showEditor}
           onCancel={resetForm}
@@ -491,8 +526,21 @@ const KnowledgeBaseManagement: React.FC = () => {
               <Switch />
             </Form.Item>
           </Form>
-        </Modal>
-      </div>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        title="Delete Document"
+        open={deleteModalVisible}
+        onOk={confirmDelete}
+        onCancel={cancelDelete}
+        okText="Delete"
+        cancelText="Cancel"
+        okButtonProps={{ danger: true, loading: loading }}
+        centered
+      >
+        <p>Are you sure you want to delete this document? This action cannot be undone.</p>
+      </Modal>
     </div>
   );
 };
