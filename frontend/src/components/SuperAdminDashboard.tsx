@@ -5,10 +5,11 @@ import UserManagement from './UserManagement';
 import ContentLibrary from './ContentLibrary';
 import FiberDatabaseManagement from './FiberDatabaseManagement';
 import QuestionBankManagement from './QuestionBankManagement';
+import KnowledgeBaseManagement from './KnowledgeBaseManagement';
 import Navbar from './Navbar';
-import { authApi, contentApi, fiberApi, questionApi, type UserStats, type ContentStats, type QuestionStats, type FiberClass } from '../services/api';
+import { authApi, contentApi, fiberApi, questionApi, knowledgeBaseApi, type UserStats, type ContentStats, type QuestionStats, type FiberClass, type KnowledgeBaseStats } from '../services/api';
 import { Card, Statistic, Spin, Button, Menu, Layout } from 'antd';
-import { BookOutlined, ExperimentOutlined, QuestionCircleOutlined, ArrowRightOutlined, HomeOutlined, ToolOutlined, UserOutlined } from '@ant-design/icons';
+import { BookOutlined, ExperimentOutlined, QuestionCircleOutlined, ArrowRightOutlined, HomeOutlined, ToolOutlined, UserOutlined, FileTextOutlined, DatabaseOutlined } from '@ant-design/icons';
 
 const { Sider, Content: AntContent } = Layout;
 
@@ -19,6 +20,7 @@ const SuperAdminHome: React.FC = () => {
   const [fiberCount, setFiberCount] = useState<number>(0);
   const [fiberClasses, setFiberClasses] = useState<FiberClass[]>([]);
   const [questionStats, setQuestionStats] = useState<QuestionStats | null>(null);
+  const [kbStats, setKbStats] = useState<KnowledgeBaseStats | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -28,18 +30,20 @@ const SuperAdminHome: React.FC = () => {
   const fetchAllStats = async () => {
     try {
       setLoading(true);
-      const [users, content, fibers, classes, questions] = await Promise.all([
+      const [users, content, fibers, classes, questions, knowledgeBase] = await Promise.all([
         authApi.getUserStats(),
         contentApi.getContentStats(),
         fiberApi.getFibers(),
         fiberApi.getFiberClasses(),
         questionApi.getQuestionStats(),
+        knowledgeBaseApi.getKnowledgeBaseStats(),
       ]);
       setUserStats(users);
       setContentStats(content);
       setFiberCount(fibers.length);
       setFiberClasses(classes);
       setQuestionStats(questions);
+      setKbStats(knowledgeBase);
     } catch (error) {
       console.error('Failed to fetch stats:', error);
     } finally {
@@ -59,7 +63,7 @@ const SuperAdminHome: React.FC = () => {
     <div className="max-w-7xl mx-auto p-6">
       <h1 className="text-3xl font-bold text-gray-900 mb-8">Super Admin Dashboard</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-center">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-center">
         {/* Module Summary */}
         <Card hoverable className="shadow-md" styles={{ body: { padding: '24px' } }}>
           <div className="flex items-center justify-between mb-6">
@@ -187,6 +191,38 @@ const SuperAdminHome: React.FC = () => {
             Manage Users
           </Button>
         </Card>
+
+        {/* Knowledge Base Summary */}
+        <Card hoverable className="shadow-md" styles={{ body: { padding: '24px' } }}>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-semibold text-gray-800">Knowledge Base</h2>
+            <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+              <DatabaseOutlined className="text-2xl text-orange-600" />
+            </div>
+          </div>
+          <div className="space-y-4 mb-6">
+            <Statistic
+              title="Total Documents"
+              value={kbStats?.total_documents || 0}
+              valueStyle={{ color: '#fa8c16', fontSize: '28px', fontWeight: 'bold' }}
+            />
+            <Statistic
+              title="Published"
+              value={kbStats?.published_documents || 0}
+              valueStyle={{ fontSize: '20px' }}
+            />
+          </div>
+          <Button
+            variant="filled"
+            color='orange'
+            block
+            size="large"
+            icon={<ArrowRightOutlined />}
+            onClick={() => navigate('/dashboard/admin-tools/knowledge-base')}
+          >
+            Manage Knowledge Base
+          </Button>
+        </Card>
       </div>
     </div>
   );
@@ -206,6 +242,7 @@ const SuperAdminDashboard: React.FC = () => {
     if (location.pathname.includes('/content-library')) return 'content';
     if (location.pathname.includes('/fiber-database')) return 'fibers';
     if (location.pathname.includes('/question-bank')) return 'questions';
+    if (location.pathname.includes('/knowledge-base')) return 'knowledge-base';
     if (location.pathname.includes('/users')) return 'users';
     return 'home';
   };
@@ -244,6 +281,12 @@ const SuperAdminDashboard: React.FC = () => {
           icon: <QuestionCircleOutlined />,
           label: 'Question Bank',
           onClick: () => navigate('/dashboard/admin-tools/question-bank'),
+        },
+        {
+          key: 'knowledge-base',
+          icon: <DatabaseOutlined />,
+          label: 'Knowledge Base',
+          onClick: () => navigate('/dashboard/admin-tools/knowledge-base'),
         },
         {
           key: 'users',
@@ -289,6 +332,11 @@ const SuperAdminDashboard: React.FC = () => {
               <Route path="admin-tools/question-bank" element={
                 <div className="h-full">
                   <QuestionBankManagement onClose={() => {}} />
+                </div>
+              } />
+              <Route path="admin-tools/knowledge-base" element={
+                <div className="h-full">
+                  <KnowledgeBaseManagement />
                 </div>
               } />
               <Route path="admin-tools/users" element={

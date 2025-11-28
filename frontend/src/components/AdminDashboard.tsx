@@ -4,19 +4,26 @@ import { useAuth } from '../contexts/AuthContext';
 import ContentLibrary from './ContentLibrary';
 import FiberDatabaseManagement from './FiberDatabaseManagement';
 import QuestionBankManagement from './QuestionBankManagement';
+import KnowledgeBaseManagement from './KnowledgeBaseManagement';
+import SuperAdminDashboard from './SuperAdminDashboard';
 import Navbar from './Navbar';
-import { contentApi, fiberApi, questionApi, type ContentStats, type QuestionStats, type FiberClass } from '../services/api';
+import { contentApi, fiberApi, questionApi, knowledgeBaseApi, type ContentStats, type QuestionStats, type FiberClass, type KnowledgeBaseStats } from '../services/api';
 import { Card, Statistic, Spin, Button, Menu, Layout } from 'antd';
-import { BookOutlined, ExperimentOutlined, QuestionCircleOutlined, ArrowRightOutlined, HomeOutlined, ToolOutlined } from '@ant-design/icons';
+import { BookOutlined, ExperimentOutlined, QuestionCircleOutlined, ArrowRightOutlined, HomeOutlined, ToolOutlined, DatabaseOutlined, UserOutlined } from '@ant-design/icons';
 
 const { Sider, Content: AntContent } = Layout;
 
-const AdminHome: React.FC = () => {
+interface AdminHomeProps {
+  userType: string;
+}
+
+const AdminHome: React.FC<AdminHomeProps> = ({ userType }) => {
   const navigate = useNavigate();
   const [contentStats, setContentStats] = useState<ContentStats | null>(null);
   const [fiberCount, setFiberCount] = useState<number>(0);
   const [fiberClasses, setFiberClasses] = useState<FiberClass[]>([]);
   const [questionStats, setQuestionStats] = useState<QuestionStats | null>(null);
+  const [kbStats, setKbStats] = useState<KnowledgeBaseStats | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -26,16 +33,18 @@ const AdminHome: React.FC = () => {
   const fetchAllStats = async () => {
     try {
       setLoading(true);
-      const [content, fibers, classes, questions] = await Promise.all([
+      const [content, fibers, classes, questions, knowledgeBase] = await Promise.all([
         contentApi.getContentStats(),
         fiberApi.getFibers(),
         fiberApi.getFiberClasses(),
         questionApi.getQuestionStats(),
+        knowledgeBaseApi.getKnowledgeBaseStats(),
       ]);
       setContentStats(content);
       setFiberCount(fibers.length);
       setFiberClasses(classes);
       setQuestionStats(questions);
+      setKbStats(knowledgeBase);
     } catch (error) {
       console.error('Failed to fetch stats:', error);
     } finally {
@@ -81,7 +90,8 @@ const AdminHome: React.FC = () => {
             />
           </div>
           <Button
-            type="primary"
+            variant="filled"
+            color='primary'
             block
             size="large"
             icon={<ArrowRightOutlined />}
@@ -116,12 +126,12 @@ const AdminHome: React.FC = () => {
             />
           </div>
           <Button
-            type="primary"
+            variant="filled"
+            color='purple'
             block
             size="large"
             icon={<ArrowRightOutlined />}
             onClick={() => navigate('/dashboard/admin-tools/fiber-database')}
-            style={{ backgroundColor: '#722ed1', borderColor: '#722ed1' }}
           >
             Manage Fibers
           </Button>
@@ -152,16 +162,88 @@ const AdminHome: React.FC = () => {
             />
           </div>
           <Button
-            type="primary"
+            variant="filled"
+            color='pink'
             block
             size="large"
             icon={<ArrowRightOutlined />}
             onClick={() => navigate('/dashboard/admin-tools/question-bank')}
-            style={{ backgroundColor: '#eb2f96', borderColor: '#eb2f96' }}
           >
             Manage Questions
           </Button>
         </Card>
+
+        {/* Knowledge Base Summary */}
+        <Card
+          hoverable
+          className="shadow-md"
+          styles={{ body: { padding: '24px' } }}
+        >
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-semibold text-gray-800">Knowledge Base</h2>
+            <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+              <DatabaseOutlined className="text-2xl text-orange-600" />
+            </div>
+          </div>
+          <div className="space-y-4 mb-6">
+            <Statistic
+              title="Total Documents"
+              value={kbStats?.total_documents || 0}
+              valueStyle={{ color: '#fa8c16', fontSize: '28px', fontWeight: 'bold' }}
+            />
+            <Statistic
+              title="Published"
+              value={kbStats?.published_documents || 0}
+              valueStyle={{ fontSize: '20px' }}
+            />
+          </div>
+          <Button
+            variant="filled"
+            color='orange'
+            block
+            size="large"
+            icon={<ArrowRightOutlined />}
+            onClick={() => navigate('/dashboard/admin-tools/knowledge-base')}
+          >
+            Manage Knowledge Base
+          </Button>
+        </Card>
+
+        {/* Super Admin Dashboard - Only for super_admin */}
+        {userType === 'super_admin' && (
+          <Card
+            hoverable
+            className="shadow-md"
+            styles={{ body: { padding: '24px' } }}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-semibold text-gray-800">Super Admin</h2>
+              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                <UserOutlined className="text-2xl text-orange-600" />
+              </div>
+            </div>
+            <div className="space-y-4 mb-6">
+              <Statistic
+                title="Admin Controls"
+                value="Active"
+                valueStyle={{ color: '#fa8c16', fontSize: '24px', fontWeight: 'bold' }}
+              />
+              <p className="text-sm text-gray-600">
+                Manage users, permissions, and system-wide settings
+              </p>
+            </div>
+            <Button
+              variant="filled"
+              color='orange'
+              block
+              size="large"
+              icon={<ArrowRightOutlined />}
+              onClick={() => navigate('/dashboard/super-admin')}
+            >
+              Super Admin Dashboard
+            </Button>
+          </Card>
+        )}
       </div>
     </div>
   );
@@ -181,6 +263,8 @@ const AdminDashboard: React.FC = () => {
     if (location.pathname.includes('/content-library')) return 'content';
     if (location.pathname.includes('/fiber-database')) return 'fibers';
     if (location.pathname.includes('/question-bank')) return 'questions';
+    if (location.pathname.includes('/knowledge-base')) return 'knowledge-base';
+    if (location.pathname.includes('/super-admin')) return 'super-admin';
     return 'home';
   };
 
@@ -219,8 +303,20 @@ const AdminDashboard: React.FC = () => {
           label: 'Question Bank',
           onClick: () => navigate('/dashboard/admin-tools/question-bank'),
         },
+        {
+          key: 'knowledge-base',
+          icon: <DatabaseOutlined />,
+          label: 'Knowledge Base',
+          onClick: () => navigate('/dashboard/admin-tools/knowledge-base'),
+        },
       ],
     },
+    ...(user?.user_type === 'super_admin' ? [{
+      key: 'super-admin',
+      icon: <UserOutlined />,
+      label: 'Super Admin',
+      onClick: () => navigate('/dashboard/super-admin'),
+    }] : []),
   ];
 
   return (
@@ -243,7 +339,7 @@ const AdminDashboard: React.FC = () => {
         <AntContent className="overflow-hidden bg-gray-50">
           <div className="h-full overflow-y-auto">
             <Routes>
-              <Route path="admin-home" element={<AdminHome />} />
+              <Route path="admin-home" element={<AdminHome userType={user?.user_type || 'admin'} />} />
               <Route path="admin-tools/content-library" element={
                 <div className="h-full w-full">
                   <ContentLibrary onClose={() => {}} />
@@ -259,6 +355,12 @@ const AdminDashboard: React.FC = () => {
                   <QuestionBankManagement onClose={() => {}} />
                 </div>
               } />
+              <Route path="admin-tools/knowledge-base" element={
+                <div className="h-full">
+                  <KnowledgeBaseManagement />
+                </div>
+              } />
+              <Route path="super-admin/*" element={<SuperAdminDashboard />} />
               <Route path="*" element={<Navigate to="admin-home" replace />} />
             </Routes>
           </div>

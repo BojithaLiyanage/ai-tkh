@@ -556,6 +556,92 @@ class QuizAnswer(Base):
 
 
 # ==================================================
+# Knowledge Base Models
+# ==================================================
+
+class KnowledgeBaseDocument(Base):
+    __tablename__ = "knowledge_base_documents"
+
+    id = Column(Integer, primary_key=True)
+    title = Column(String(500), nullable=False)
+    content = Column(Text, nullable=False)
+    category = Column(String(100))
+    subcategory = Column(String(100))
+    fiber_ids = Column(ARRAY(Integer))
+    tags = Column(ARRAY(String(100)))
+    is_published = Column(Boolean, default=False)
+    created_by = Column(BigInteger, ForeignKey("users.id"))
+    updated_by = Column(BigInteger, ForeignKey("users.id"))
+    created_at = Column(DateTime, default=func.current_timestamp())
+    updated_at = Column(DateTime, default=func.current_timestamp(), onupdate=func.current_timestamp())
+
+    # Relationships
+    embeddings = relationship("KnowledgeBaseEmbedding", back_populates="document", cascade="all,delete")
+    attachments = relationship("KnowledgeBaseAttachment", back_populates="document", cascade="all,delete")
+    creator = relationship("User", foreign_keys=[created_by], backref="created_kb_documents")
+    updater = relationship("User", foreign_keys=[updated_by], backref="updated_kb_documents")
+
+    __table_args__ = (
+        Index('idx_kb_docs_category', 'category'),
+        Index('idx_kb_docs_is_published', 'is_published'),
+        Index('idx_kb_docs_created_at', 'created_at'),
+    )
+
+
+class KnowledgeBaseEmbedding(Base):
+    __tablename__ = "knowledge_base_embeddings"
+
+    id = Column(Integer, primary_key=True)
+    document_id = Column(Integer, ForeignKey("knowledge_base_documents.id", ondelete="CASCADE"), nullable=False)
+    chunk_text = Column(Text, nullable=False)
+    chunk_index = Column(Integer, nullable=False)
+    embedding = Column(Vector(1536))
+    embedding_model = Column(String(100), default="text-embedding-3-small")
+    created_at = Column(DateTime, default=func.current_timestamp())
+
+    # Relationships
+    document = relationship("KnowledgeBaseDocument", back_populates="embeddings")
+
+    __table_args__ = (
+        Index('idx_kb_document_chunk', 'document_id', 'chunk_index', unique=True),
+    )
+
+
+class KnowledgeBaseAttachment(Base):
+    __tablename__ = "knowledge_base_attachments"
+
+    id = Column(Integer, primary_key=True)
+    document_id = Column(Integer, ForeignKey("knowledge_base_documents.id", ondelete="CASCADE"), nullable=False)
+    file_name = Column(String(255), nullable=False)
+    file_type = Column(String(50))
+    file_url = Column(Text, nullable=False)
+    cloudinary_id = Column(String(255))
+    created_at = Column(DateTime, default=func.current_timestamp())
+
+    # Relationships
+    document = relationship("KnowledgeBaseDocument", back_populates="attachments")
+
+
+class KnowledgeBaseAuditLog(Base):
+    __tablename__ = "knowledge_base_audit_log"
+
+    id = Column(Integer, primary_key=True)
+    document_id = Column(Integer, ForeignKey("knowledge_base_documents.id", ondelete="SET NULL"))
+    action = Column(String(50), nullable=False)
+    performed_by = Column(BigInteger, ForeignKey("users.id", ondelete="SET NULL"))
+    changes = Column(JSONB)
+    created_at = Column(DateTime, default=func.current_timestamp())
+
+    # Relationships
+    performer = relationship("User", backref="kb_audit_logs")
+
+    __table_args__ = (
+        Index('idx_kb_audit_document_id', 'document_id'),
+        Index('idx_kb_audit_created_at', 'created_at'),
+    )
+
+
+# ==================================================
 # Pydantic Response Models
 # ==================================================
 
@@ -783,3 +869,77 @@ class AnalyticsResponse(BaseModel):
     statistics_by_class: List[FiberStatistics]
     popular_searches: Optional[List[str]] = []
     recent_interactions: Optional[int] = None
+
+
+# ==================================================
+# Knowledge Base Pydantic Models
+# ==================================================
+
+class KnowledgeBaseAttachmentResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    file_name: str
+    file_type: Optional[str] = None
+    file_url: str
+    cloudinary_id: Optional[str] = None
+    created_at: datetime
+
+
+class KnowledgeBaseDocumentResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    title: str
+    content: str
+    category: Optional[str] = None
+    subcategory: Optional[str] = None
+    fiber_ids: Optional[List[int]] = []
+    tags: Optional[List[str]] = []
+    is_published: bool
+    created_by: Optional[int] = None
+    updated_by: Optional[int] = None
+    created_at: datetime
+    updated_at: datetime
+    attachments: Optional[List[KnowledgeBaseAttachmentResponse]] = []
+
+
+class KnowledgeBaseDocumentSummary(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    title: str
+    content: str
+    category: Optional[str] = None
+    subcategory: Optional[str] = None
+    tags: Optional[List[str]] = []
+    is_published: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class KnowledgeBaseCreateRequest(BaseModel):
+    title: str = Field(..., min_length=1, max_length=500)
+    content: str = Field(..., min_length=1)
+    category: Optional[str] = Field(None, max_length=100)
+    subcategory: Optional[str] = Field(None, max_length=100)
+    fiber_ids: Optional[List[int]] = []
+    tags: Optional[List[str]] = []
+    is_published: bool = False
+
+
+class KnowledgeBaseUpdateRequest(BaseModel):
+    title: Optional[str] = Field(None, min_length=1, max_length=500)
+    content: Optional[str] = Field(None, min_length=1)
+    category: Optional[str] = Field(None, max_length=100)
+    subcategory: Optional[str] = Field(None, max_length=100)
+    fiber_ids: Optional[List[int]] = None
+    tags: Optional[List[str]] = None
+    is_published: Optional[bool] = None
+
+
+class KnowledgeBaseSearchResult(BaseModel):
+    document: KnowledgeBaseDocumentSummary
+    similarity_score: float
+    matched_chunk: str
+    chunk_index: int

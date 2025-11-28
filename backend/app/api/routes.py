@@ -6,7 +6,8 @@ from app.db.session import get_db
 from app.models.models import (
     Module, Topic, Subtopic, ContentBlock, Tag, SubtopicTag, StudyGroup, SubtopicStudyGroup, User, Client, ClientOnboarding,
     FiberClass, FiberSubtype, SyntheticType, PolymerizationType, Fiber, ChatbotConversation, FiberVideoLink, FiberEmbedding, Question,
-    QuizAttempt, QuizAnswer
+    QuizAttempt, QuizAnswer, KnowledgeBaseDocument, KnowledgeBaseAttachment, KnowledgeBaseCreateRequest, KnowledgeBaseUpdateRequest,
+    KnowledgeBaseDocumentResponse, KnowledgeBaseDocumentSummary
 )
 from app.schemas.schemas import (
     ModuleCreate, ModuleRead, TopicCreate, TopicRead,
@@ -1493,6 +1494,7 @@ async def chat_with_bot(
     try:
         from openai import OpenAI
         from app.services.fiber_service import get_fiber_service
+        from app.services.knowledge_base_service import KnowledgeBaseService
 
         # Get the active conversation by ID
         conversation = db.execute(
@@ -1506,8 +1508,9 @@ async def chat_with_bot(
         if not conversation:
             raise HTTPException(status_code=404, detail="Active conversation not found. Please start a new conversation.")
 
-        # Initialize fiber search service
+        # Initialize services
         fiber_service = get_fiber_service(db)
+        kb_service = KnowledgeBaseService(db)
 
         # Get conversation history to help with follow-up questions
         messages = conversation.messages or []
@@ -1525,6 +1528,7 @@ async def chat_with_bot(
         fiber_context = ""
         structure_images = []  # Will store structure images if requested
         related_videos = []  # Will store related video links
+        search_results = []  # Initialize to avoid UnboundLocalError
 
         if intent["requires_search"]:
             # Use extracted search terms or fallback to full query
@@ -1669,15 +1673,45 @@ async def chat_with_bot(
             {"role": "system", "content": system_prompt}
         ]
 
+        # Search knowledge base for relevant information
+        kb_context = ""
+        fiber_ids = [r['fiber'].id for r in search_results] if search_results else None
+        kb_results = kb_service.semantic_search(
+            query=payload.message,
+            limit=3,
+            similarity_threshold=0.5,
+            fiber_ids=fiber_ids,
+            published_only=True
+        )
+
+        if kb_results:
+            kb_context_parts = ["\n===== KNOWLEDGE BASE INFORMATION =====\n"]
+            for idx, result in enumerate(kb_results, 1):
+                kb_context_parts.append(f"\n**Source {idx}: {result['title']}**")
+                if result.get('category'):
+                    kb_context_parts.append(f"Category: {result['category']}")
+                kb_context_parts.append(f"Relevance: {result['similarity']:.2f}")
+                kb_context_parts.append(f"\n{result['matched_chunk']}\n")
+            kb_context = "\n".join(kb_context_parts)
+            print(f"DEBUG: Knowledge base context added ({len(kb_context)} chars)")
+
         # Add fiber context RIGHT AFTER system prompt (so it's always visible)
         if fiber_context:
             openai_messages.append({
                 "role": "system",
-                "content": f"===== FIBER KNOWLEDGE BASE =====\n{fiber_context}\n\n**CRITICAL:** Use ONLY this information to answer. Present facts naturally and authoritatively without mentioning the source. Be CONCISE - only provide basic facts unless user asks for details."
+                "content": f"===== FIBER DATABASE =====\n{fiber_context}\n\n**CRITICAL:** Use ONLY this information to answer. Present facts naturally and authoritatively without mentioning the source. Be CONCISE - only provide basic facts unless user asks for details."
             })
-            print(f"DEBUG: Fiber context injected {fiber_context} chars)")
+            print(f"DEBUG: Fiber context injected ({len(fiber_context)} chars)")
         else:
             print(f"DEBUG: No fiber context for this query")
+
+        # Add knowledge base context if available
+        if kb_context:
+            openai_messages.append({
+                "role": "system",
+                "content": f"{kb_context}\n\n**Use this knowledge base information to supplement your answers with authoritative content.**"
+            })
+            print(f"DEBUG: Knowledge base context injected ({len(kb_context)} chars)")
 
         # Add conversation history
         for msg in messages:
@@ -1727,12 +1761,26 @@ async def chat_with_bot(
         db.commit()
         db.refresh(conversation)
 
+        # Format knowledge base sources for response
+        kb_sources = []
+        if kb_results:
+            kb_sources = [
+                {
+                    "id": result['document_id'],
+                    "title": result['title'],
+                    "category": result.get('category'),
+                    "similarity": result['similarity']
+                }
+                for result in kb_results
+            ]
+
         return ChatResponse(
             response=bot_response,
             conversation_id=conversation.id,
             fiber_cards=[],
             structure_images=structure_images,
-            related_videos=related_videos
+            related_videos=related_videos,
+            knowledge_base_sources=kb_sources
         )
     except HTTPException:
         raise
@@ -2765,3 +2813,261 @@ def get_study_group_name(code: str) -> str:
         "R": "Research"
     }
     return mapping.get(code, code)
+
+
+# ==================================================
+# KNOWLEDGE BASE MANAGEMENT (Admin Only)
+# ==================================================
+
+@router.post("/admin/knowledge-base", response_model=KnowledgeBaseDocumentResponse, status_code=201)
+async def create_knowledge_document(
+    request: KnowledgeBaseCreateRequest,
+    current_user: User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Create new knowledge base document with automatic embedding generation.
+    Admin only.
+    """
+    from app.services.knowledge_base_service import KnowledgeBaseService
+
+    try:
+        kb_service = KnowledgeBaseService(db)
+        document = kb_service.create_document_with_embeddings(
+            title=request.title,
+            content=request.content,
+            created_by=current_user.id,
+            category=request.category,
+            subcategory=request.subcategory,
+            fiber_ids=request.fiber_ids,
+            tags=request.tags,
+            is_published=request.is_published
+        )
+
+        # Load attachments for response
+        db.refresh(document)
+        return document
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating document: {str(e)}")
+
+
+@router.get("/admin/knowledge-base/stats")
+async def get_knowledge_base_stats(
+    current_user: User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get knowledge base statistics.
+    Admin only.
+    """
+    try:
+        total = db.query(KnowledgeBaseDocument).count()
+        published = db.query(KnowledgeBaseDocument).filter(
+            KnowledgeBaseDocument.is_published == True
+        ).count()
+        drafts = db.query(KnowledgeBaseDocument).filter(
+            KnowledgeBaseDocument.is_published == False
+        ).count()
+
+        return {
+            "total_documents": total,
+            "published_documents": published,
+            "draft_documents": drafts
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching stats: {str(e)}")
+
+
+@router.get("/admin/knowledge-base", response_model=List[KnowledgeBaseDocumentSummary])
+async def list_knowledge_documents(
+    category: Optional[str] = None,
+    is_published: Optional[bool] = None,
+    search: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 20,
+    current_user: User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db)
+):
+    """
+    List all knowledge base documents with optional filters.
+    Admin only.
+    """
+    try:
+        query = db.query(KnowledgeBaseDocument)
+
+        # Apply filters
+        if category:
+            query = query.filter(KnowledgeBaseDocument.category == category)
+
+        if is_published is not None:
+            query = query.filter(KnowledgeBaseDocument.is_published == is_published)
+
+        if search:
+            search_term = f"%{search}%"
+            query = query.filter(
+                (KnowledgeBaseDocument.title.ilike(search_term)) |
+                (KnowledgeBaseDocument.content.ilike(search_term))
+            )
+
+        # Order by updated_at descending
+        query = query.order_by(KnowledgeBaseDocument.updated_at.desc())
+
+        # Pagination
+        documents = query.offset(skip).limit(limit).all()
+
+        return documents
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error listing documents: {str(e)}")
+
+
+@router.get("/admin/knowledge-base/{document_id}", response_model=KnowledgeBaseDocumentResponse)
+async def get_knowledge_document(
+    document_id: int,
+    current_user: User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get single knowledge base document with full details.
+    Admin only.
+    """
+    try:
+        document = db.query(KnowledgeBaseDocument).options(
+            joinedload(KnowledgeBaseDocument.attachments)
+        ).filter(KnowledgeBaseDocument.id == document_id).first()
+
+        if not document:
+            raise HTTPException(status_code=404, detail="Document not found")
+
+        return document
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching document: {str(e)}")
+
+
+@router.put("/admin/knowledge-base/{document_id}", response_model=KnowledgeBaseDocumentResponse)
+async def update_knowledge_document(
+    document_id: int,
+    request: KnowledgeBaseUpdateRequest,
+    current_user: User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Update knowledge base document. Regenerates embeddings if content changes.
+    Admin only.
+    """
+    from app.services.knowledge_base_service import KnowledgeBaseService
+
+    try:
+        kb_service = KnowledgeBaseService(db)
+
+        # Build update kwargs from request
+        update_kwargs = {}
+        if request.title is not None:
+            update_kwargs['title'] = request.title
+        if request.content is not None:
+            update_kwargs['content'] = request.content
+        if request.category is not None:
+            update_kwargs['category'] = request.category
+        if request.subcategory is not None:
+            update_kwargs['subcategory'] = request.subcategory
+        if request.fiber_ids is not None:
+            update_kwargs['fiber_ids'] = request.fiber_ids
+        if request.tags is not None:
+            update_kwargs['tags'] = request.tags
+        if request.is_published is not None:
+            update_kwargs['is_published'] = request.is_published
+
+        document = kb_service.update_document(
+            document_id=document_id,
+            updated_by=current_user.id,
+            **update_kwargs
+        )
+
+        return document
+
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error updating document: {str(e)}")
+
+
+@router.delete("/admin/knowledge-base/{document_id}", status_code=204)
+async def delete_knowledge_document(
+    document_id: int,
+    current_user: User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Delete knowledge base document and all its embeddings.
+    Admin only.
+    """
+    from app.services.knowledge_base_service import KnowledgeBaseService
+
+    try:
+        kb_service = KnowledgeBaseService(db)
+        kb_service.delete_document(document_id, deleted_by=current_user.id)
+        return Response(status_code=204)
+
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting document: {str(e)}")
+
+
+@router.post("/admin/knowledge-base/{document_id}/publish")
+async def toggle_publish_knowledge_document(
+    document_id: int,
+    publish: bool = True,
+    current_user: User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Publish or unpublish a knowledge base document.
+    Admin only.
+    """
+    from app.services.knowledge_base_service import KnowledgeBaseService
+
+    try:
+        kb_service = KnowledgeBaseService(db)
+        document = kb_service.update_document(
+            document_id=document_id,
+            updated_by=current_user.id,
+            is_published=publish
+        )
+
+        return {
+            "id": document.id,
+            "title": document.title,
+            "is_published": document.is_published,
+            "message": f"Document {'published' if publish else 'unpublished'} successfully"
+        }
+
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error toggling publish status: {str(e)}")
+
+
+@router.get("/admin/knowledge-base/categories/list")
+async def get_knowledge_base_categories(
+    current_user: User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get list of all unique categories in knowledge base.
+    Admin only.
+    """
+    try:
+        categories = db.query(KnowledgeBaseDocument.category).distinct().filter(
+            KnowledgeBaseDocument.category.isnot(None)
+        ).all()
+
+        return {"categories": [cat[0] for cat in categories if cat[0]]}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching categories: {str(e)}")

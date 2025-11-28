@@ -1035,4 +1035,20 @@ export const quizApi = {
   },
 };
 
+// ========== KNOWLEDGE BASE TYPES AND SERVICES ==========
+
+export interface KnowledgeBaseStats {
+  total_documents: number;
+  published_documents: number;
+  draft_documents: number;
+}
+
+export const knowledgeBaseApi = {
+  // Get knowledge base statistics
+  getKnowledgeBaseStats: async (): Promise<KnowledgeBaseStats> => {
+    const response = await api.get('/admin/knowledge-base/stats');
+    return response.data;
+  },
+};
+
 export default api;
