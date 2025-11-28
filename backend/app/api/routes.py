@@ -1528,6 +1528,7 @@ async def chat_with_bot(
         fiber_context = ""
         structure_images = []  # Will store structure images if requested
         related_videos = []  # Will store related video links
+        search_results = []  # Initialize to avoid UnboundLocalError
 
         if intent["requires_search"]:
             # Use extracted search terms or fallback to full query

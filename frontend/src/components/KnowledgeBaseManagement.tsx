@@ -73,10 +73,8 @@ const KnowledgeBaseManagement: React.FC = () => {
   const [documentToDelete, setDocumentToDelete] = useState<number | null>(null);
   const [form] = Form.useForm();
 
-  console.log('[KB Management] Component rendered', { documentsCount: documents.length, loading, user });
 
   const fetchDocuments = async () => {
-    console.log('[KB Management] Fetching documents...');
     setLoading(true);
     try {
       const params = new URLSearchParams();
@@ -84,15 +82,12 @@ const KnowledgeBaseManagement: React.FC = () => {
       if (publishedFilter) params.append('is_published', publishedFilter);
 
       const url = `/admin/knowledge-base?${params}`;
-      console.log('[KB Management] Requesting:', url);
 
       const response = await api.get(url);
-      console.log('[KB Management] Response:', response.data);
 
       setDocuments(response.data);
     } catch (error: any) {
       console.error('[KB Management] Error fetching documents:', error);
-      console.error('[KB Management] Error details:', error.response?.data);
 
       if (error.response?.status === 401) {
         message.error('Authentication error. Please log in again.');
@@ -103,7 +98,6 @@ const KnowledgeBaseManagement: React.FC = () => {
       }
     } finally {
       setLoading(false);
-      console.log('[KB Management] Loading complete');
     }
   };
 
@@ -160,7 +154,6 @@ const KnowledgeBaseManagement: React.FC = () => {
   };
 
   const handleDelete = (id: number) => {
-    console.log('[KB Management] Delete button clicked for document ID:', id);
     setDocumentToDelete(id);
     setDeleteModalVisible(true);
   };
@@ -168,7 +161,6 @@ const KnowledgeBaseManagement: React.FC = () => {
   const confirmDelete = async () => {
     if (!documentToDelete) return;
 
-    console.log('[KB Management] Confirmed delete for document ID:', documentToDelete);
     setLoading(true);
     try {
       await api.delete(`/admin/knowledge-base/${documentToDelete}`);
@@ -178,15 +170,12 @@ const KnowledgeBaseManagement: React.FC = () => {
       fetchDocuments();
     } catch (error: any) {
       console.error('[KB Management] Error deleting document:', error);
-      console.error('[KB Management] Error response:', error.response?.data);
-      message.error(error.response?.data?.detail || 'Failed to delete document');
     } finally {
       setLoading(false);
     }
   };
 
   const cancelDelete = () => {
-    console.log('[KB Management] Delete cancelled');
     setDeleteModalVisible(false);
     setDocumentToDelete(null);
   };
