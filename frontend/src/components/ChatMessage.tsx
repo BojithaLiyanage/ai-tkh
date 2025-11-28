@@ -196,7 +196,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
                 <div className="h-px flex-1 bg-gradient-to-r from-transparent via-purple-300 to-transparent"></div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {relatedVideos.map((video) => {
                   const thumbnail = getYouTubeThumbnail(video.video_link);
                   return (
