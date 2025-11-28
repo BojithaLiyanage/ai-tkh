@@ -52,6 +52,7 @@ class ChatbotService:
     def build_system_prompt(
         user: User,
         fiber_context: str = "",
+        knowledge_base_context: str = "",
         include_user_context: bool = True,
     ) -> str:
         """
@@ -60,14 +61,24 @@ class ChatbotService:
         Args:
             user: User object
             fiber_context: Fiber database context to include
+            knowledge_base_context: Knowledge base context to include
             include_user_context: Whether to include user profile info
 
         Returns:
             Complete system prompt ready for OpenAI
         """
+        # Combine fiber and knowledge base context
+        combined_context = ""
+        if fiber_context:
+            combined_context += fiber_context
+        if knowledge_base_context:
+            if combined_context:
+                combined_context += "\n\n"
+            combined_context += knowledge_base_context
+
         if not include_user_context:
             # Return basic prompt without user customization
-            return PromptTemplates.build_complete_system_prompt(fiber_context=fiber_context)
+            return PromptTemplates.build_complete_system_prompt(fiber_context=combined_context)
 
         # Get user profile
         profile = ChatbotService.get_user_profile_context(user)
@@ -78,7 +89,7 @@ class ChatbotService:
             organization=profile["organization"],
             specialization=profile["specialization"],
             onboarding_details=profile["onboarding_details"],
-            fiber_context=fiber_context,
+            fiber_context=combined_context,
         )
 
     @staticmethod

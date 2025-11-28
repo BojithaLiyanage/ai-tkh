@@ -507,6 +507,8 @@ class ChatResponse(BaseModel):
     structure_images: Optional[List[dict]] = []  # [{fiber_name: str, image_url: str, fiber_id: str}]
     # Related videos when available
     related_videos: Optional[List['VideoPreview']] = []
+    # Knowledge base sources used in response
+    knowledge_base_sources: Optional[List[dict]] = []  # [{id: int, title: str, category: str}]
 
 class StartConversationResponse(BaseModel):
     conversation_id: int
