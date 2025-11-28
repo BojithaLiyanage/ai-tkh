@@ -1527,6 +1527,7 @@ async def chat_with_bot(
 
         fiber_context = ""
         structure_images = []  # Will store structure images if requested
+        morphology_images = []  # Will store morphology images if requested
         related_videos = []  # Will store related video links
         search_results = []  # Initialize to avoid UnboundLocalError
 
@@ -1631,6 +1632,17 @@ async def chat_with_bot(
                     if requested_fiber:
                         print(f"DEBUG: Filtered to requested fiber: {requested_fiber}")
                     for img in structure_images:
+                        print(f"  - {img['fiber_name']}: {img['image_url']}")
+
+                # Extract morphology images if user is asking for morphology/microscopic images
+                if intent.get("needs_morphology"):
+                    # If a specific fiber was requested, only show that fiber's image
+                    requested_fiber = intent.get("entities", {}).get("fiber_name")
+                    morphology_images = fiber_service.extract_morphology_images(search_results, requested_fiber)
+                    print(f"DEBUG: Extracted {len(morphology_images)} morphology images")
+                    if requested_fiber:
+                        print(f"DEBUG: Filtered to requested fiber: {requested_fiber}")
+                    for img in morphology_images:
                         print(f"  - {img['fiber_name']}: {img['image_url']}")
 
                 # Extract related videos from fibers with video descriptions matching the query
@@ -1779,6 +1791,7 @@ async def chat_with_bot(
             conversation_id=conversation.id,
             fiber_cards=[],
             structure_images=structure_images,
+            morphology_images=morphology_images,
             related_videos=related_videos,
             knowledge_base_sources=kb_sources
         )

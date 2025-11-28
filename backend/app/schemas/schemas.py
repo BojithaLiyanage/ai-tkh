@@ -505,6 +505,8 @@ class ChatResponse(BaseModel):
     fiber_cards: Optional[List[FiberCard]] = []
     # Structure images when user requests fiber structure diagrams
     structure_images: Optional[List[dict]] = []  # [{fiber_name: str, image_url: str, fiber_id: str}]
+    # Morphology images when user requests microscopic/morphological appearance
+    morphology_images: Optional[List[dict]] = []  # [{fiber_name: str, image_url: str, fiber_id: str}]
     # Related videos when available
     related_videos: Optional[List['VideoPreview']] = []
     # Knowledge base sources used in response

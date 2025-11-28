@@ -36,6 +36,13 @@ interface StructureImage {
   image_cms_id?: string;
 }
 
+interface MorphologyImage {
+  fiber_name: string;
+  image_url: string;
+  fiber_id: string;
+  image_cms_id?: string;
+}
+
 interface VideoPreview {
   id: number;
   fiber_id: number;
@@ -50,6 +57,7 @@ interface Message {
   content: string;
   fiberCards?: FiberCard[];
   structureImages?: StructureImage[];
+  morphologyImages?: MorphologyImage[];
   relatedVideos?: VideoPreview[];
 }
 
@@ -227,6 +235,7 @@ const ChatView: React.FC<{
         content: response.response,
         fiberCards: response.fiber_cards,
         structureImages: response.structure_images,
+        morphologyImages: response.morphology_images,
         relatedVideos: response.related_videos
       }]);
 
@@ -469,6 +478,7 @@ const ChatView: React.FC<{
                       content={msg.content}
                       fiberCards={msg.fiberCards}
                       structureImages={msg.structureImages}
+                      morphologyImages={msg.morphologyImages}
                       relatedVideos={msg.relatedVideos}
                       userName={user.full_name || 'U'}
                     />

@@ -754,11 +754,19 @@ export interface StructureImage {
   image_cms_id?: string;
 }
 
+export interface MorphologyImage {
+  fiber_name: string;
+  image_url: string;
+  fiber_id: string;
+  image_cms_id?: string;
+}
+
 export interface ChatResponse {
   response: string;
   conversation_id: number;
   fiber_cards?: FiberCard[];
   structure_images?: StructureImage[];
+  morphology_images?: MorphologyImage[];
   related_videos?: any[];
 }
 

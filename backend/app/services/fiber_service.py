@@ -805,6 +805,12 @@ class FiberSearchService:
             intent["requires_search"] = True
             intent["needs_images"] = True
 
+        # Detect morphology/microscopic image requests
+        if any(word in query_lower for word in ["morphology", "morphological", "microscopic", "microscope", "appearance", "fiber appearance", "cross section", "longitudinal"]):
+            intent["type"] = "morphology_image_request"
+            intent["requires_search"] = True
+            intent["needs_morphology"] = True
+
         # Extract search terms - use fiber name if found, otherwise use the whole query
         if not intent["search_terms"]:
             intent["search_terms"] = [query]
@@ -840,6 +846,38 @@ class FiberSearchService:
                     "image_url": fiber.structure_image_url,
                     "fiber_id": fiber.fiber_id,
                     "image_cms_id": fiber.structure_image_cms_id
+                })
+
+        return images
+
+    def extract_morphology_images(self, fibers: List[Any], requested_fiber_name: Optional[str] = None) -> List[dict]:
+        """
+        Extract morphology (microscopic) images from fiber results.
+
+        Args:
+            fibers: List of Fiber objects or dicts with 'fiber' key
+            requested_fiber_name: If provided, only return image for this specific fiber
+
+        Returns:
+            List of dicts with fiber name, image URL, and fiber ID
+        """
+        images = []
+        for item in fibers:
+            fiber = item if isinstance(item, Fiber) else item.get('fiber')
+            if not fiber:
+                continue
+
+            # If a specific fiber was requested, only include that fiber's image
+            if requested_fiber_name:
+                if fiber.name.lower() != requested_fiber_name.lower():
+                    continue
+
+            if fiber.morphology_image_url:
+                images.append({
+                    "fiber_name": fiber.name,
+                    "image_url": fiber.morphology_image_url,
+                    "fiber_id": fiber.fiber_id,
+                    "image_cms_id": fiber.morphology_image_cms_id
                 })
 
         return images
