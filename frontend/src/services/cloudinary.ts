@@ -92,10 +92,26 @@ class CloudinaryService {
     }
   }
 
-  async deleteImage(_publicId: string): Promise<CloudinaryDeleteResponse> {
-    // This would typically go through your backend API for security
-    // For now, we'll just return a mock response since deletion should be handled server-side
-    throw new Error('Image deletion should be handled through the backend API');
+  async deleteImage(publicId: string): Promise<CloudinaryDeleteResponse> {
+    try {
+      console.log('Deleting image from Cloudinary...', { publicId });
+
+      const api = createAuthenticatedApi();
+
+      const response = await api.delete('/api/cloudinary/delete', {
+        data: { public_id: publicId }
+      });
+
+      console.log('Image deletion successful:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Cloudinary delete error:', error);
+      if (axios.isAxiosError(error)) {
+        const errorMessage = error.response?.data?.detail || error.response?.data?.message || 'Failed to delete image';
+        throw new Error(errorMessage);
+      }
+      throw new Error('Failed to delete image');
+    }
   }
 
   generateImageUrl(publicId: string, transformations?: string): string {

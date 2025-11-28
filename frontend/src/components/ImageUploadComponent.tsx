@@ -43,6 +43,18 @@ const ImageUploadComponent: React.FC<ImageUploadComponentProps> = ({
       // Validate file
       cloudinaryService.isValidImageFile(file);
 
+      // If replacing an existing image, delete the old one first
+      if (publicId && previewUrl) {
+        console.log('Replacing existing image, deleting old one:', publicId);
+        try {
+          await cloudinaryService.deleteImage(publicId);
+          console.log('Old image deleted successfully');
+        } catch (deleteErr) {
+          console.warn('Failed to delete old image, continuing with upload:', deleteErr);
+          // Continue with upload even if delete fails
+        }
+      }
+
       // Upload to Cloudinary with custom filename and folder if provided
       const response: CloudinaryUploadResponse = await cloudinaryService.uploadImage(file, customFileName, folder);
 
@@ -62,12 +74,30 @@ const ImageUploadComponent: React.FC<ImageUploadComponentProps> = ({
     }
   };
 
-  const handleRemoveImage = () => {
-    setPreviewUrl(null);
-    onChange(null, null);
-    setError(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+  const handleRemoveImage = async () => {
+    try {
+      setError(null);
+
+      // If there's a publicId, delete from Cloudinary
+      if (publicId) {
+        setUploading(true);
+        console.log('Attempting to delete image from Cloudinary:', publicId);
+        await cloudinaryService.deleteImage(publicId);
+        console.log('Image deleted successfully from Cloudinary');
+      }
+
+      // Clear the preview and form data
+      setPreviewUrl(null);
+      onChange(null, null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to delete image';
+      setError(errorMsg);
+      console.error('Delete error:', err);
+    } finally {
+      setUploading(false);
     }
   };
 
