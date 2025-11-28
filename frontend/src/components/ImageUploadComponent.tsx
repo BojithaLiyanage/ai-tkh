@@ -8,6 +8,8 @@ interface ImageUploadComponentProps {
   label?: string;
   disabled?: boolean;
   className?: string;
+  customFileName?: string; // Custom filename (e.g., fiber_id) to use when uploading
+  folder?: string; // Custom folder to upload to (e.g., 'morphology')
 }
 
 const ImageUploadComponent: React.FC<ImageUploadComponentProps> = ({
@@ -16,7 +18,9 @@ const ImageUploadComponent: React.FC<ImageUploadComponentProps> = ({
   onChange,
   label = 'Image',
   disabled = false,
-  className = ''
+  className = '',
+  customFileName,
+  folder
 }) => {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,8 +43,8 @@ const ImageUploadComponent: React.FC<ImageUploadComponentProps> = ({
       // Validate file
       cloudinaryService.isValidImageFile(file);
 
-      // Upload to Cloudinary
-      const response: CloudinaryUploadResponse = await cloudinaryService.uploadImage(file);
+      // Upload to Cloudinary with custom filename and folder if provided
+      const response: CloudinaryUploadResponse = await cloudinaryService.uploadImage(file, customFileName, folder);
 
       // Update the form with the new image data
       setPreviewUrl(response.secure_url);

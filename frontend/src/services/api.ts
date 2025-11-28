@@ -465,6 +465,8 @@ export interface FiberDetail {
   molecular_structure_smiles?: string;
   structure_image_cms_id?: string;
   structure_image_url?: string;
+  morphology_image_cms_id?: string;
+  morphology_image_url?: string;
 
   // Sustainability
   biodegradability?: boolean;

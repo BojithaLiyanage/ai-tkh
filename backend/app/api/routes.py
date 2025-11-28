@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Response, Request
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Response, Request, Form
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import select
 from datetime import timedelta, datetime, timezone
@@ -1349,12 +1349,13 @@ def get_fibers_for_comparison(
 @router.post("/upload/image")
 def upload_image(
     file: UploadFile = File(...),
-    folder: str = "fibers",
+    folder: str = Form("fibers"),
+    public_id: Optional[str] = Form(None),
     current_user: User = Depends(get_current_active_user)
 ):
-    """Upload an image to Cloudinary"""
+    """Upload an image to Cloudinary with optional custom filename"""
     try:
-        result = get_cloudinary_service().upload_image(file, folder)
+        result = get_cloudinary_service().upload_image(file, folder, public_id)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

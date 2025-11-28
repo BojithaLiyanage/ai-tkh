@@ -1,19 +1,13 @@
 import axios from 'axios';
 
-// Create an API instance with auth interceptors (similar to your main API service)
+// Create an API instance with cookie-based auth (similar to your main API service)
 const createAuthenticatedApi = () => {
   const api = axios.create({
     baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
+    withCredentials: true,  // Enable sending cookies with requests
   });
 
-  api.interceptors.request.use((config) => {
-    const token = localStorage.getItem('access_token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  });
-
+  // No need to manually set Authorization header - cookies are sent automatically
   return api;
 };
 
@@ -52,19 +46,28 @@ class CloudinaryService {
     }
   }
 
-  async uploadImage(file: File): Promise<CloudinaryUploadResponse> {
+  async uploadImage(file: File, customFileName?: string, folder?: string): Promise<CloudinaryUploadResponse> {
     try {
+      console.log('Starting image upload...', { fileName: file.name, customFileName, folder, fileSize: file.size, fileType: file.type });
+
       // Validate file first
       this.isValidImageFile(file);
+      console.log('File validation passed');
 
       // Upload through backend API
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('folder', this.folder);
+      formData.append('folder', folder || this.folder);
+
+      // Add custom filename if provided (e.g., fiber_id)
+      if (customFileName) {
+        formData.append('public_id', customFileName);
+        console.log('Using custom filename:', customFileName);
+      }
 
       const api = createAuthenticatedApi();
 
-      console.log('Uploading via backend API...');
+      console.log('Uploading to backend API at /api/upload/image...');
       const response = await api.post(
         '/api/upload/image',
         formData,

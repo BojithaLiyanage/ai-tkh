@@ -351,6 +351,8 @@ class FiberCreate(BaseModel):
     molecular_structure_smiles: Optional[str] = None
     structure_image_cms_id: Optional[str] = None
     structure_image_url: Optional[str] = None
+    morphology_image_cms_id: Optional[str] = None
+    morphology_image_url: Optional[str] = None
     biodegradability: Optional[bool] = None
     sustainability_notes: Optional[str] = None
     environmental_impact_score: Optional[int] = None
@@ -407,6 +409,8 @@ class FiberRead(BaseModel):
     molecular_structure_smiles: Optional[str] = None
     structure_image_cms_id: Optional[str] = None
     structure_image_url: Optional[str] = None
+    morphology_image_cms_id: Optional[str] = None
+    morphology_image_url: Optional[str] = None
     biodegradability: Optional[bool] = None
     sustainability_notes: Optional[str] = None
     environmental_impact_score: Optional[int] = None
@@ -459,6 +463,8 @@ class FiberUpdate(BaseModel):
     molecular_structure_smiles: Optional[str] = None
     structure_image_cms_id: Optional[str] = None
     structure_image_url: Optional[str] = None
+    morphology_image_cms_id: Optional[str] = None
+    morphology_image_url: Optional[str] = None
     biodegradability: Optional[bool] = None
     sustainability_notes: Optional[str] = None
     environmental_impact_score: Optional[int] = None
