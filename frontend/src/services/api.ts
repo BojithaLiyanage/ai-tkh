@@ -799,12 +799,12 @@ export interface EndConversationResponse {
 }
 
 export const chatbotApi = {
-  startConversation: async (): Promise<StartConversationResponse> => {
+  startConversation: async (): Promise<ChatbotConversationRead> => {
     const response = await api.post('/chatbot/start');
     return response.data;
   },
 
-  continueConversation: async (conversationId: number): Promise<StartConversationResponse> => {
+  continueConversation: async (conversationId: number): Promise<ChatbotConversationRead> => {
     const response = await api.post(`/chatbot/continue/${conversationId}`);
     return response.data;
   },

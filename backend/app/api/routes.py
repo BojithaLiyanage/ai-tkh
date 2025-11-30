@@ -1464,7 +1464,7 @@ def delete_fiber_video(
         raise HTTPException(status_code=400, detail="Cannot delete video link")
 
 # --- Chatbot ---
-@router.post("/chatbot/start", response_model=StartConversationResponse)
+@router.post("/chatbot/start", response_model=ChatbotConversationRead)
 def start_conversation(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
@@ -1474,11 +1474,14 @@ def start_conversation(
 
     session_id = str(uuid.uuid4())
 
-    # Create new conversation record
+    # Welcome message
+    welcome_message = "Hello! How can I assist you with textile and fiber questions today?"
+
+    # Create new conversation record with welcome message
     conversation = ChatbotConversation(
         user_id=current_user.id,
         session_id=session_id,
-        messages=[],
+        messages=[{"role": "ai", "content": welcome_message}],
         model_used=settings.OPENAI_MODEL,
         is_active=True
     )
@@ -1486,10 +1489,7 @@ def start_conversation(
     db.commit()
     db.refresh(conversation)
 
-    return StartConversationResponse(
-        conversation_id=conversation.id,
-        message="Conversation started"
-    )
+    return conversation
 
 @router.post("/chatbot/message", response_model=ChatResponse)
 async def chat_with_bot(
@@ -1612,8 +1612,10 @@ async def chat_with_bot(
                     print(f"    - Subtype: {fiber.subtype.name if fiber.subtype else 'N/A'}")
                     print(f"    - Applications: {fiber.applications if fiber.applications else 'N/A'}")
                     print(f"    - Sources: {fiber.sources if fiber.sources else 'N/A'}")
-                    print(f"    - Density: {fiber.density_g_cm3 if fiber.density_g_cm3 else 'N/A'} g/cm³")
-                    print(f"    - Moisture Regain: {fiber.moisture_regain_percent if fiber.moisture_regain_percent else 'N/A'}%")
+                    density_str = f"{fiber.density_g_cm3_min}-{fiber.density_g_cm3_max}" if fiber.density_g_cm3_min and fiber.density_g_cm3_max else "N/A"
+                    print(f"    - Density: {density_str} g/cm³")
+                    moisture_str = f"{fiber.moisture_regain_min_percent}-{fiber.moisture_regain_max_percent}" if fiber.moisture_regain_min_percent and fiber.moisture_regain_max_percent else "N/A"
+                    print(f"    - Moisture Regain: {moisture_str}%")
                     print(f"    - Polymer Composition: {fiber.polymer_composition[:100] if fiber.polymer_composition else 'N/A'}...")
                     print(f"    - Biodegradable: {fiber.biodegradability if fiber.biodegradability is not None else 'N/A'}")
                     if isinstance(result, dict) and 'similarity' in result:
@@ -1625,38 +1627,54 @@ async def chat_with_bot(
 
             # Build context from search results
             if search_results:
-                fiber_context = fiber_service.build_fiber_context(search_results)
-                print(f"DEBUG: Context Built (length: {len(fiber_context)} chars)")
-                print(f"DEBUG: Context Preview:\n{fiber_context[:500]}...\n")
-                print(f"{'='*60}\n")
+                try:
+                    fiber_context = fiber_service.build_fiber_context(search_results)
+                    print(f"DEBUG: Context Built (length: {len(fiber_context)} chars)")
+                    print(f"DEBUG: Context Preview:\n{fiber_context[:500]}...\n")
+                    print(f"{'='*60}\n")
+                except Exception as e:
+                    print(f"ERROR: Failed to build fiber context: {str(e)}")
+                    fiber_context = ""
 
                 # Extract structure images if user is asking for images/structure
                 if intent.get("needs_images"):
-                    # If a specific fiber was requested, only show that fiber's image
-                    requested_fiber = intent.get("entities", {}).get("fiber_name")
-                    structure_images = fiber_service.extract_structure_images(search_results, requested_fiber)
-                    print(f"DEBUG: Extracted {len(structure_images)} structure images")
-                    if requested_fiber:
-                        print(f"DEBUG: Filtered to requested fiber: {requested_fiber}")
-                    for img in structure_images:
-                        print(f"  - {img['fiber_name']}: {img['image_url']}")
+                    try:
+                        # If a specific fiber was requested, only show that fiber's image
+                        requested_fiber = intent.get("entities", {}).get("fiber_name")
+                        structure_images = fiber_service.extract_structure_images(search_results, requested_fiber)
+                        print(f"DEBUG: Extracted {len(structure_images)} structure images")
+                        if requested_fiber:
+                            print(f"DEBUG: Filtered to requested fiber: {requested_fiber}")
+                        for img in structure_images:
+                            print(f"  - {img['fiber_name']}: {img['image_url']}")
+                    except Exception as e:
+                        print(f"ERROR: Failed to extract structure images: {str(e)}")
+                        structure_images = []
 
                 # Extract morphology images if user is asking for morphology/microscopic images
                 if intent.get("needs_morphology"):
-                    # If a specific fiber was requested, only show that fiber's image
-                    requested_fiber = intent.get("entities", {}).get("fiber_name")
-                    morphology_images = fiber_service.extract_morphology_images(search_results, requested_fiber)
-                    print(f"DEBUG: Extracted {len(morphology_images)} morphology images")
-                    if requested_fiber:
-                        print(f"DEBUG: Filtered to requested fiber: {requested_fiber}")
-                    for img in morphology_images:
-                        print(f"  - {img['fiber_name']}: {img['image_url']}")
+                    try:
+                        # If a specific fiber was requested, only show that fiber's image
+                        requested_fiber = intent.get("entities", {}).get("fiber_name")
+                        morphology_images = fiber_service.extract_morphology_images(search_results, requested_fiber)
+                        print(f"DEBUG: Extracted {len(morphology_images)} morphology images")
+                        if requested_fiber:
+                            print(f"DEBUG: Filtered to requested fiber: {requested_fiber}")
+                        for img in morphology_images:
+                            print(f"  - {img['fiber_name']}: {img['image_url']}")
+                    except Exception as e:
+                        print(f"ERROR: Failed to extract morphology images: {str(e)}")
+                        morphology_images = []
 
                 # Extract related videos from fibers with video descriptions matching the query
-                related_videos = fiber_service.extract_related_videos(search_results, payload.message)
-                print(f"DEBUG: Extracted {len(related_videos)} related videos")
-                for vid in related_videos:
-                    print(f"  - {vid['fiber_name']}: {vid.get('title', 'Untitled')} - {vid['video_link']}")
+                try:
+                    related_videos = fiber_service.extract_related_videos(search_results, payload.message)
+                    print(f"DEBUG: Extracted {len(related_videos)} related videos")
+                    for vid in related_videos:
+                        print(f"  - {vid['fiber_name']}: {vid.get('title', 'Untitled')} - {vid['video_link']}")
+                except Exception as e:
+                    print(f"ERROR: Failed to extract related videos: {str(e)}")
+                    related_videos = []
         else:
             print(f"DEBUG: Intent does not require search, skipping database query")
             print(f"{'='*60}\n")
@@ -1694,14 +1712,20 @@ async def chat_with_bot(
 
         # Search knowledge base for relevant information
         kb_context = ""
-        fiber_ids = [r['fiber'].id for r in search_results] if search_results else None
-        kb_results = kb_service.semantic_search(
-            query=payload.message,
-            limit=3,
-            similarity_threshold=0.5,
-            fiber_ids=fiber_ids,
-            published_only=True
-        )
+        kb_results = []
+        try:
+            fiber_ids = [r['fiber'].id for r in search_results] if search_results else None
+            kb_results = kb_service.semantic_search(
+                query=payload.message,
+                limit=3,
+                similarity_threshold=0.5,
+                fiber_ids=fiber_ids,
+                published_only=True
+            )
+            print(f"DEBUG: KB search returned {len(kb_results)} results")
+        except Exception as e:
+            print(f"ERROR: Failed to search knowledge base: {str(e)}")
+            kb_results = []
 
         if kb_results:
             kb_context_parts = ["\n===== KNOWLEDGE BASE INFORMATION =====\n"]
@@ -1756,29 +1780,52 @@ async def chat_with_bot(
             print(f"  [{idx}] {role}: {content_preview}...")
         print(f"DEBUG: Total messages to OpenAI: {len(openai_messages)}\n")
 
-        client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        # Call OpenAI API with error handling
+        try:
+            client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
-        response = client.chat.completions.create(
-            model=settings.OPENAI_MODEL,
-            messages=openai_messages,
-            max_tokens=settings.OPENAI_MAX_TOKENS,
-            temperature=settings.OPENAI_TEMPERATURE
-        )
+            if not settings.OPENAI_API_KEY:
+                raise ValueError("OPENAI_API_KEY is not configured")
 
-        bot_response = response.choices[0].message.content
-        # Add AI response to conversation
-        messages.append({"role": "ai", "content": bot_response})
+            response = client.chat.completions.create(
+                model=settings.OPENAI_MODEL,
+                messages=openai_messages,
+                max_tokens=settings.OPENAI_MAX_TOKENS,
+                temperature=settings.OPENAI_TEMPERATURE
+            )
+
+            bot_response = response.choices[0].message.content
+            print(f"DEBUG: OpenAI Response received ({len(bot_response)} chars)")
+
+            # Add AI response to conversation
+            messages.append({"role": "ai", "content": bot_response})
+
+        except ValueError as e:
+            print(f"ERROR: Configuration error: {str(e)}")
+            db.rollback()
+            raise HTTPException(status_code=500, detail=f"OpenAI configuration error: {str(e)}")
+        except Exception as e:
+            print(f"ERROR: OpenAI API error: {str(e)}")
+            db.rollback()
+            raise HTTPException(status_code=500, detail=f"Failed to get response from AI: {str(e)}")
 
         # Update conversation in database
-        # Need to create a new list to trigger SQLAlchemy's change detection
-        conversation.messages = list(messages)
+        try:
+            # Need to create a new list to trigger SQLAlchemy's change detection
+            conversation.messages = list(messages)
 
-        # Mark the column as modified to ensure it's persisted
-        from sqlalchemy.orm.attributes import flag_modified
-        flag_modified(conversation, "messages")
+            # Mark the column as modified to ensure it's persisted
+            from sqlalchemy.orm.attributes import flag_modified
+            flag_modified(conversation, "messages")
 
-        db.commit()
-        db.refresh(conversation)
+            db.commit()
+            db.refresh(conversation)
+            print(f"DEBUG: Conversation saved to database (ID: {conversation.id})")
+
+        except Exception as e:
+            print(f"ERROR: Failed to save conversation: {str(e)}")
+            db.rollback()
+            raise HTTPException(status_code=500, detail=f"Failed to save conversation: {str(e)}")
 
         # Format knowledge base sources for response
         kb_sources = []
@@ -1793,6 +1840,7 @@ async def chat_with_bot(
                 for result in kb_results
             ]
 
+        print(f"DEBUG: Returning ChatResponse with {len(structure_images)} structure images, {len(morphology_images)} morphology images, {len(related_videos)} videos")
         return ChatResponse(
             response=bot_response,
             conversation_id=conversation.id,
@@ -1805,6 +1853,9 @@ async def chat_with_bot(
     except HTTPException:
         raise
     except Exception as e:
+        print(f"ERROR: Unhandled exception in chatbot endpoint: {str(e)}")
+        import traceback
+        traceback.print_exc()
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error communicating with chatbot: {str(e)}")
 
@@ -1839,7 +1890,7 @@ def end_conversation(
         total_messages=len(conversation.messages) if conversation.messages else 0
     )
 
-@router.post("/chatbot/continue/{conversation_id}", response_model=StartConversationResponse)
+@router.post("/chatbot/continue/{conversation_id}", response_model=ChatbotConversationRead)
 def continue_conversation(
     conversation_id: int,
     current_user: User = Depends(get_current_active_user),
@@ -1861,11 +1912,9 @@ def continue_conversation(
     conversation.is_active = True
     conversation.ended_at = None
     db.commit()
+    db.refresh(conversation)
 
-    return StartConversationResponse(
-        conversation_id=conversation.id,
-        message="Conversation resumed"
-    )
+    return conversation
 
 @router.delete("/chatbot/delete/{conversation_id}")
 def delete_conversation(

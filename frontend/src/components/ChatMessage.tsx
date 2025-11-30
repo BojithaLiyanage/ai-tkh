@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Tooltip, Button, message as antMessage, Typography, Space } from 'antd';
 import {
   CopyOutlined,
@@ -51,6 +51,9 @@ interface ChatMessageProps {
   morphologyImages?: MorphologyImage[];
   relatedVideos?: VideoPreview[];
   userName?: string;
+  isLoading?: boolean;
+  isNew?: boolean;
+  onMediaLoad?: () => void;
 }
 
 const ChatMessage: React.FC<ChatMessageProps> = ({
@@ -60,8 +63,61 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   structureImages,
   morphologyImages,
   relatedVideos,
+  isLoading = false,
+  isNew = false,
+  onMediaLoad,
 }) => {
   const [copied, setCopied] = useState(false);
+  const [displayedText, setDisplayedText] = useState('');
+  const [isTyping, setIsTyping] = useState(true);
+  const [showMedia, setShowMedia] = useState(false);
+  const [userWantsMedia, setUserWantsMedia] = useState<boolean | null>(null);
+
+  // Typing animation effect - animate only for new AI messages
+  useEffect(() => {
+    if (role !== 'ai' || !isNew) {
+      setDisplayedText(content);
+      setIsTyping(false);
+      setShowMedia(true);
+      return;
+    }
+
+    setIsTyping(true);
+    setDisplayedText('');
+    setShowMedia(false);
+    let currentIndex = 0;
+
+    const typingInterval = setInterval(() => {
+      if (currentIndex < content.length) {
+        setDisplayedText(content.slice(0, currentIndex + 1));
+        currentIndex++;
+      } else {
+        clearInterval(typingInterval);
+        setIsTyping(false);
+        // Show media after typing completes
+        setTimeout(() => {
+          setShowMedia(true);
+          onMediaLoad?.();
+        }, 500);
+      }
+    }, 15); // Type speed: 15ms per character
+
+    return () => clearInterval(typingInterval);
+  }, [content, role, isNew]);
+
+  // Trigger scroll when user accepts media
+  useEffect(() => {
+    if (userWantsMedia === true) {
+      onMediaLoad?.();
+    }
+  }, [userWantsMedia]);
+
+  // Trigger scroll as text is being typed
+  useEffect(() => {
+    if (isTyping && isNew && role === 'ai') {
+      onMediaLoad?.();
+    }
+  }, [displayedText, isTyping, isNew, role]);
 
   // Extract YouTube video ID from URL
   const getYouTubeThumbnail = (url: string): string | null => {
@@ -113,9 +169,10 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
             <div className="bg-gradient-to-br from-white to-blue-50 p-5 rounded-2xl shadow-md border border-blue-100 hover:shadow-lg transition-shadow duration-200">
               <Paragraph
                 className="text-gray-800 whitespace-pre-wrap leading-relaxed mb-0"
-                style={{ fontSize: '15px' }}
+                style={{ fontSize: '15px', minHeight: '24px' }}
               >
-                {content}
+                {displayedText}
+                {isTyping && <span className="animate-pulse">▌</span>}
               </Paragraph>
             </div>
 
@@ -138,8 +195,38 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
             </div>
           </div>
 
+          {/* Media Prompt - Ask user if they need diagrams/images */}
+          {showMedia && userWantsMedia === null && (structureImages?.length || morphologyImages?.length || relatedVideos?.length) ? (
+            <div className="flex mt-3 ">
+              <p className="text-sm text-blue-700 mr-5">
+               <span className="font-medium">Do you need to see {[
+                  structureImages?.length && 'structure diagrams',
+                  morphologyImages?.length && 'morphology images',
+                  relatedVideos?.length && 'related materials'
+                ].filter(Boolean).join(', ')}?</span>
+              </p>
+              <Space size="small">
+                <Button
+                  type="default"
+                  size="small"
+                  onClick={() => setUserWantsMedia(true)}
+                  // className="bg-blue-600 hover:bg-blue-700"
+                >
+                  Yes
+                </Button>
+                <Button
+                  type="default"
+                  size="small"
+                  onClick={() => setUserWantsMedia(false)}
+                >
+                  No
+                </Button>
+              </Space>
+            </div>
+          ) : null}
+
           {/* Structure Images (if any) */}
-          {structureImages && structureImages.length > 0 && (
+          {showMedia && userWantsMedia && structureImages && structureImages.length > 0 && (
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <div className="h-px flex-1 bg-gradient-to-r from-transparent via-blue-300 to-transparent"></div>
@@ -176,7 +263,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
           )}
 
           {/* Morphology Images (if any) */}
-          {morphologyImages && morphologyImages.length > 0 && (
+          {showMedia && userWantsMedia && morphologyImages && morphologyImages.length > 0 && (
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <div className="h-px flex-1 bg-gradient-to-r from-transparent via-green-300 to-transparent"></div>
@@ -213,7 +300,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
           )}
 
           {/* Fiber Cards (if any) */}
-          {fiberCards && fiberCards.length > 0 && (
+          {showMedia && userWantsMedia && fiberCards && fiberCards.length > 0 && (
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <div className="h-px flex-1 bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
@@ -232,7 +319,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
           )}
 
           {/* Related Videos (if any) */}
-          {relatedVideos && relatedVideos.length > 0 && (
+          {showMedia && userWantsMedia && relatedVideos && relatedVideos.length > 0 && (
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <div className="h-px flex-1 bg-gradient-to-r from-transparent via-purple-300 to-transparent"></div>
