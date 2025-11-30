@@ -288,7 +288,11 @@ class Fiber(Base):
     molecular_structure_smiles = Column(Text)
     structure_image_cms_id = Column(String(255))
     structure_image_url = Column(Text)
-    
+
+    # Morphology
+    morphology_image_cms_id = Column(String(255))
+    morphology_image_url = Column(Text)
+
     # Sustainability
     biodegradability = Column(Boolean)
     sustainability_notes = Column(Text)

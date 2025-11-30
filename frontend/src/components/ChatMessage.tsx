@@ -27,6 +27,13 @@ interface StructureImage {
   image_cms_id?: string;
 }
 
+interface MorphologyImage {
+  fiber_name: string;
+  image_url: string;
+  fiber_id: string;
+  image_cms_id?: string;
+}
+
 interface VideoPreview {
   id: number;
   fiber_id: number;
@@ -41,6 +48,7 @@ interface ChatMessageProps {
   content: string;
   fiberCards?: FiberCardData[];
   structureImages?: StructureImage[];
+  morphologyImages?: MorphologyImage[];
   relatedVideos?: VideoPreview[];
   userName?: string;
 }
@@ -50,6 +58,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   content,
   fiberCards,
   structureImages,
+  morphologyImages,
   relatedVideos,
 }) => {
   const [copied, setCopied] = useState(false);
@@ -154,6 +163,43 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
                       <img
                         src={img.image_url}
                         alt={`${img.fiber_name} structure`}
+                        className="max-w-full max-h-[250px] object-contain"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23f3f4f6" width="200" height="200"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%239ca3af"%3EImage not available%3C/text%3E%3C/svg%3E';
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Morphology Images (if any) */}
+          {morphologyImages && morphologyImages.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-green-300 to-transparent"></div>
+                <span className="text-xs font-medium text-green-600 uppercase tracking-wide px-2">
+                  Morphology Images
+                </span>
+                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-green-300 to-transparent"></div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {morphologyImages.map((img, idx) => (
+                  <div
+                    key={idx}
+                    className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow duration-200"
+                  >
+                    <div className="p-3 bg-gradient-to-r from-green-50 to-emerald-50 border-b border-gray-200">
+                      <h4 className="font-semibold text-gray-800 text-sm">{img.fiber_name}</h4>
+                      <p className="text-xs text-gray-500 mt-0.5">Microscopic Appearance</p>
+                    </div>
+                    <div className="p-4 bg-white flex items-center justify-center min-h-[200px]">
+                      <img
+                        src={img.image_url}
+                        alt={`${img.fiber_name} morphology`}
                         className="max-w-full max-h-[250px] object-contain"
                         onError={(e) => {
                           (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23f3f4f6" width="200" height="200"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%239ca3af"%3EImage not available%3C/text%3E%3C/svg%3E';

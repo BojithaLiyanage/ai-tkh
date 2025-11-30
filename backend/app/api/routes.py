@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Response, Request
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Response, Request, Form
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import select
 from datetime import timedelta, datetime, timezone
@@ -1349,12 +1349,13 @@ def get_fibers_for_comparison(
 @router.post("/upload/image")
 def upload_image(
     file: UploadFile = File(...),
-    folder: str = "fibers",
+    folder: str = Form("fibers"),
+    public_id: Optional[str] = Form(None),
     current_user: User = Depends(get_current_active_user)
 ):
-    """Upload an image to Cloudinary"""
+    """Upload an image to Cloudinary with optional custom filename"""
     try:
-        result = get_cloudinary_service().upload_image(file, folder)
+        result = get_cloudinary_service().upload_image(file, folder, public_id)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1527,6 +1528,7 @@ async def chat_with_bot(
 
         fiber_context = ""
         structure_images = []  # Will store structure images if requested
+        morphology_images = []  # Will store morphology images if requested
         related_videos = []  # Will store related video links
         search_results = []  # Initialize to avoid UnboundLocalError
 
@@ -1631,6 +1633,17 @@ async def chat_with_bot(
                     if requested_fiber:
                         print(f"DEBUG: Filtered to requested fiber: {requested_fiber}")
                     for img in structure_images:
+                        print(f"  - {img['fiber_name']}: {img['image_url']}")
+
+                # Extract morphology images if user is asking for morphology/microscopic images
+                if intent.get("needs_morphology"):
+                    # If a specific fiber was requested, only show that fiber's image
+                    requested_fiber = intent.get("entities", {}).get("fiber_name")
+                    morphology_images = fiber_service.extract_morphology_images(search_results, requested_fiber)
+                    print(f"DEBUG: Extracted {len(morphology_images)} morphology images")
+                    if requested_fiber:
+                        print(f"DEBUG: Filtered to requested fiber: {requested_fiber}")
+                    for img in morphology_images:
                         print(f"  - {img['fiber_name']}: {img['image_url']}")
 
                 # Extract related videos from fibers with video descriptions matching the query
@@ -1779,6 +1792,7 @@ async def chat_with_bot(
             conversation_id=conversation.id,
             fiber_cards=[],
             structure_images=structure_images,
+            morphology_images=morphology_images,
             related_videos=related_videos,
             knowledge_base_sources=kb_sources
         )

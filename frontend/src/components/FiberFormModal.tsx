@@ -90,7 +90,7 @@ const FiberFormModal: React.FC<FiberFormModalProps> = ({
         ];
 
         // Handle string fields that should be empty strings if null
-        const stringFields = ['structure_image_url', 'structure_image_id'];
+        const stringFields = ['structure_image_url', 'structure_image_cms_id', 'morphology_image_url', 'morphology_image_cms_id'];
 
         numericFields.forEach(field => {
           if (processedData[field] === null || processedData[field] === undefined) {
@@ -164,7 +164,9 @@ const FiberFormModal: React.FC<FiberFormModalProps> = ({
             repeating_unit: '',
             molecular_structure_smiles: '',
             structure_image_url: '',
-            structure_image_id: '',
+            structure_image_cms_id: '',
+            morphology_image_url: '',
+            morphology_image_cms_id: '',
             biodegradability: null,
             sustainability_notes: '',
             environmental_impact_score: '',
@@ -267,9 +269,23 @@ const FiberFormModal: React.FC<FiberFormModalProps> = ({
         if (submitData.structure_image_url === '') {
           submitData.structure_image_url = null;
         }
-        if (submitData.structure_image_id === '') {
-          submitData.structure_image_id = null;
+        if (submitData.structure_image_cms_id === '') {
+          submitData.structure_image_cms_id = null;
         }
+        if (submitData.morphology_image_url === '') {
+          submitData.morphology_image_url = null;
+        }
+        if (submitData.morphology_image_cms_id === '') {
+          submitData.morphology_image_cms_id = null;
+        }
+
+        // Debug log for image fields
+        console.log('Image fields being submitted:', {
+          structure_image_url: submitData.structure_image_url,
+          structure_image_cms_id: submitData.structure_image_cms_id,
+          morphology_image_url: submitData.morphology_image_url,
+          morphology_image_cms_id: submitData.morphology_image_cms_id
+        });
       }
 
       await onSubmit(submitData);
@@ -703,13 +719,30 @@ const FiberFormModal: React.FC<FiberFormModalProps> = ({
               <div style={{ marginBottom: '16px' }}>
                 <ImageUploadComponent
                   value={formData.structure_image_url || null}
-                  publicId={formData.structure_image_id || null}
+                  publicId={formData.structure_image_cms_id || null}
                   onChange={(imageUrl, publicId) => {
                     handleInputChange('structure_image_url', imageUrl || '');
-                    handleInputChange('structure_image_id', publicId || '');
+                    handleInputChange('structure_image_cms_id', publicId || '');
                   }}
                   label="Structure Image"
                   disabled={loading}
+                  customFileName={formData.fiber_id ? `${formData.fiber_id}_structure` : undefined}
+                  folder="fibers/structure"
+                />
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <ImageUploadComponent
+                  value={formData.morphology_image_url || null}
+                  publicId={formData.morphology_image_cms_id || null}
+                  onChange={(imageUrl, publicId) => {
+                    handleInputChange('morphology_image_url', imageUrl || '');
+                    handleInputChange('morphology_image_cms_id', publicId || '');
+                  }}
+                  label="Morphology Image"
+                  disabled={loading}
+                  customFileName={formData.fiber_id ? `${formData.fiber_id}` : undefined}
+                  folder="morphology"
                 />
               </div>
             </div>
