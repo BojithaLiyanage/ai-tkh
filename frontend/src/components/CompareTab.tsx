@@ -39,20 +39,33 @@ ChartJS.register(
 );
 
 const PROPERTIES = [
-  { value: 'density_g_cm3', label: 'Density (g/cm³)', unit: 'g/cm³', type: 'single' },
+  { value: 'density_g_cm3', label: 'Density (g/cm³)', unit: 'g/cm³', type: 'range' },
   { value: 'fineness', label: 'Fineness (μm)', unit: 'μm', type: 'range' },
   { value: 'staple_length', label: 'Staple Length (mm)', unit: 'mm', type: 'range' },
   { value: 'tenacity', label: 'Tenacity (CN/Tex)', unit: 'CN/Tex', type: 'range' },
   { value: 'elongation', label: 'Elongation (%)', unit: '%', type: 'range' },
-  { value: 'moisture_regain_percent', label: 'Moisture Regain (%)', unit: '%', type: 'single' },
+  { value: 'moisture_regain', label: 'Moisture Regain (%)', unit: '%', type: 'range' },
+  { value: 'absorption_capacity', label: 'Absorption Capacity (%)', unit: '%', type: 'range' },
   { value: 'elastic_modulus', label: 'Elastic Modulus (GPa)', unit: 'GPa', type: 'range' },
 ];
 
-// Helper function to get property value from fiber data
+// Fiber class color mapping - 5 distinct colors for different fiber classes
+const FIBER_CLASS_COLORS: { [key: string]: string } = {
+  'natural': '#FF6B6B',        // Red
+  'synthetic': '#4ECDC4',      // Teal
+  'animal': '#45B7D1', // Blue
+  'regenerated': '#FFA500',        // Orange
+  'citrus-derived regenerated': '#9B59B6',        // Purple
+};
+
+// Helper function to get property value from fiber data (averages min/max ranges)
 const getPropertyValue = (fiber: FiberComparison, propertyKey: string): number | null => {
   switch (propertyKey) {
     case 'density_g_cm3':
-      return fiber.density_g_cm3;
+      if (fiber.density_g_cm3_min && fiber.density_g_cm3_max) {
+        return (fiber.density_g_cm3_min + fiber.density_g_cm3_max) / 2;
+      }
+      return null;
     case 'fineness':
       if (fiber.fineness_min_um && fiber.fineness_max_um) {
         return (fiber.fineness_min_um + fiber.fineness_max_um) / 2;
@@ -73,8 +86,16 @@ const getPropertyValue = (fiber: FiberComparison, propertyKey: string): number |
         return (fiber.elongation_min_percent + fiber.elongation_max_percent) / 2;
       }
       return null;
-    case 'moisture_regain_percent':
-      return fiber.moisture_regain_percent;
+    case 'moisture_regain':
+      if (fiber.moisture_regain_min_percent && fiber.moisture_regain_max_percent) {
+        return (fiber.moisture_regain_min_percent + fiber.moisture_regain_max_percent) / 2;
+      }
+      return null;
+    case 'absorption_capacity':
+      if (fiber.absorption_capacity_min_percent && fiber.absorption_capacity_max_percent) {
+        return (fiber.absorption_capacity_min_percent + fiber.absorption_capacity_max_percent) / 2;
+      }
+      return null;
     case 'elastic_modulus':
       if (fiber.elastic_modulus_min_gpa && fiber.elastic_modulus_max_gpa) {
         return (fiber.elastic_modulus_min_gpa + fiber.elastic_modulus_max_gpa) / 2;
@@ -197,23 +218,58 @@ const CompareTab: React.FC<{ defaultTab?: string }> = ({ defaultTab = 'chart-com
 
   const MIN_CHART_WIDTH = Math.max(validData.length * 40, 600);
 
-  const chartData = {
-    labels: xAxisData,
-    datasets: [
+  // Get color for each fiber based on its class
+  const getBarColors = () => {
+    return validData.map(fiber => {
+      const className = fiber.fiber_class?.name?.toLowerCase() || 'default';
+      return FIBER_CLASS_COLORS[className] || '#808080';
+    });
+  };
+
+  const barColors = getBarColors();
+
+  // For line charts, create dataset with gray line and class-colored points
+  const getLineChartDatasets = () => {
+    if (chartType === 'bar') {
+      return [
+        {
+          label: currentProperty?.label,
+          data: yAxisData,
+          backgroundColor: barColors,
+          borderColor: barColors,
+          borderWidth: 0,
+          tension: 0.4,
+        },
+      ];
+    }
+
+    // For line chart: single gray line with class-colored points
+    const pointColors = validData.map(fiber => {
+      const className = fiber.fiber_class?.name?.toLowerCase() || 'default';
+      return FIBER_CLASS_COLORS[className] || '#808080';
+    });
+
+    return [
       {
         label: currentProperty?.label,
         data: yAxisData,
-        backgroundColor: chartType === 'bar' ? '#65a0ffff' : 'rgba(59, 130, 246, 0.2)',
-        borderColor: chartType === 'bar' ? '#3b82f6' : '#3b82f6',
-        borderWidth: chartType === 'bar' ? 0 : 2,
+        borderColor: '#999999',
+        backgroundColor: 'rgba(153, 153, 153, 0.05)',
+        borderWidth: 2,
         tension: 0.4,
-        pointBackgroundColor: '#0a68ffff',
+        pointBackgroundColor: pointColors,
         pointBorderColor: '#fff',
         pointBorderWidth: 2,
-        pointRadius: chartType === 'line' ? 4 : 0,
-        pointHoverRadius: chartType === 'line' ? 6 : 0,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        fill: false,
       },
-    ],
+    ];
+  };
+
+  const chartData = {
+    labels: xAxisData,
+    datasets: getLineChartDatasets(),
   };
 
   const chartOptions: any = {
@@ -273,7 +329,13 @@ const CompareTab: React.FC<{ defaultTab?: string }> = ({ defaultTab = 'chart-com
   const allFiberProperties = [
     { key: 'fiber_id', label: 'Fiber ID', category: 'Basic Info' },
     { key: 'name', label: 'Name', category: 'Basic Info' },
-    { key: 'density_g_cm3', label: 'Density (g/cm³)', category: 'Physical Properties' },
+    {
+      key: 'density',
+      label: 'Density (g/cm³)',
+      category: 'Physical Properties',
+      minKey: 'density_g_cm3_min',
+      maxKey: 'density_g_cm3_max'
+    },
     {
       key: 'fineness',
       label: 'Fineness (μm)',
@@ -302,8 +364,20 @@ const CompareTab: React.FC<{ defaultTab?: string }> = ({ defaultTab = 'chart-com
       minKey: 'elongation_min_percent',
       maxKey: 'elongation_max_percent'
     },
-    { key: 'moisture_regain_percent', label: 'Moisture Regain (%)', category: 'Physical Properties' },
-    { key: 'absorption_capacity_percent', label: 'Absorption Capacity (%)', category: 'Physical Properties' },
+    {
+      key: 'moisture_regain',
+      label: 'Moisture Regain (%)',
+      category: 'Physical Properties',
+      minKey: 'moisture_regain_min_percent',
+      maxKey: 'moisture_regain_max_percent'
+    },
+    {
+      key: 'absorption_capacity',
+      label: 'Absorption Capacity (%)',
+      category: 'Physical Properties',
+      minKey: 'absorption_capacity_min_percent',
+      maxKey: 'absorption_capacity_max_percent'
+    },
     {
       key: 'elastic_modulus',
       label: 'Elastic Modulus (GPa)',
@@ -316,14 +390,11 @@ const CompareTab: React.FC<{ defaultTab?: string }> = ({ defaultTab = 'chart-com
     { key: 'acid_resistance', label: 'Acid Resistance', category: 'Chemical Properties' },
     { key: 'alkali_resistance', label: 'Alkali Resistance', category: 'Chemical Properties' },
     { key: 'microbial_resistance', label: 'Microbial Resistance', category: 'Chemical Properties' },
-    { key: 'glass_transition_temp_c', label: 'Glass Transition Temp (°C)', category: 'Thermal Properties' },
-    { key: 'melting_point_c', label: 'Melting Point (°C)', category: 'Thermal Properties' },
-    { key: 'decomposition_temp_c', label: 'Decomposition Temp (°C)', category: 'Thermal Properties' },
+    { key: 'thermal_properties', label: 'Thermal Properties', category: 'Thermal Properties' },
     { key: 'repeating_unit', label: 'Repeating Unit', category: 'Structure' },
-    { key: 'molecular_structure_smiles', label: 'Molecular Structure (SMILES)', category: 'Structure' },
+    { key: 'structure_image_url', label: 'Structure Image', category: 'Structure' },
     { key: 'biodegradability', label: 'Biodegradability', category: 'Sustainability' },
     { key: 'sustainability_notes', label: 'Sustainability Notes', category: 'Sustainability' },
-    { key: 'environmental_impact_score', label: 'Environmental Impact Score', category: 'Sustainability' },
   ];
 
   // Helper function to get property value from fiber (handles min/max ranges)
@@ -404,7 +475,9 @@ const CompareTab: React.FC<{ defaultTab?: string }> = ({ defaultTab = 'chart-com
                 >
                   {fiberClasses.map(fiberClass => (
                     <Option key={fiberClass.id} value={fiberClass.name}>
-                      <Tag color="blue">{fiberClass.name}</Tag>
+                      <Tag color={FIBER_CLASS_COLORS[fiberClass.name.toLowerCase()] || '#808080'}>
+                        {fiberClass.name}
+                      </Tag>
                     </Option>
                   ))}
                 </Select>
@@ -501,6 +574,22 @@ const CompareTab: React.FC<{ defaultTab?: string }> = ({ defaultTab = 'chart-com
                 </div>
               </div>
 
+              {/* Fiber Class Legend */}
+              <div className="border-t border-gray-200 pt-4 mt-4">
+                <div className="text-sm font-semibold text-gray-700 mb-3">Fiber Class Colors:</div>
+                <div className="flex flex-col gap-2">
+                  {Object.entries(FIBER_CLASS_COLORS).map(([className, color]) => (
+                    <div key={className} className="flex items-center gap-2">
+                      <div
+                        className="w-4 h-4 rounded flex-shrink-0"
+                        style={{ backgroundColor: color }}
+                      />
+                      <span className="text-xs text-gray-600 capitalize">{className}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               {/* Statistics Section - Right 1/3 */}
               <div className="border-l border-gray-200 pl-6" style={{ width: '33.333%' }}>
                 <div className="flex items-center gap-2 mb-4">
@@ -527,7 +616,7 @@ const CompareTab: React.FC<{ defaultTab?: string }> = ({ defaultTab = 'chart-com
                         </div>
                         <div className="text-xs text-gray-500 mb-2">{currentProperty?.unit}</div>
                         <Tag color="blue" className="text-xs">
-                          {maxFiber?.name || 'N/A'}
+                          {maxFiber?.fiber_id || 'N/A'}
                         </Tag>
                       </div>
                     </div>
@@ -548,7 +637,7 @@ const CompareTab: React.FC<{ defaultTab?: string }> = ({ defaultTab = 'chart-com
                         </div>
                         <div className="text-xs text-gray-500 mb-2">{currentProperty?.unit}</div>
                         <Tag color="green" className="text-xs">
-                          {minFiber?.name || 'N/A'}
+                          {minFiber?.fiber_id || 'N/A'}
                         </Tag>
                       </div>
                     </div>

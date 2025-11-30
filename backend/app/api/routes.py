@@ -1326,8 +1326,9 @@ def get_fibers_for_comparison(
                 "id": fiber.fiber_class.id,
                 "name": fiber.fiber_class.name
             } if fiber.fiber_class else None,
-            # Physical Properties
-            "density_g_cm3": to_float(fiber.density_g_cm3),
+            # Physical Properties (Updated: density now has min/max)
+            "density_g_cm3_min": to_float(fiber.density_g_cm3_min),
+            "density_g_cm3_max": to_float(fiber.density_g_cm3_max),
             "fineness_min_um": to_float(fiber.fineness_min_um),
             "fineness_max_um": to_float(fiber.fineness_max_um),
             "staple_length_min_mm": to_float(fiber.staple_length_min_mm),
@@ -1336,7 +1337,12 @@ def get_fibers_for_comparison(
             "tenacity_max_cn_tex": to_float(fiber.tenacity_max_cn_tex),
             "elongation_min_percent": to_float(fiber.elongation_min_percent),
             "elongation_max_percent": to_float(fiber.elongation_max_percent),
-            "moisture_regain_percent": to_float(fiber.moisture_regain_percent),
+            # Updated: moisture_regain now has min/max
+            "moisture_regain_min_percent": to_float(fiber.moisture_regain_min_percent),
+            "moisture_regain_max_percent": to_float(fiber.moisture_regain_max_percent),
+            # Updated: absorption_capacity now has min/max
+            "absorption_capacity_min_percent": to_float(fiber.absorption_capacity_min_percent),
+            "absorption_capacity_max_percent": to_float(fiber.absorption_capacity_max_percent),
             # Mechanical Properties
             "elastic_modulus_min_gpa": to_float(fiber.elastic_modulus_min_gpa),
             "elastic_modulus_max_gpa": to_float(fiber.elastic_modulus_max_gpa),
