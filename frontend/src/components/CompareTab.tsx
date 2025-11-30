@@ -45,7 +45,6 @@ const PROPERTIES = [
   { value: 'tenacity', label: 'Tenacity (CN/Tex)', unit: 'CN/Tex', type: 'range' },
   { value: 'elongation', label: 'Elongation (%)', unit: '%', type: 'range' },
   { value: 'moisture_regain', label: 'Moisture Regain (%)', unit: '%', type: 'range' },
-  { value: 'absorption_capacity', label: 'Absorption Capacity (%)', unit: '%', type: 'range' },
   { value: 'elastic_modulus', label: 'Elastic Modulus (GPa)', unit: 'GPa', type: 'range' },
 ];
 
@@ -89,11 +88,6 @@ const getPropertyValue = (fiber: FiberComparison, propertyKey: string): number |
     case 'moisture_regain':
       if (fiber.moisture_regain_min_percent && fiber.moisture_regain_max_percent) {
         return (fiber.moisture_regain_min_percent + fiber.moisture_regain_max_percent) / 2;
-      }
-      return null;
-    case 'absorption_capacity':
-      if (fiber.absorption_capacity_min_percent && fiber.absorption_capacity_max_percent) {
-        return (fiber.absorption_capacity_min_percent + fiber.absorption_capacity_max_percent) / 2;
       }
       return null;
     case 'elastic_modulus':
