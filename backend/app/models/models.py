@@ -254,7 +254,8 @@ class Fiber(Base):
     dye_affinity = Column(ARRAY(Text))
     
     # Physical Properties (Separate min/max for ranges)
-    density_g_cm3 = Column(DECIMAL(8, 3))
+    density_g_cm3_min = Column(DECIMAL(8, 3))
+    density_g_cm3_max = Column(DECIMAL(8, 3))
     fineness_min_um = Column(DECIMAL(8, 2))
     fineness_max_um = Column(DECIMAL(8, 2))
     staple_length_min_mm = Column(DECIMAL(10, 2))
@@ -263,8 +264,10 @@ class Fiber(Base):
     tenacity_max_cn_tex = Column(DECIMAL(8, 2))
     elongation_min_percent = Column(DECIMAL(6, 2))
     elongation_max_percent = Column(DECIMAL(6, 2))
-    moisture_regain_percent = Column(DECIMAL(5, 2))
-    absorption_capacity_percent = Column(DECIMAL(6, 2))
+    moisture_regain_min_percent = Column(DECIMAL(5, 2))
+    moisture_regain_max_percent = Column(DECIMAL(5, 2))
+    absorption_capacity_min_percent = Column(DECIMAL(6, 2))
+    absorption_capacity_max_percent = Column(DECIMAL(6, 2))
     
     # Chemical Properties
     polymer_composition = Column(Text)
@@ -275,9 +278,6 @@ class Fiber(Base):
     
     # Thermal Properties
     thermal_properties = Column(Text)
-    glass_transition_temp_c = Column(DECIMAL(6, 2))
-    melting_point_c = Column(DECIMAL(6, 2))
-    decomposition_temp_c = Column(DECIMAL(6, 2))
 
     # Mechanical Properties
     elastic_modulus_min_gpa = Column(DECIMAL(8, 2))
@@ -285,7 +285,6 @@ class Fiber(Base):
 
     # Structure
     repeating_unit = Column(Text)
-    molecular_structure_smiles = Column(Text)
     structure_image_cms_id = Column(String(255))
     structure_image_url = Column(Text)
 
@@ -296,8 +295,7 @@ class Fiber(Base):
     # Sustainability
     biodegradability = Column(Boolean)
     sustainability_notes = Column(Text)
-    environmental_impact_score = Column(Integer)
-    
+
     # Identification and Testing
     identification_methods = Column(Text)
     property_analysis_methods = Column(Text)
@@ -707,7 +705,8 @@ class FiberDetailResponse(BaseModel):
     dye_affinity: Optional[List[str]] = []
     
     # Physical Properties
-    density_g_cm3: Optional[float] = None
+    density_g_cm3_min: Optional[float] = None
+    density_g_cm3_max: Optional[float] = None
     fineness_min_um: Optional[float] = None
     fineness_max_um: Optional[float] = None
     staple_length_min_mm: Optional[float] = None
@@ -716,8 +715,10 @@ class FiberDetailResponse(BaseModel):
     tenacity_max_cn_tex: Optional[float] = None
     elongation_min_percent: Optional[float] = None
     elongation_max_percent: Optional[float] = None
-    moisture_regain_percent: Optional[float] = None
-    absorption_capacity_percent: Optional[float] = None
+    moisture_regain_min_percent: Optional[float] = None
+    moisture_regain_max_percent: Optional[float] = None
+    absorption_capacity_min_percent: Optional[float] = None
+    absorption_capacity_max_percent: Optional[float] = None
     
     # Chemical Properties
     polymer_composition: Optional[str] = None
@@ -728,9 +729,6 @@ class FiberDetailResponse(BaseModel):
     
     # Thermal Properties
     thermal_properties: Optional[str] = None
-    glass_transition_temp_c: Optional[float] = None
-    melting_point_c: Optional[float] = None
-    decomposition_temp_c: Optional[float] = None
 
     # Mechanical Properties
     elastic_modulus_min_gpa: Optional[float] = None
@@ -738,14 +736,12 @@ class FiberDetailResponse(BaseModel):
 
     # Structure
     repeating_unit: Optional[str] = None
-    molecular_structure_smiles: Optional[str] = None
     structure_image_cms_id: Optional[str] = None
     structure_image_url: Optional[str] = None
-    
+
     # Sustainability
     biodegradability: Optional[bool] = None
     sustainability_notes: Optional[str] = None
-    environmental_impact_score: Optional[int] = None
     
     # Identification
     identification_methods: Optional[str] = None

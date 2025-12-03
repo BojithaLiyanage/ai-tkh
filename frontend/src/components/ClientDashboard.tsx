@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { Tooltip, Layout, Menu, Card, Tag, Button, Input, Badge, Divider, Space } from 'antd';
 import {
@@ -26,6 +26,7 @@ import ChatMessage from './ChatMessage';
 import Navbar from './Navbar';
 import { ChartComparisonView, PairComparisonView } from './CompareTab';
 import AssessmentTab from './AssessmentTab';
+import FiberBackground from './FiberBackground';
 
 const { Sider, Content: AntContent } = Layout;
 
@@ -59,6 +60,7 @@ interface Message {
   structureImages?: StructureImage[];
   morphologyImages?: MorphologyImage[];
   relatedVideos?: VideoPreview[];
+  isNew?: boolean;
 }
 
 // Animated thinking loader component
@@ -147,6 +149,23 @@ const ChatView: React.FC<{
   isPanelCollapsed,
   setIsPanelCollapsed,
 }) => {
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    const scrollTimer = setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 0);
+    return () => clearTimeout(scrollTimer);
+  }, [messages, isSending]);
+
+  // Callback for when media loads in ChatMessage component
+  const handleMediaLoad = useCallback(() => {
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 0);
+  }, []);
+
   const fetchConversationHistory = async () => {
     setLoadingHistory(true);
     try {
@@ -161,10 +180,14 @@ const ChatView: React.FC<{
 
   const handleNewChat = async () => {
     try {
-      const response = await chatbotApi.startConversation();
-      setConversationId(response.conversation_id);
-      setIsConversationActive(true);
-      setMessages([{ role: 'ai', content: 'Hello! How can I assist you with textile and fiber questions today?' }]);
+      const conversation = await chatbotApi.startConversation();
+      setConversationId(conversation.id);
+      setIsConversationActive(conversation.is_active);
+      setMessages(conversation.messages.map(msg => ({
+        role: msg.role as 'user' | 'ai',
+        content: msg.content,
+        isNew: false
+      })));
       fetchConversationHistory();
     } catch (error) {
       console.error('Error starting conversation:', error);
@@ -177,7 +200,8 @@ const ChatView: React.FC<{
     setIsConversationActive(conversation.is_active);
     setMessages(conversation.messages.map(msg => ({
       role: msg.role as 'user' | 'ai',
-      content: msg.content
+      content: msg.content,
+      isNew: false
     })));
   };
 
@@ -219,27 +243,35 @@ const ChatView: React.FC<{
     const userMessage = inputMessage.trim();
     setInputMessage('');
 
-    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    setMessages(prev => [...prev, { role: 'user', content: userMessage, isNew: true }]);
     setIsSending(true);
 
     try {
       if (!isConversationActive) {
         await chatbotApi.continueConversation(conversationId);
         setIsConversationActive(true);
-        fetchConversationHistory();
       }
 
       const response = await chatbotApi.sendMessage(userMessage, conversationId);
       setMessages(prev => [...prev, {
         role: 'ai',
         content: response.response,
+        isNew: true,
         fiberCards: response.fiber_cards,
         structureImages: response.structure_images,
         morphologyImages: response.morphology_images,
         relatedVideos: response.related_videos
       }]);
 
-      fetchConversationHistory();
+      // Update only the current conversation in history without re-fetching entire list
+      // This keeps the sidebar card updated without flickering
+      setConversationHistory(prev =>
+        prev.map(conv =>
+          conv.id === conversationId
+            ? { ...conv, messages: [...conv.messages, { role: 'user', content: userMessage }, { role: 'ai', content: response.response }] }
+            : conv
+        )
+      );
     } catch (error) {
       console.error('Error sending message:', error);
       setMessages(prev => [...prev, { role: 'ai', content: 'Sorry, I encountered an error. Please try again.' }]);
@@ -288,7 +320,7 @@ const ChatView: React.FC<{
               zIndex: isPanelCollapsed ? 2 : 1,
             }}
           >
-            <Tooltip title="Show Chat History" placement="right">
+            {/* <Tooltip title="Show Chat History" placement="right"> */}
               <Button
                 shape="circle"
                 size="large"
@@ -296,9 +328,9 @@ const ChatView: React.FC<{
                 onClick={() => setIsPanelCollapsed(false)}
                 className="shadow-lg hover:shadow-xl transition-all duration-200"
               />
-            </Tooltip>
+            {/* </Tooltip> */}
             <Divider className="my-2 w-8" />
-            <Tooltip title="New Conversation" placement="right">
+            {/* <Tooltip title="New Conversation" placement="right"> */}
               <Button
                 type="primary"
                 shape="circle"
@@ -307,7 +339,7 @@ const ChatView: React.FC<{
                 onClick={handleNewChat}
                 className="shadow-lg hover:shadow-xl transition-all duration-200"
               />
-            </Tooltip>
+            {/* </Tooltip> */}
           </div>
 
           {/* Expanded State - Full Panel */}
@@ -328,7 +360,7 @@ const ChatView: React.FC<{
                     Chat History
                   </h3>
                 </Space>
-                <Tooltip title="Collapse Panel">
+                {/* <Tooltip title="Collapse Panel"> */}
                   <Button
                     type="text"
                     size="small"
@@ -336,7 +368,7 @@ const ChatView: React.FC<{
                     onClick={() => setIsPanelCollapsed(true)}
                     className="hover:bg-gray-100 transition-colors duration-200"
                   />
-                </Tooltip>
+                {/* </Tooltip> */}
               </div>
               <Button
                 type="primary"
@@ -365,7 +397,7 @@ const ChatView: React.FC<{
                 <Space direction="vertical" size="small" className="w-full">
                   {conversationHistory.map((conversation) => (
                     <Card
-                      key={conversation.id}
+                      key={`conv-${conversation.id}`}
                       hoverable
                       size="small"
                       onClick={() => loadConversation(conversation)}
@@ -406,7 +438,7 @@ const ChatView: React.FC<{
                           lineHeight: '1.4em',
                           maxHeight: '2.8em'
                         }}>
-                          {conversation.messages[0]?.content || 'New conversation'}
+                          {conversation.messages[1]?.content || 'New conversation'}
                         </p>
                         <div className="flex items-center justify-between flex-shrink-0">
                           <span className="text-xs text-gray-400 truncate">
@@ -429,15 +461,15 @@ const ChatView: React.FC<{
         <AntContent className="flex-1 flex flex-col min-w-0 h-full p-4" style={{ background: 'transparent' }}>
           <div className="flex-shrink-0 mb-4">
             <h2 className="text-2xl font-semibold text-gray-900">
-              {conversationId ? 'Chat' : 'AI Chatbot'}
+              {conversationId ? 'Chat' : ''}
             </h2>
           </div>
 
           <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
             {!conversationId || messages.length === 0 ? (
-              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-12 text-center flex-1 flex items-center justify-center overflow-y-auto">
+              <div className="rounded-lg p-12 text-center flex-1 flex items-start justify-center pt-24 overflow-y-auto">
                 <div className="max-w-md">
-                  <div className="mb-6 flex justify-center">
+                  <div className="mb-4 flex justify-center">
                     <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center">
                       <RobotOutlined className="text-4xl text-blue-600" />
                     </div>
@@ -447,15 +479,28 @@ const ChatView: React.FC<{
                     I'm here to help you with textile and fiber-related questions. Ask me anything!
                   </p>
                   <div className="flex flex-col gap-2 mb-6">
-                    <Button
-                      type="primary"
-                      size="large"
-                      icon={<RocketOutlined />}
+                    <button
                       onClick={handleNewChat}
-                      className="shadow-md"
+                      className={`
+                        px-8 py-4 rounded-full
+                        flex items-center justify-center gap-3
+                        text-white font-semibold text-lg
+                        bg-gradient-to-r from-blue-500 to-cyan-500
+                        shadow-lg shadow-blue-400/50
+
+                        transition-all duration-300 transform
+
+                        hover:shadow-[-1px_-1px_5px_rgba(255,_255,_255,_0.6),_1px_1px_5px_rgba(0,_0,_0,_0.3),inset_-2px_-2px_5px_rgba(255,_255,_255,_1),inset_2px_2px_4px_rgba(0,_0,_0,_0.3)]
+                        hover:text-white
+                        hover:scale-105
+                        hover:shadow-xl hover:shadow-blue-500/70
+
+                        active:scale-95
+                      `}
                     >
-                      Start New Conversation
-                    </Button>
+                      <RocketOutlined className="text-2xl" />
+                      <span>Start New Conversation</span>
+                    </button>
                   </div>
                   <div className="text-sm text-gray-500">
                     <p className="mb-2 font-medium">Try asking about:</p>
@@ -471,19 +516,28 @@ const ChatView: React.FC<{
               <>
                 {/* Chat Messages */}
                 <div className="flex-1 bg-gray-50 rounded-lg p-6 space-y-4 overflow-y-auto">
-                  {messages.map((msg, index) => (
-                    <ChatMessage
-                      key={index}
-                      role={msg.role}
-                      content={msg.content}
-                      fiberCards={msg.fiberCards}
-                      structureImages={msg.structureImages}
-                      morphologyImages={msg.morphologyImages}
-                      relatedVideos={msg.relatedVideos}
-                      userName={user.full_name || 'U'}
-                    />
-                  ))}
+                  {messages.map((msg, index) => {
+                    const isLastMessage = index === messages.length - 1;
+                    const isLoadingThisMessage = isLastMessage && isSending && msg.role === 'ai';
+
+                    return (
+                      <ChatMessage
+                        key={index}
+                        role={msg.role}
+                        content={msg.content}
+                        fiberCards={msg.fiberCards}
+                        structureImages={msg.structureImages}
+                        morphologyImages={msg.morphologyImages}
+                        relatedVideos={msg.relatedVideos}
+                        userName={user.full_name || 'U'}
+                        isLoading={isLoadingThisMessage}
+                        isNew={msg.isNew || false}
+                        onMediaLoad={handleMediaLoad}
+                      />
+                    );
+                  })}
                   {isSending && <ThinkingLoader />}
+                  <div ref={messagesEndRef} />
                 </div>
 
                 {/* Chat Input - Fixed at bottom */}
@@ -603,7 +657,7 @@ const ClientDashboard: React.FC = () => {
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [conversationToDelete, setConversationToDelete] = useState<number | null>(null);
-  const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
+  const [isPanelCollapsed, setIsPanelCollapsed] = useState(true);
   const [isMainSidebarCollapsed, setIsMainSidebarCollapsed] = useState(true);
 
   useEffect(() => {
@@ -714,7 +768,7 @@ const ClientDashboard: React.FC = () => {
           width={250}
           collapsedWidth={80}
           theme="light"
-          className="border-r border-gray-200"
+          className="border-r border-gray-200 relative"
           style={{
             overflow: 'auto',
             transition: 'all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1)',
@@ -722,13 +776,18 @@ const ClientDashboard: React.FC = () => {
           onMouseEnter={() => setIsMainSidebarCollapsed(false)}
           onMouseLeave={() => setIsMainSidebarCollapsed(true)}
         >
+          {(!conversationId || messages.length === 0) && (
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }}>
+              <FiberBackground />
+            </div>
+          )}
           <Menu
             mode="inline"
             selectedKeys={getSelectedKey()}
             defaultOpenKeys={getOpenKeys()}
             items={menuItems}
             className="border-r-0"
-            style={{ height: '100%' }}
+            style={{ height: '100%', position: 'relative', zIndex: 1 }}
             inlineCollapsed={isMainSidebarCollapsed}
           />
         </Sider>

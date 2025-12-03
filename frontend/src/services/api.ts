@@ -502,8 +502,9 @@ export interface FiberComparison {
     id: number;
     name: string;
   } | null;
-  // Physical Properties
-  density_g_cm3: number | null;
+  // Physical Properties (Updated: density, moisture_regain, absorption_capacity now have min/max)
+  density_g_cm3_min: number | null;
+  density_g_cm3_max: number | null;
   fineness_min_um: number | null;
   fineness_max_um: number | null;
   staple_length_min_mm: number | null;
@@ -512,7 +513,10 @@ export interface FiberComparison {
   tenacity_max_cn_tex: number | null;
   elongation_min_percent: number | null;
   elongation_max_percent: number | null;
-  moisture_regain_percent: number | null;
+  moisture_regain_min_percent: number | null;
+  moisture_regain_max_percent: number | null;
+  absorption_capacity_min_percent: number | null;
+  absorption_capacity_max_percent: number | null;
   // Mechanical Properties
   elastic_modulus_min_gpa: number | null;
   elastic_modulus_max_gpa: number | null;
@@ -795,12 +799,12 @@ export interface EndConversationResponse {
 }
 
 export const chatbotApi = {
-  startConversation: async (): Promise<StartConversationResponse> => {
+  startConversation: async (): Promise<ChatbotConversationRead> => {
     const response = await api.post('/chatbot/start');
     return response.data;
   },
 
-  continueConversation: async (conversationId: number): Promise<StartConversationResponse> => {
+  continueConversation: async (conversationId: number): Promise<ChatbotConversationRead> => {
     const response = await api.post(`/chatbot/continue/${conversationId}`);
     return response.data;
   },
