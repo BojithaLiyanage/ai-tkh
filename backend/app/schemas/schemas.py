@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, ConfigDict, EmailStr
-from typing import Optional, Literal, Any, List
+from typing import Optional, Literal, Any, List, Dict
 from datetime import datetime
 from decimal import Decimal
 
@@ -707,3 +707,55 @@ class QuizListResponse(BaseModel):
     quizzes: List[FiberQuizCard]
     total_available: int
     completed_count: int
+
+
+# ---- special fibers
+class SpecialFiberCreate(BaseModel):
+    name: str
+    properties: Dict[str, Any] = Field(default_factory=dict)
+
+
+class SpecialFiberUpdate(BaseModel):
+    name: Optional[str] = None
+    properties: Optional[Dict[str, Any]] = None
+    is_active: Optional[bool] = None
+
+
+class SpecialFiberRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    name: str
+    properties: Dict[str, Any]
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class SpecialFiberListResponse(BaseModel):
+    special_fibers: List[SpecialFiberRead]
+    total_count: int
+    page: Optional[int] = None
+    page_size: Optional[int] = None
+
+
+# ---- special fiber embeddings
+class SpecialFiberEmbeddingCreate(BaseModel):
+    content_type: str  # 'basic_info', 'properties', 'complete', etc.
+    content_text: str
+    embedding: Optional[List[float]] = None
+
+
+class SpecialFiberEmbeddingRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    special_fiber_id: int
+    content_type: str
+    content_text: str
+    embedding: Optional[List[float]] = None
+    embedding_model: str
+    created_at: datetime
+
+
+class SpecialFiberEmbeddingListResponse(BaseModel):
+    embeddings: List[SpecialFiberEmbeddingRead]
+    total_count: int

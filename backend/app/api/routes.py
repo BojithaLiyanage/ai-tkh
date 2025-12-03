@@ -7,7 +7,8 @@ from app.models.models import (
     Module, Topic, Subtopic, ContentBlock, Tag, SubtopicTag, StudyGroup, SubtopicStudyGroup, User, Client, ClientOnboarding,
     FiberClass, FiberSubtype, SyntheticType, PolymerizationType, Fiber, ChatbotConversation, FiberVideoLink, FiberEmbedding, Question,
     QuizAttempt, QuizAnswer, KnowledgeBaseDocument, KnowledgeBaseAttachment, KnowledgeBaseCreateRequest, KnowledgeBaseUpdateRequest,
-    KnowledgeBaseDocumentResponse, KnowledgeBaseDocumentSummary
+    KnowledgeBaseDocumentResponse, KnowledgeBaseDocumentSummary,
+    SpecialFiber
 )
 from app.schemas.schemas import (
     ModuleCreate, ModuleRead, TopicCreate, TopicRead,
@@ -24,7 +25,9 @@ from app.schemas.schemas import (
     FiberVideoLinkCreate, FiberVideoLinkRead, FiberVideoLinkUpdate, VideoPreview,
     QuestionCreate, QuestionRead, QuestionUpdate, QuestionWithFiberRead,
     QuizAttemptCreate, QuizAttemptStart, QuizAnswerSubmit, QuizAttemptRead, QuizAttemptDetailRead, QuizResultsResponse, FiberQuizCard, QuizListResponse, QuizAnswerRead,
-    TopicWithSubtopics, ModuleWithTopicsAndSubtopics, ContentStatsResponse
+    TopicWithSubtopics, ModuleWithTopicsAndSubtopics, ContentStatsResponse,
+    SpecialFiberCreate, SpecialFiberRead, SpecialFiberUpdate, SpecialFiberListResponse,
+    SpecialFiberEmbeddingCreate, SpecialFiberEmbeddingRead, SpecialFiberEmbeddingListResponse
 )
 from typing import List, Optional
 from app.core.auth import (
@@ -3140,3 +3143,282 @@ async def get_knowledge_base_categories(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching categories: {str(e)}")
+
+
+# ---- special fibers
+@router.post("/fiber/special-fibers", response_model=SpecialFiberRead, status_code=201)
+def create_special_fiber(
+    payload: SpecialFiberCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """
+    Create a new special fiber with dynamic properties.
+    Admin only.
+    """
+    try:
+        from app.services.special_fiber_service import SpecialFiberService
+        # Convert Pydantic model to dict
+        fiber_data = payload.model_dump()
+        special_fiber = SpecialFiberService.create_special_fiber(db, fiber_data)
+        return special_fiber
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating special fiber: {str(e)}")
+
+
+@router.get("/fiber/special-fibers/{special_fiber_id}", response_model=SpecialFiberRead)
+def get_special_fiber(
+    special_fiber_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Get a special fiber by ID with all its properties.
+    """
+    try:
+        from app.services.special_fiber_service import SpecialFiberService
+        special_fiber = SpecialFiberService.get_special_fiber(db, special_fiber_id)
+        if not special_fiber:
+            raise HTTPException(status_code=404, detail="Special fiber not found")
+        return special_fiber
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching special fiber: {str(e)}")
+
+
+@router.get("/fiber/special-fibers/by-fiber/{fiber_id}", response_model=SpecialFiberRead)
+def get_special_fiber_by_fiber_id(
+    fiber_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Get special fiber by associated regular fiber ID.
+    """
+    try:
+        from app.services.special_fiber_service import SpecialFiberService
+        special_fiber = SpecialFiberService.get_special_fiber_by_fiber_id(db, fiber_id)
+        if not special_fiber:
+            raise HTTPException(status_code=404, detail="Special fiber not found for this fiber")
+        return special_fiber
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching special fiber: {str(e)}")
+
+
+@router.put("/fiber/special-fibers/{special_fiber_id}", response_model=SpecialFiberRead)
+def update_special_fiber(
+    special_fiber_id: int,
+    payload: SpecialFiberUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """
+    Update a special fiber's metadata and properties.
+    Admin only.
+    """
+    try:
+        from app.services.special_fiber_service import SpecialFiberService
+        # Convert Pydantic model to dict, excluding unset fields
+        update_data = payload.model_dump(exclude_unset=True)
+        special_fiber = SpecialFiberService.update_special_fiber(db, special_fiber_id, update_data)
+        if not special_fiber:
+            raise HTTPException(status_code=404, detail="Special fiber not found")
+        return special_fiber
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error updating special fiber: {str(e)}")
+
+
+@router.delete("/fiber/special-fibers/{special_fiber_id}", status_code=204)
+def delete_special_fiber(
+    special_fiber_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """
+    Delete a special fiber and all associated data.
+    Admin only.
+    """
+    try:
+        from app.services.special_fiber_service import SpecialFiberService
+        success = SpecialFiberService.delete_special_fiber(db, special_fiber_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Special fiber not found")
+        return None
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting special fiber: {str(e)}")
+
+
+@router.get("/fiber/special-fibers", response_model=SpecialFiberListResponse)
+def list_special_fibers(
+    skip: int = 0,
+    limit: int = 50,
+    db: Session = Depends(get_db)
+):
+    """
+    List all special fibers with pagination.
+    """
+    try:
+        from app.services.special_fiber_service import SpecialFiberService
+        fibers, total = SpecialFiberService.list_special_fibers(db, skip, limit)
+        return {
+            "special_fibers": fibers,
+            "total_count": total,
+            "page": skip // limit if limit > 0 else 0,
+            "page_size": limit
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error listing special fibers: {str(e)}")
+
+
+# ---- Special Fiber Embeddings Endpoints ----
+
+@router.post("/fiber/special-fibers/{special_fiber_id}/embeddings", response_model=SpecialFiberEmbeddingRead, status_code=201)
+def create_special_fiber_embedding(
+    special_fiber_id: int,
+    payload: SpecialFiberEmbeddingCreate,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_admin_user)
+):
+    """
+    Create an embedding for a special fiber.
+    Only admins can create embeddings.
+    """
+    try:
+
+        from app.services.special_fiber_service import SpecialFiberEmbeddingService
+
+        # Verify special fiber exists
+        from app.models.models import SpecialFiber
+        sf = db.query(SpecialFiber).filter(SpecialFiber.id == special_fiber_id).first()
+        if not sf:
+            raise HTTPException(status_code=404, detail="Special fiber not found")
+
+        embedding = SpecialFiberEmbeddingService.create_embedding(
+            db,
+            special_fiber_id,
+            payload.content_type,
+            payload.content_text,
+            payload.embedding
+        )
+        return embedding
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating embedding: {str(e)}")
+
+
+@router.get("/fiber/special-fibers/{special_fiber_id}/embeddings/{embedding_id}", response_model=SpecialFiberEmbeddingRead)
+def get_special_fiber_embedding(
+    special_fiber_id: int,
+    embedding_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Get a specific embedding for a special fiber.
+    """
+    try:
+        from app.services.special_fiber_service import SpecialFiberEmbeddingService
+        embedding = SpecialFiberEmbeddingService.get_embedding(db, embedding_id)
+
+        if not embedding or embedding.special_fiber_id != special_fiber_id:
+            raise HTTPException(status_code=404, detail="Embedding not found")
+
+        return embedding
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving embedding: {str(e)}")
+
+
+@router.get("/fiber/special-fibers/{special_fiber_id}/embeddings", response_model=SpecialFiberEmbeddingListResponse)
+def list_special_fiber_embeddings(
+    special_fiber_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    List all embeddings for a special fiber.
+    """
+    try:
+        from app.services.special_fiber_service import SpecialFiberEmbeddingService
+        from app.models.models import SpecialFiber
+
+        # Verify special fiber exists
+        sf = db.query(SpecialFiber).filter(SpecialFiber.id == special_fiber_id).first()
+        if not sf:
+            raise HTTPException(status_code=404, detail="Special fiber not found")
+
+        embeddings = SpecialFiberEmbeddingService.list_embeddings(db, special_fiber_id)
+        return {
+            "embeddings": embeddings,
+            "total_count": len(embeddings)
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error listing embeddings: {str(e)}")
+
+
+@router.get("/fiber/special-fibers/{special_fiber_id}/embeddings/by-type/{content_type}", response_model=SpecialFiberEmbeddingRead)
+def get_special_fiber_embedding_by_type(
+    special_fiber_id: int,
+    content_type: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Get embedding by content type for a special fiber.
+    """
+    try:
+        from app.services.special_fiber_service import SpecialFiberEmbeddingService
+        embedding = SpecialFiberEmbeddingService.get_embedding_by_type(
+            db,
+            special_fiber_id,
+            content_type
+        )
+
+        if not embedding:
+            raise HTTPException(status_code=404, detail="Embedding not found")
+
+        return embedding
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving embedding: {str(e)}")
+
+
+@router.delete("/fiber/special-fibers/{special_fiber_id}/embeddings/{embedding_id}", status_code=204)
+def delete_special_fiber_embedding(
+    special_fiber_id: int,
+    embedding_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_admin_user)
+):
+    """
+    Delete an embedding for a special fiber.
+    Only admins can delete embeddings.
+    """
+    try:
+
+        from app.services.special_fiber_service import SpecialFiberEmbeddingService
+        from app.models.models import SpecialFiberEmbedding
+
+        # Verify embedding exists and belongs to the special fiber
+        emb = db.query(SpecialFiberEmbedding).filter(SpecialFiberEmbedding.id == embedding_id).first()
+        if not emb or emb.special_fiber_id != special_fiber_id:
+            raise HTTPException(status_code=404, detail="Embedding not found")
+
+        success = SpecialFiberEmbeddingService.delete_embedding(db, embedding_id)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to delete embedding")
+
+        return None
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting embedding: {str(e)}")

@@ -730,6 +730,61 @@ export const fiberApi = {
     const response = await api.patch(`/fiber/fibers/${fiberId}/activate`);
     return response.data;
   },
+
+  // Special Fibers
+  getSpecialFibers: async (
+    skip: number = 0,
+    limit: number = 50,
+    fiber_type?: string | null
+  ): Promise<any> => {
+    const params: any = { skip, limit };
+    if (fiber_type) {
+      params.fiber_type = fiber_type;
+    }
+    const response = await api.get('/fiber/special-fibers', { params });
+    return response.data;
+  },
+
+  getSpecialFiber: async (specialFiberId: number): Promise<any> => {
+    const response = await api.get(`/fiber/special-fibers/${specialFiberId}`);
+    return response.data;
+  },
+
+  getSpecialFiberByFiberId: async (fiberId: number): Promise<any> => {
+    const response = await api.get(`/fiber/special-fibers/by-fiber/${fiberId}`);
+    return response.data;
+  },
+
+  createSpecialFiber: async (data: any): Promise<any> => {
+    const response = await api.post('/fiber/special-fibers', data);
+    return response.data;
+  },
+
+  updateSpecialFiber: async (specialFiberId: number, data: any): Promise<any> => {
+    const response = await api.put(`/fiber/special-fibers/${specialFiberId}`, data);
+    return response.data;
+  },
+
+  deleteSpecialFiber: async (specialFiberId: number): Promise<{ message: string }> => {
+    const response = await api.delete(`/fiber/special-fibers/${specialFiberId}`);
+    return response.data;
+  },
+
+  addSpecialFiberProperty: async (
+    specialFiberId: number,
+    data: any
+  ): Promise<any> => {
+    const response = await api.post(
+      `/fiber/special-fibers/${specialFiberId}/properties`,
+      data
+    );
+    return response.data;
+  },
+
+  deleteSpecialFiberProperty: async (propertyId: number): Promise<{ message: string }> => {
+    const response = await api.delete(`/fiber/special-fibers/properties/${propertyId}`);
+    return response.data;
+  },
 };
 
 // Chatbot API

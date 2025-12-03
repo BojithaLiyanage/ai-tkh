@@ -434,9 +434,43 @@ class FiberEmbedding(Base):
     
     # Relationships
     fiber = relationship("Fiber", back_populates="embeddings")
-    
+
     __table_args__ = (
         Index('idx_fiber_embedding_unique', 'fiber_id', 'content_type', unique=True),
+    )
+
+
+class SpecialFiber(Base):
+    __tablename__ = "special_fibers"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(255), nullable=False)
+    properties = Column(JSONB, nullable=False, default=dict)  # All properties stored as JSON
+    is_active = Column(Boolean, default=True)  # For soft delete/deactivation
+    created_at = Column(DateTime, default=func.current_timestamp())
+    updated_at = Column(DateTime, default=func.current_timestamp(), onupdate=func.current_timestamp())
+
+    # Relationships
+    embeddings = relationship("SpecialFiberEmbedding", back_populates="special_fiber", cascade="all,delete-orphan")
+
+
+class SpecialFiberEmbedding(Base):
+    __tablename__ = "special_fiber_embeddings"
+
+    id = Column(Integer, primary_key=True)
+    special_fiber_id = Column(Integer, ForeignKey("special_fibers.id", ondelete="CASCADE"), nullable=False)
+    content_type = Column(String(50), nullable=False)  # 'full_description', 'properties', etc.
+    content_text = Column(Text, nullable=False)
+    embedding = Column(Vector(1536), nullable=True)  # OpenAI embeddings
+    embedding_model = Column(String(100), default="text-embedding-3-small")
+    created_at = Column(DateTime, default=func.current_timestamp())
+
+    # Relationships
+    special_fiber = relationship("SpecialFiber", back_populates="embeddings")
+
+    __table_args__ = (
+        UniqueConstraint('special_fiber_id', 'content_type', name='unique_special_fiber_embedding'),
+        Index('idx_special_fiber_embedding_type', 'content_type'),
     )
 
 
