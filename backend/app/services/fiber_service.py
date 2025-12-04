@@ -8,7 +8,8 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import select, or_, and_, func, text
 from app.models.models import (
     Fiber, FiberClass, FiberSubtype, SyntheticType, PolymerizationType,
-    FiberEmbedding, FiberProperty, FiberApplication, FiberVideoLink
+    FiberEmbedding, FiberProperty, FiberApplication, FiberVideoLink,
+    SpecialFiber, SpecialFiberEmbedding
 )
 from openai import OpenAI
 from app.core.config import settings
@@ -22,6 +23,8 @@ class FiberSearchService:
         self.openai_client = OpenAI(api_key=settings.OPENAI_API_KEY) if hasattr(settings, 'OPENAI_API_KEY') else None
         self._fiber_names_cache = None
         self._cache_timestamp = None
+        self._special_fiber_names_cache = None
+        self._special_fiber_cache_timestamp = None
         self._CACHE_DURATION_SECONDS = 3600  # 1 hour cache
 
     def _get_fiber_names_from_db(self) -> List[str]:
@@ -67,6 +70,50 @@ class FiberSearchService:
         self._fiber_names_cache = None
         self._cache_timestamp = None
         print("[FIBER CACHE] Cache cleared")
+
+    def _get_special_fiber_names_from_db(self) -> List[str]:
+        """
+        Dynamically fetch all active special fiber names from the database.
+        Caches results for performance (1 hour duration).
+
+        Returns:
+            List of special fiber names from database
+        """
+        import time
+
+        # Check if cache is still valid
+        current_time = time.time()
+        if (self._special_fiber_names_cache is not None and
+            self._special_fiber_cache_timestamp is not None and
+            (current_time - self._special_fiber_cache_timestamp) < self._CACHE_DURATION_SECONDS):
+            print(f"[SPECIAL FIBER CACHE] Using cached special fiber names ({len(self._special_fiber_names_cache)} fibers)")
+            return self._special_fiber_names_cache
+
+        try:
+            # Query all active special fiber names from database
+            stmt = select(SpecialFiber.name).where(SpecialFiber.is_active == True).order_by(SpecialFiber.name)
+            special_fiber_names = self.db.execute(stmt).scalars().all()
+
+            # Convert to list and cache it
+            special_fiber_names_list = [name.lower() for name in special_fiber_names] if special_fiber_names else []
+            self._special_fiber_names_cache = special_fiber_names_list
+            self._special_fiber_cache_timestamp = current_time
+
+            print(f"[SPECIAL FIBER CACHE] Updated cache: {len(special_fiber_names_list)} active special fibers from database")
+            if special_fiber_names_list:
+                print(f"[SPECIAL FIBER CACHE] Sample special fibers: {special_fiber_names_list}")
+
+            return special_fiber_names_list
+        except Exception as e:
+            print(f"[SPECIAL FIBER CACHE] Error fetching special fiber names: {e}")
+            # Return empty list on error, cache will be retried next time
+            return []
+
+    def clear_special_fiber_cache(self):
+        """Manually clear the special fiber names cache. Useful when new special fibers are added."""
+        self._special_fiber_names_cache = None
+        self._special_fiber_cache_timestamp = None
+        print("[SPECIAL FIBER CACHE] Cache cleared")
 
     def normalize_query(self, query: str) -> List[str]:
         """
@@ -619,9 +666,6 @@ class FiberSearchService:
             if fiber.repeating_unit:
                 fiber_info.append(f"   - Repeating Unit: {fiber.repeating_unit}")
 
-            if fiber.molecular_structure_smiles:
-                fiber_info.append(f"   - Molecular Structure (SMILES): {fiber.molecular_structure_smiles}")
-
             if fiber.applications and len(fiber.applications) > 0:
                 apps = ", ".join(fiber.applications[:5])  # Limit to first 5
                 fiber_info.append(f"   - Applications: {apps}")
@@ -649,12 +693,12 @@ class FiberSearchService:
 
             # Physical properties
             properties = []
-            if fiber.density_g_cm3:
-                properties.append(f"Density: {fiber.density_g_cm3} g/cm³")
-            if fiber.moisture_regain_percent:
-                properties.append(f"Moisture Regain: {fiber.moisture_regain_percent}%")
-            if fiber.absorption_capacity_percent:
-                properties.append(f"Absorption Capacity: {fiber.absorption_capacity_percent}%")
+            if fiber.density_g_cm3_min and fiber.density_g_cm3_max:
+                properties.append(f"Density: {fiber.density_g_cm3_min}-{fiber.density_g_cm3_max} g/cm³")
+            if fiber.moisture_regain_min_percent and fiber.moisture_regain_max_percent:
+                properties.append(f"Moisture Regain: {fiber.moisture_regain_min_percent}-{fiber.moisture_regain_max_percent}%")
+            if fiber.absorption_capacity_min_percent and fiber.absorption_capacity_max_percent:
+                properties.append(f"Absorption Capacity: {fiber.absorption_capacity_min_percent}-{fiber.absorption_capacity_max_percent}%")
             if fiber.tenacity_min_cn_tex and fiber.tenacity_max_cn_tex:
                 properties.append(f"Tenacity: {fiber.tenacity_min_cn_tex}-{fiber.tenacity_max_cn_tex} cN/tex")
             if fiber.elongation_min_percent and fiber.elongation_max_percent:
@@ -688,18 +732,6 @@ class FiberSearchService:
                 fiber_info.append(f"   - Functional Groups: {groups}")
 
             # Thermal properties
-            thermal = []
-            if fiber.melting_point_c:
-                thermal.append(f"Melting Point: {fiber.melting_point_c}°C")
-            if fiber.glass_transition_temp_c:
-                thermal.append(f"Glass Transition: {fiber.glass_transition_temp_c}°C")
-            if fiber.decomposition_temp_c:
-                thermal.append(f"Decomposition: {fiber.decomposition_temp_c}°C")
-
-            if thermal:
-                fiber_info.append(f"   - Thermal: {', '.join(thermal)}")
-
-            # Additional thermal properties description
             if fiber.thermal_properties:
                 thermal_desc = fiber.thermal_properties[:200] + "..." if len(fiber.thermal_properties) > 200 else fiber.thermal_properties
                 fiber_info.append(f"   - Thermal Properties: {thermal_desc}")
@@ -721,9 +753,6 @@ class FiberSearchService:
             if fiber.biodegradability is not None:
                 biodeg = "Yes" if fiber.biodegradability else "No"
                 fiber_info.append(f"   - Biodegradable: {biodeg}")
-
-            if fiber.environmental_impact_score is not None:
-                fiber_info.append(f"   - Environmental Impact Score: {fiber.environmental_impact_score}/10")
 
             if fiber.sustainability_notes:
                 # Truncate long notes
@@ -753,6 +782,7 @@ class FiberSearchService:
             "type": "general",
             "entities": {},
             "requires_search": False,
+            "requires_special_fiber_search": False,
             "search_terms": []
         }
 
@@ -769,8 +799,60 @@ class FiberSearchService:
                 print(f"[INTENT DETECTION] Found fiber in query: {fiber_name}")
                 break
 
-        # Detect property queries
-        if any(word in query_lower for word in ["property", "properties", "characteristic", "specifications"]):
+        # DYNAMIC: Detect special fiber names from database
+        special_fiber_names = self._get_special_fiber_names_from_db()
+
+        # Check if any special fiber name appears in the query
+        # First try exact match, then try word-based matching
+        for special_fiber_name in special_fiber_names:
+            if special_fiber_name in query_lower:
+                intent["entities"]["special_fiber_name"] = special_fiber_name
+                intent["search_terms"].append(special_fiber_name)
+                intent["requires_special_fiber_search"] = True
+                print(f"[INTENT DETECTION] Found special fiber in query: {special_fiber_name}")
+                break
+
+        # If no exact match, try word-based matching for partial names
+        # e.g., "graphene" matches "graphene fibre" or "graphene nf"
+        if not intent.get("requires_special_fiber_search"):
+            query_words = query_lower.split()
+            for special_fiber_name in special_fiber_names:
+                special_fiber_words = special_fiber_name.split()
+                # Check if any word from the special fiber name is in the query
+                for sf_word in special_fiber_words:
+                    if sf_word in query_words and len(sf_word) > 3:  # Ignore very short words (3 chars or less)
+                        intent["entities"]["special_fiber_name"] = special_fiber_name
+                        intent["search_terms"].append(special_fiber_name)
+                        intent["requires_special_fiber_search"] = True
+                        print(f"[INTENT DETECTION] Found special fiber in query via word match: {special_fiber_name}")
+                        break
+                if intent.get("requires_special_fiber_search"):
+                    break
+
+        # Detect special fiber keywords
+        special_fiber_keywords = [
+            "special fiber", "advanced fiber", "nanofiber", "nano-fiber",
+            "chitin", "bio-composite", "biocomposite", "high-performance fiber",
+            "performance fiber", "engineered fiber", "functional fiber",
+            "smart fiber", "intelligent fiber", "hybrid fiber"
+        ]
+        if any(keyword in query_lower for keyword in special_fiber_keywords):
+            intent["requires_special_fiber_search"] = True
+            print(f"[INTENT DETECTION] Special fiber keyword detected in query")
+
+        # Detect property queries - includes specific fiber properties
+        # NOTE: When property query is detected without a special fiber name,
+        # the routes.py follow-up detection will check conversation history
+        # and may upgrade this to a special fiber search if a special fiber was mentioned
+        property_keywords = [
+            "property", "properties", "characteristic", "specifications",
+            # Fiber-specific properties
+            "density", "fineness", "staple length", "tenacity", "elongation",
+            "moisture regain", "absorption", "resilience", "luster", "softness",
+            "strength", "elastic modulus", "elasticity", "recovery",
+            "wrinkle resistance", "thermal properties", "biodegradability"
+        ]
+        if any(word in query_lower for word in property_keywords):
             intent["type"] = "property_inquiry"
             intent["requires_search"] = True
 
@@ -882,16 +964,19 @@ class FiberSearchService:
 
         return images
 
-    def extract_related_videos(self, fibers: List[Any], query: str = "") -> List[dict]:
+    def extract_related_videos(self, fibers: List[Any], query: str = "", requested_fiber_name: Optional[str] = None) -> List[dict]:
         """
-        Extract related video links from fiber results based on video descriptions.
+        Extract related video links from fiber results based on perfect match with query.
+        Only returns videos that have content matching the user's specific query.
+        Limits results to top 3 most relevant videos.
 
         Args:
             fibers: List of Fiber objects or dicts with 'fiber' key
-            query: User's search query to help filter relevant videos
+            query: User's search query - videos must match this to be included
+            requested_fiber_name: If provided, only return videos for this specific fiber
 
         Returns:
-            List of dicts with video information
+            List of dicts with video information (max 3 videos)
         """
         videos = []
         fiber_ids = []
@@ -914,28 +999,43 @@ class FiberSearchService:
             ).order_by(FiberVideoLink.created_at.desc())
         ).all()
 
-        # If query is provided, filter videos by description relevance
-        query_lower = query.lower() if query else ""
+        # Only recommend videos if query is provided and matches
+        if not query:
+            return videos  # Return empty list if no query
+
+        query_lower = query.lower()
 
         for video_link, fiber in video_links:
-            # Calculate relevance score
+            # If a specific fiber was requested, only include that fiber's videos
+            if requested_fiber_name:
+                if fiber.name.lower() != requested_fiber_name.lower():
+                    continue
+
+            # Calculate relevance score with stricter matching
             relevance_score = 0
-            if query_lower:
-                description = (video_link.description or "").lower()
-                title = (video_link.title or "").lower()
+            description = (video_link.description or "").lower()
+            title = (video_link.title or "").lower()
 
-                # Check if query terms appear in description or title
-                query_terms = query_lower.split()
-                for term in query_terms:
-                    if term in description:
-                        relevance_score += 2
-                    if term in title:
-                        relevance_score += 3
-            else:
-                # No query, include all videos
-                relevance_score = 1
+            # Check if query terms appear in description or title
+            query_terms = query_lower.split()
 
-            if relevance_score > 0 or not query_lower:
+            # Count matching terms for stricter filtering
+            matched_terms = 0
+            for term in query_terms:
+                # Skip common short words
+                if len(term) <= 2:
+                    continue
+
+                if term in title:
+                    relevance_score += 5  # Higher weight for title match
+                    matched_terms += 1
+                elif term in description:
+                    relevance_score += 2  # Lower weight for description match
+                    matched_terms += 1
+
+            # Only include videos that have matched at least one significant term
+            # and have a reasonable relevance score
+            if matched_terms > 0 and relevance_score >= 2:
                 videos.append({
                     "id": video_link.id,
                     "fiber_id": video_link.fiber_id,
@@ -943,17 +1043,144 @@ class FiberSearchService:
                     "video_link": video_link.video_link,
                     "title": video_link.title,
                     "description": video_link.description,
-                    "relevance_score": relevance_score
+                    "relevance_score": relevance_score,
+                    "matched_terms": matched_terms
                 })
 
-        # Sort by relevance score (descending) and limit to top 5
-        videos.sort(key=lambda x: x.get("relevance_score", 0), reverse=True)
+        # Sort by matched terms count first, then by relevance score (descending)
+        videos.sort(key=lambda x: (x.get("matched_terms", 0), x.get("relevance_score", 0)), reverse=True)
 
-        # Remove relevance_score from final output
+        # Remove temporary fields from final output
         for video in videos:
             video.pop("relevance_score", None)
+            video.pop("matched_terms", None)
 
-        return videos[:5]  # Return top 5 most relevant videos
+        return videos[:3]  # Return top 3 most relevant videos
+
+    def semantic_search_special_fibers(
+        self,
+        query: str,
+        limit: int = 5,
+        similarity_threshold: float = 0.45
+    ) -> List[Dict[str, Any]]:
+        """
+        Perform semantic search on special fibers using vector embeddings.
+
+        Args:
+            query: Natural language query
+            limit: Maximum results to return
+            similarity_threshold: Minimum similarity score (0-1)
+
+        Returns:
+            List of dicts with special fiber info and similarity scores
+        """
+        if not self.openai_client:
+            print("[SPECIAL FIBER SEARCH] OpenAI client not configured")
+            return []
+
+        try:
+            print(f"[SPECIAL FIBER SEARCH] Starting semantic search for: '{query}'")
+
+            # Generate embedding for the query
+            response = self.openai_client.embeddings.create(
+                model="text-embedding-3-small",
+                input=query
+            )
+            query_embedding = response.data[0].embedding
+            print(f"[SPECIAL FIBER SEARCH] Embedding generated (dimension: {len(query_embedding)})")
+
+            # Convert embedding to PostgreSQL vector format
+            embedding_str = "[" + ",".join(map(str, query_embedding)) + "]"
+
+            # Search special fiber embeddings
+            query_sql = f"""
+                WITH ranked_embeddings AS (
+                    SELECT
+                        sfe.special_fiber_id,
+                        sfe.content_type,
+                        sfe.content_text,
+                        1 - (sfe.embedding <=> '{embedding_str}'::vector) as similarity,
+                        sf.id,
+                        sf.name,
+                        sf.properties,
+                        sf.is_active,
+                        ROW_NUMBER() OVER (PARTITION BY sfe.special_fiber_id ORDER BY (sfe.embedding <=> '{embedding_str}'::vector)) as rank
+                    FROM special_fiber_embeddings sfe
+                    JOIN special_fibers sf ON sfe.special_fiber_id = sf.id
+                    WHERE sf.is_active = true
+                        AND 1 - (sfe.embedding <=> '{embedding_str}'::vector) >= :threshold
+                )
+                SELECT
+                    special_fiber_id,
+                    content_type,
+                    content_text,
+                    similarity,
+                    id,
+                    name,
+                    properties,
+                    is_active
+                FROM ranked_embeddings
+                WHERE rank = 1
+                ORDER BY similarity DESC
+                LIMIT :limit
+            """
+
+            result = self.db.execute(
+                text(query_sql),
+                {"threshold": similarity_threshold, "limit": limit}
+            )
+
+            special_fibers = []
+            for row in result:
+                special_fibers.append({
+                    "id": row.id,
+                    "name": row.name,
+                    "properties": row.properties,
+                    "is_active": row.is_active,
+                    "similarity": row.similarity,
+                    "content_type": row.content_type,
+                    "content_text": row.content_text
+                })
+
+            print(f"[SPECIAL FIBER SEARCH] Found {len(special_fibers)} results")
+            return special_fibers
+
+        except Exception as e:
+            print(f"[SPECIAL FIBER SEARCH] Error: {str(e)}")
+            return []
+
+    def build_special_fiber_context(self, special_fibers: List[Dict[str, Any]]) -> str:
+        """
+        Build formatted context from special fiber search results for LLM.
+
+        Args:
+            special_fibers: List of special fiber dicts from search
+
+        Returns:
+            Formatted text for system prompt
+        """
+        if not special_fibers:
+            return ""
+
+        context_parts = ["===== SPECIAL FIBERS DATA ====="]
+
+        for sf in special_fibers:
+            context_parts.append(f"\n📊 Special Fiber: {sf['name']}")
+            context_parts.append(f"   Status: {'Active' if sf['is_active'] else 'Inactive'}")
+            context_parts.append(f"   Relevance Score: {sf['similarity']:.2%}")
+
+            if sf['properties']:
+                context_parts.append("   Properties:")
+                properties = sf['properties']
+                if isinstance(properties, dict):
+                    for key, value in list(properties.items())[:15]:  # Limit to 15 properties
+                        formatted_key = key.replace('_', ' ').replace('.', ' - ')
+                        context_parts.append(f"     • {formatted_key}: {value}")
+                    if len(properties) > 15:
+                        context_parts.append(f"     ... and {len(properties) - 15} more properties")
+
+        context = "\n".join(context_parts)
+        return context
 
 
 def get_fiber_service(db: Session) -> FiberSearchService:

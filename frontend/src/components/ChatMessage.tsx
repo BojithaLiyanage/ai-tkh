@@ -54,6 +54,7 @@ interface ChatMessageProps {
   isLoading?: boolean;
   isNew?: boolean;
   onMediaLoad?: () => void;
+  onTypingComplete?: () => void;
 }
 
 const ChatMessage: React.FC<ChatMessageProps> = ({
@@ -66,6 +67,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   isLoading = false,
   isNew = false,
   onMediaLoad,
+  onTypingComplete,
 }) => {
   const [copied, setCopied] = useState(false);
   const [displayedText, setDisplayedText] = useState('');
@@ -86,38 +88,44 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
     setDisplayedText('');
     setShowMedia(false);
     let currentIndex = 0;
+    let scrollCounter = 0;
 
     const typingInterval = setInterval(() => {
       if (currentIndex < content.length) {
         setDisplayedText(content.slice(0, currentIndex + 1));
         currentIndex++;
+
+        // Auto-scroll during typing - trigger every 8 characters to smooth scroll
+        scrollCounter++;
+        if (scrollCounter % 8 === 0 && onMediaLoad) {
+          onMediaLoad();
+        }
       } else {
         clearInterval(typingInterval);
         setIsTyping(false);
         // Show media after typing completes
         setTimeout(() => {
           setShowMedia(true);
-          onMediaLoad?.();
+          if (onMediaLoad) {
+            onMediaLoad();
+          }
+          // Notify parent that typing animation is complete so isNew can be reset
+          if (onTypingComplete) {
+            onTypingComplete();
+          }
         }, 500);
       }
     }, 15); // Type speed: 15ms per character
 
     return () => clearInterval(typingInterval);
-  }, [content, role, isNew]);
+  }, [content, role, isNew]); // Keep original dependencies
 
   // Trigger scroll when user accepts media
   useEffect(() => {
-    if (userWantsMedia === true) {
-      onMediaLoad?.();
+    if (userWantsMedia === true && onMediaLoad) {
+      onMediaLoad();
     }
-  }, [userWantsMedia]);
-
-  // Trigger scroll as text is being typed
-  useEffect(() => {
-    if (isTyping && isNew && role === 'ai') {
-      onMediaLoad?.();
-    }
-  }, [displayedText, isTyping, isNew, role]);
+  }, [userWantsMedia, onMediaLoad]);
 
   // Extract YouTube video ID from URL
   const getYouTubeThumbnail = (url: string): string | null => {

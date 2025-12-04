@@ -280,12 +280,12 @@ const ChatView: React.FC<{
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
-  };
+  }, [handleSendMessage]);
 
   useEffect(() => {
     fetchConversationHistory();
@@ -519,10 +519,12 @@ const ChatView: React.FC<{
                   {messages.map((msg, index) => {
                     const isLastMessage = index === messages.length - 1;
                     const isLoadingThisMessage = isLastMessage && isSending && msg.role === 'ai';
+                    // Use content + index as unique key to maintain component identity during re-renders
+                    const messageKey = `${msg.role}-${index}-${msg.content.substring(0, 20)}`;
 
                     return (
                       <ChatMessage
-                        key={index}
+                        key={messageKey}
                         role={msg.role}
                         content={msg.content}
                         fiberCards={msg.fiberCards}
@@ -533,6 +535,14 @@ const ChatView: React.FC<{
                         isLoading={isLoadingThisMessage}
                         isNew={msg.isNew || false}
                         onMediaLoad={handleMediaLoad}
+                        onTypingComplete={() => {
+                          // Reset isNew flag after typing animation completes
+                          setMessages(prev =>
+                            prev.map((m, i) =>
+                              i === index ? { ...m, isNew: false } : m
+                            )
+                          );
+                        }}
                       />
                     );
                   })}

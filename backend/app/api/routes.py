@@ -1562,17 +1562,51 @@ async def chat_with_bot(
             else:
                 # Fall back to semantic/keyword search
                 # For follow-up questions (no fiber name detected but has conversation history)
-                if not intent.get("entities", {}).get("fiber_name") and conversation_context:
+                if not intent.get("entities", {}).get("fiber_name") and messages:
                     print(f"DEBUG: No fiber name in current query, checking conversation history...")
-                    historical_intent = fiber_service.detect_query_intent(conversation_context)
-                    if historical_intent.get("entities", {}).get("fiber_name"):
-                        fiber_from_history = historical_intent['entities']['fiber_name']
-                        print(f"DEBUG: Found fiber in history: {fiber_from_history}")
-                        # Enhance search query with historical context
-                        search_query = f"{fiber_from_history} {payload.message}"
-                        print(f"DEBUG: Enhanced search query with history: {search_query}")
+
+                    # Check recent user messages (not AI responses) for fiber names
+                    fiber_names_in_history = []
+                    for msg in messages[-6:]:  # Check last 6 messages
+                        if msg.get("role") == "user":  # Only check user messages
+                            msg_intent = fiber_service.detect_query_intent(msg.get("content", ""))
+                            if msg_intent.get("entities", {}).get("fiber_name"):
+                                fiber_name = msg_intent['entities']['fiber_name']
+                                if fiber_name not in fiber_names_in_history:
+                                    fiber_names_in_history.append(fiber_name)
+
+                    if fiber_names_in_history:
+                        print(f"DEBUG: Found fiber(s) in history: {fiber_names_in_history}")
+
+                        # If only one fiber mentioned, enhance query with it
+                        if len(fiber_names_in_history) == 1:
+                            fiber_from_history = fiber_names_in_history[0]
+                            search_query = f"{fiber_from_history} {payload.message}"
+                            # IMPORTANT: Store the fiber name in intent so image extraction can filter by it
+                            intent["entities"]["fiber_name"] = fiber_from_history
+                            print(f"DEBUG: Single fiber detected, enhanced search query: {search_query}")
+                            print(f"DEBUG: Stored fiber name in intent for image filtering: {fiber_from_history}")
+                        else:
+                            # Multiple fibers discussed - use the MOST RECENT fiber for follow-ups
+                            # This helps users get images of the fiber they most recently asked about
+                            most_recent_fiber = fiber_names_in_history[-1]  # Last one in list is most recent
+                            print(f"DEBUG: Multiple fibers in history, using most recent: {most_recent_fiber}")
+                            intent["entities"]["fiber_name"] = most_recent_fiber
+                            search_query = f"{most_recent_fiber} {payload.message}"
+                    else:
+                        print(f"DEBUG: No fiber names found in conversation history")
 
                 print(f"DEBUG: Final Search Query: {search_query}")
+
+                # Check if current message is asking for images/morphology
+                # This is important for follow-up questions like "morphology?" after "explain cotton"
+                query_lower = payload.message.lower()
+                if any(word in query_lower for word in ["structure", "image", "diagram", "picture", "visual", "molecular structure", "chemical structure", "show me"]):
+                    intent["needs_images"] = True
+                    print(f"DEBUG: Current follow-up message is requesting structure images")
+                if any(word in query_lower for word in ["morphology", "morphological", "microscopic", "microscope", "appearance", "fiber appearance", "cross section", "longitudinal"]):
+                    intent["needs_morphology"] = True
+                    print(f"DEBUG: Current follow-up message is requesting morphology images")
 
                 # Try semantic search first (uses embeddings), fallback to keyword search
                 # Using moderate threshold (0.45) and higher limit for comprehensive results
@@ -1583,6 +1617,10 @@ async def chat_with_bot(
                 )
 
             print(f"DEBUG: Search Results Count: {len(search_results)}")
+            if search_results:
+                print(f"DEBUG: Search found results - will build fiber context")
+            else:
+                print(f"DEBUG: No search results found for query: '{search_query}'")
 
             # If semantic search yields no or few results, also try keyword search (skip for category-based queries)
             if not (category_result and category_result['fibers']) and len(search_results) < 8:
@@ -1671,8 +1709,12 @@ async def chat_with_bot(
 
                 # Extract related videos from fibers with video descriptions matching the query
                 try:
-                    related_videos = fiber_service.extract_related_videos(search_results, payload.message)
-                    print(f"DEBUG: Extracted {len(related_videos)} related videos")
+                    # If a specific fiber was requested, only show videos for that fiber
+                    requested_fiber = intent.get("entities", {}).get("fiber_name")
+                    related_videos = fiber_service.extract_related_videos(search_results, payload.message, requested_fiber)
+                    print(f"DEBUG: Extracted {len(related_videos)} related videos (max 3)")
+                    if requested_fiber:
+                        print(f"DEBUG: Filtered to requested fiber: {requested_fiber}")
                     for vid in related_videos:
                         print(f"  - {vid['fiber_name']}: {vid.get('title', 'Untitled')} - {vid['video_link']}")
                 except Exception as e:
@@ -1713,6 +1755,69 @@ async def chat_with_bot(
             {"role": "system", "content": system_prompt}
         ]
 
+        # Search special fibers if query requires it
+        special_fiber_context = ""
+        special_fiber_results = []
+        special_fiber_search_query = payload.message
+
+        # Check if this is a follow-up question about special fibers
+        if not intent.get("requires_special_fiber_search") and messages:
+            print(f"DEBUG: No special fiber detected in current query, checking conversation history...")
+
+            # Check if ANY special fiber was mentioned in recent USER messages (not AI responses)
+            special_fiber_names_in_history = []
+
+            for msg in messages[-6:]:  # Check recent messages
+                if msg.get("role") == "user":  # Only check user messages
+                    msg_intent = fiber_service.detect_query_intent(msg.get("content", ""))
+                    if msg_intent.get("requires_special_fiber_search"):
+                        sf_name = msg_intent.get("entities", {}).get("special_fiber_name")
+                        if sf_name and sf_name not in special_fiber_names_in_history:
+                            special_fiber_names_in_history.append(sf_name)
+                            print(f"DEBUG: Special fiber in history: {sf_name}")
+
+            # If special fibers were discussed, this follow-up is likely about them
+            if special_fiber_names_in_history:
+                print(f"DEBUG: Special fiber context detected in conversation history")
+                print(f"DEBUG: Special fibers mentioned: {special_fiber_names_in_history}")
+                intent["requires_special_fiber_search"] = True
+
+                # If exactly one fiber was discussed, enhance query with it
+                # If multiple fibers, let semantic search find the best match
+                if len(special_fiber_names_in_history) == 1:
+                    special_fiber_search_query = f"{special_fiber_names_in_history[0]} {payload.message}"
+                    # IMPORTANT: Store the special fiber name in intent so image extraction can filter by it
+                    intent["entities"]["special_fiber_name"] = special_fiber_names_in_history[0]
+                    print(f"DEBUG: Single special fiber detected, enhanced query: {special_fiber_search_query}")
+                    print(f"DEBUG: Stored special fiber name in intent for filtering: {special_fiber_names_in_history[0]}")
+                else:
+                    # Multiple fibers discussed - let semantic search determine relevance
+                    print(f"DEBUG: Multiple special fibers in history, using semantic search to find most relevant")
+                    special_fiber_search_query = payload.message
+            else:
+                print(f"DEBUG: No special fibers found in conversation history")
+
+        if intent.get("requires_special_fiber_search"):
+            try:
+                print(f"DEBUG: Searching special fibers for query: {special_fiber_search_query}")
+                special_fiber_results = fiber_service.semantic_search_special_fibers(
+                    query=special_fiber_search_query,
+                    limit=5,
+                    similarity_threshold=0.45
+                )
+                print(f"DEBUG: Special fiber search returned {len(special_fiber_results)} results")
+
+                if special_fiber_results:
+                    special_fiber_context = fiber_service.build_special_fiber_context(special_fiber_results)
+                    print(f"DEBUG: Special fiber context built ({len(special_fiber_context)} chars)")
+                    print(f"DEBUG: Special Fiber Context Preview:\n{special_fiber_context[:300]}...\n")
+                else:
+                    print(f"DEBUG: No special fibers found for query")
+            except Exception as e:
+                print(f"ERROR: Failed to search special fibers: {str(e)}")
+                special_fiber_results = []
+                special_fiber_context = ""
+
         # Search knowledge base for relevant information
         kb_context = ""
         kb_results = []
@@ -1750,6 +1855,16 @@ async def chat_with_bot(
             print(f"DEBUG: Fiber context injected ({len(fiber_context)} chars)")
         else:
             print(f"DEBUG: No fiber context for this query")
+
+        # Add special fiber context if available
+        if special_fiber_context:
+            openai_messages.append({
+                "role": "system",
+                "content": f"{special_fiber_context}\n\n**CRITICAL:** Use this special fiber information to supplement your answers. Present facts naturally and authoritatively. Be CONCISE - only provide basic facts unless user asks for details."
+            })
+            print(f"DEBUG: Special fiber context injected ({len(special_fiber_context)} chars)")
+        else:
+            print(f"DEBUG: No special fiber context for this query")
 
         # Add knowledge base context if available
         if kb_context:
