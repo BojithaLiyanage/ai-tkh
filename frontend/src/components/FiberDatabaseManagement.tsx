@@ -14,6 +14,7 @@ import {
   type FiberCreate
 } from '../services/api';
 import FiberFormModal from './FiberFormModal';
+import SpecialFibersTab from './SpecialFibersTab';
 import { Tabs, Card, Button, Alert, Spin, Input, Select, Tag, Space, Modal } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, CheckCircleOutlined, StopOutlined } from '@ant-design/icons';
 
@@ -21,7 +22,7 @@ interface FiberDatabaseManagementProps {
   onClose?: () => void;
 }
 
-type TabType = 'fibers' | 'classes' | 'subtypes' | 'synthetic' | 'polymerization';
+type TabType = 'fibers' | 'classes' | 'subtypes' | 'synthetic' | 'polymerization' | 'special_fibers';
 
 const FiberDatabaseManagement: React.FC<FiberDatabaseManagementProps> = () => {
   const [activeTab, setActiveTab] = useState<TabType>('fibers');
@@ -35,6 +36,7 @@ const FiberDatabaseManagement: React.FC<FiberDatabaseManagementProps> = () => {
   const [syntheticTypes, setSyntheticTypes] = useState<SyntheticType[]>([]);
   const [polymerizationTypes, setPolymerizationTypes] = useState<PolymerizationType[]>([]);
   const [fibers, setFibers] = useState<FiberSummary[]>([]);
+  const [specialFibersCount, setSpecialFibersCount] = useState(0);
 
   // Form states
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -48,12 +50,13 @@ const FiberDatabaseManagement: React.FC<FiberDatabaseManagementProps> = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [classesData, subtypesData, syntheticData, polymerizationData, fibersData] = await Promise.all([
+      const [classesData, subtypesData, syntheticData, polymerizationData, fibersData, specialFibersData] = await Promise.all([
         fiberApi.getFiberClasses(),
         fiberApi.getFiberSubtypes(),
         fiberApi.getSyntheticTypes(),
         fiberApi.getPolymerizationTypes(),
-        fiberApi.getFibers({ limit: 100 })
+        fiberApi.getFibers({ limit: 100 }),
+        fiberApi.getSpecialFibers(0, 100)
       ]);
 
       setFiberClasses(classesData);
@@ -61,6 +64,7 @@ const FiberDatabaseManagement: React.FC<FiberDatabaseManagementProps> = () => {
       setSyntheticTypes(syntheticData);
       setPolymerizationTypes(polymerizationData);
       setFibers(fibersData);
+      setSpecialFibersCount(specialFibersData.special_fibers?.length || 0);
     } catch (err) {
       setError('Failed to load fiber database');
       console.error('Error loading data:', err);
@@ -309,6 +313,9 @@ const FiberDatabaseManagement: React.FC<FiberDatabaseManagementProps> = () => {
           </div>
         );
 
+      case 'special_fibers':
+        return <SpecialFibersTab />;
+
       case 'classes':
         return (
           <div className="space-y-4">
@@ -554,6 +561,11 @@ const FiberDatabaseManagement: React.FC<FiberDatabaseManagementProps> = () => {
           </Tag>
         </span>
       ),
+      children: null,
+    },
+    {
+      key: 'special_fibers',
+      label: <span>Special Fibers <Tag color="blue">{specialFibersCount}</Tag></span>,
       children: null,
     },
     {

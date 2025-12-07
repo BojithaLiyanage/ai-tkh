@@ -7,7 +7,8 @@ from app.models.models import (
     Module, Topic, Subtopic, ContentBlock, Tag, SubtopicTag, StudyGroup, SubtopicStudyGroup, User, Client, ClientOnboarding,
     FiberClass, FiberSubtype, SyntheticType, PolymerizationType, Fiber, ChatbotConversation, FiberVideoLink, FiberEmbedding, Question,
     QuizAttempt, QuizAnswer, KnowledgeBaseDocument, KnowledgeBaseAttachment, KnowledgeBaseCreateRequest, KnowledgeBaseUpdateRequest,
-    KnowledgeBaseDocumentResponse, KnowledgeBaseDocumentSummary
+    KnowledgeBaseDocumentResponse, KnowledgeBaseDocumentSummary,
+    SpecialFiber
 )
 from app.schemas.schemas import (
     ModuleCreate, ModuleRead, TopicCreate, TopicRead,
@@ -24,7 +25,9 @@ from app.schemas.schemas import (
     FiberVideoLinkCreate, FiberVideoLinkRead, FiberVideoLinkUpdate, VideoPreview,
     QuestionCreate, QuestionRead, QuestionUpdate, QuestionWithFiberRead,
     QuizAttemptCreate, QuizAttemptStart, QuizAnswerSubmit, QuizAttemptRead, QuizAttemptDetailRead, QuizResultsResponse, FiberQuizCard, QuizListResponse, QuizAnswerRead,
-    TopicWithSubtopics, ModuleWithTopicsAndSubtopics, ContentStatsResponse
+    TopicWithSubtopics, ModuleWithTopicsAndSubtopics, ContentStatsResponse,
+    SpecialFiberCreate, SpecialFiberRead, SpecialFiberUpdate, SpecialFiberListResponse,
+    SpecialFiberEmbeddingCreate, SpecialFiberEmbeddingRead, SpecialFiberEmbeddingListResponse
 )
 from typing import List, Optional
 from app.core.auth import (
@@ -1559,17 +1562,51 @@ async def chat_with_bot(
             else:
                 # Fall back to semantic/keyword search
                 # For follow-up questions (no fiber name detected but has conversation history)
-                if not intent.get("entities", {}).get("fiber_name") and conversation_context:
+                if not intent.get("entities", {}).get("fiber_name") and messages:
                     print(f"DEBUG: No fiber name in current query, checking conversation history...")
-                    historical_intent = fiber_service.detect_query_intent(conversation_context)
-                    if historical_intent.get("entities", {}).get("fiber_name"):
-                        fiber_from_history = historical_intent['entities']['fiber_name']
-                        print(f"DEBUG: Found fiber in history: {fiber_from_history}")
-                        # Enhance search query with historical context
-                        search_query = f"{fiber_from_history} {payload.message}"
-                        print(f"DEBUG: Enhanced search query with history: {search_query}")
+
+                    # Check recent user messages (not AI responses) for fiber names
+                    fiber_names_in_history = []
+                    for msg in messages[-6:]:  # Check last 6 messages
+                        if msg.get("role") == "user":  # Only check user messages
+                            msg_intent = fiber_service.detect_query_intent(msg.get("content", ""))
+                            if msg_intent.get("entities", {}).get("fiber_name"):
+                                fiber_name = msg_intent['entities']['fiber_name']
+                                if fiber_name not in fiber_names_in_history:
+                                    fiber_names_in_history.append(fiber_name)
+
+                    if fiber_names_in_history:
+                        print(f"DEBUG: Found fiber(s) in history: {fiber_names_in_history}")
+
+                        # If only one fiber mentioned, enhance query with it
+                        if len(fiber_names_in_history) == 1:
+                            fiber_from_history = fiber_names_in_history[0]
+                            search_query = f"{fiber_from_history} {payload.message}"
+                            # IMPORTANT: Store the fiber name in intent so image extraction can filter by it
+                            intent["entities"]["fiber_name"] = fiber_from_history
+                            print(f"DEBUG: Single fiber detected, enhanced search query: {search_query}")
+                            print(f"DEBUG: Stored fiber name in intent for image filtering: {fiber_from_history}")
+                        else:
+                            # Multiple fibers discussed - use the MOST RECENT fiber for follow-ups
+                            # This helps users get images of the fiber they most recently asked about
+                            most_recent_fiber = fiber_names_in_history[-1]  # Last one in list is most recent
+                            print(f"DEBUG: Multiple fibers in history, using most recent: {most_recent_fiber}")
+                            intent["entities"]["fiber_name"] = most_recent_fiber
+                            search_query = f"{most_recent_fiber} {payload.message}"
+                    else:
+                        print(f"DEBUG: No fiber names found in conversation history")
 
                 print(f"DEBUG: Final Search Query: {search_query}")
+
+                # Check if current message is asking for images/morphology
+                # This is important for follow-up questions like "morphology?" after "explain cotton"
+                query_lower = payload.message.lower()
+                if any(word in query_lower for word in ["structure", "image", "diagram", "picture", "visual", "molecular structure", "chemical structure", "show me"]):
+                    intent["needs_images"] = True
+                    print(f"DEBUG: Current follow-up message is requesting structure images")
+                if any(word in query_lower for word in ["morphology", "morphological", "microscopic", "microscope", "appearance", "fiber appearance", "cross section", "longitudinal"]):
+                    intent["needs_morphology"] = True
+                    print(f"DEBUG: Current follow-up message is requesting morphology images")
 
                 # Try semantic search first (uses embeddings), fallback to keyword search
                 # Using moderate threshold (0.45) and higher limit for comprehensive results
@@ -1580,6 +1617,10 @@ async def chat_with_bot(
                 )
 
             print(f"DEBUG: Search Results Count: {len(search_results)}")
+            if search_results:
+                print(f"DEBUG: Search found results - will build fiber context")
+            else:
+                print(f"DEBUG: No search results found for query: '{search_query}'")
 
             # If semantic search yields no or few results, also try keyword search (skip for category-based queries)
             if not (category_result and category_result['fibers']) and len(search_results) < 8:
@@ -1668,10 +1709,46 @@ async def chat_with_bot(
 
                 # Extract related videos from fibers with video descriptions matching the query
                 try:
-                    related_videos = fiber_service.extract_related_videos(search_results, payload.message)
-                    print(f"DEBUG: Extracted {len(related_videos)} related videos")
-                    for vid in related_videos:
-                        print(f"  - {vid['fiber_name']}: {vid.get('title', 'Untitled')} - {vid['video_link']}")
+                    # If a specific fiber was requested, only show videos for that fiber
+                    requested_fiber = intent.get("entities", {}).get("fiber_name")
+
+                    # Check if user explicitly asked for videos (keywords: "video", "show", "watch", "materials", etc.)
+                    query_lower = payload.message.lower()
+                    user_asked_for_videos = any(word in query_lower for word in [
+                        "video", "show", "watch", "material", "materials", "related", "content",
+                        "youtube", "link", "more info", "learn more", "see"
+                    ])
+
+                    # Check if videos were already shown for this fiber in recent conversation
+                    videos_already_shown_for_fiber = False
+                    if requested_fiber and not user_asked_for_videos:
+                        # Look at last 4 messages (2 exchanges) to see if videos for this fiber were already shown
+                        for msg in messages[-4:]:
+                            if msg.get("role") == "ai":
+                                msg_content = msg.get("content", "").lower()
+                                # If recent AI response mentioned this fiber AND contained video suggestions
+                                if requested_fiber.lower() in msg_content and "video" in msg_content:
+                                    videos_already_shown_for_fiber = True
+                                    print(f"DEBUG: Videos for {requested_fiber} were already shown recently")
+                                    break
+
+                    # Only extract videos if:
+                    # 1. User explicitly asked for videos, OR
+                    # 2. Videos haven't been shown for this fiber recently
+                    if user_asked_for_videos or not videos_already_shown_for_fiber:
+                        related_videos = fiber_service.extract_related_videos(search_results, payload.message, requested_fiber)
+                        print(f"DEBUG: Extracted {len(related_videos)} related videos (max 3)")
+                        if requested_fiber:
+                            print(f"DEBUG: Filtered to requested fiber: {requested_fiber}")
+                        if user_asked_for_videos:
+                            print(f"DEBUG: User explicitly asked for videos")
+                        for vid in related_videos:
+                            print(f"  - {vid['fiber_name']}: {vid.get('title', 'Untitled')} - {vid['video_link']}")
+                    else:
+                        related_videos = []
+                        print(f"DEBUG: Skipping video extraction - videos for {requested_fiber} already shown recently")
+                        print(f"DEBUG: User can ask explicitly if they want to see videos again")
+
                 except Exception as e:
                     print(f"ERROR: Failed to extract related videos: {str(e)}")
                     related_videos = []
@@ -1710,6 +1787,69 @@ async def chat_with_bot(
             {"role": "system", "content": system_prompt}
         ]
 
+        # Search special fibers if query requires it
+        special_fiber_context = ""
+        special_fiber_results = []
+        special_fiber_search_query = payload.message
+
+        # Check if this is a follow-up question about special fibers
+        if not intent.get("requires_special_fiber_search") and messages:
+            print(f"DEBUG: No special fiber detected in current query, checking conversation history...")
+
+            # Check if ANY special fiber was mentioned in recent USER messages (not AI responses)
+            special_fiber_names_in_history = []
+
+            for msg in messages[-6:]:  # Check recent messages
+                if msg.get("role") == "user":  # Only check user messages
+                    msg_intent = fiber_service.detect_query_intent(msg.get("content", ""))
+                    if msg_intent.get("requires_special_fiber_search"):
+                        sf_name = msg_intent.get("entities", {}).get("special_fiber_name")
+                        if sf_name and sf_name not in special_fiber_names_in_history:
+                            special_fiber_names_in_history.append(sf_name)
+                            print(f"DEBUG: Special fiber in history: {sf_name}")
+
+            # If special fibers were discussed, this follow-up is likely about them
+            if special_fiber_names_in_history:
+                print(f"DEBUG: Special fiber context detected in conversation history")
+                print(f"DEBUG: Special fibers mentioned: {special_fiber_names_in_history}")
+                intent["requires_special_fiber_search"] = True
+
+                # If exactly one fiber was discussed, enhance query with it
+                # If multiple fibers, let semantic search find the best match
+                if len(special_fiber_names_in_history) == 1:
+                    special_fiber_search_query = f"{special_fiber_names_in_history[0]} {payload.message}"
+                    # IMPORTANT: Store the special fiber name in intent so image extraction can filter by it
+                    intent["entities"]["special_fiber_name"] = special_fiber_names_in_history[0]
+                    print(f"DEBUG: Single special fiber detected, enhanced query: {special_fiber_search_query}")
+                    print(f"DEBUG: Stored special fiber name in intent for filtering: {special_fiber_names_in_history[0]}")
+                else:
+                    # Multiple fibers discussed - let semantic search determine relevance
+                    print(f"DEBUG: Multiple special fibers in history, using semantic search to find most relevant")
+                    special_fiber_search_query = payload.message
+            else:
+                print(f"DEBUG: No special fibers found in conversation history")
+
+        if intent.get("requires_special_fiber_search"):
+            try:
+                print(f"DEBUG: Searching special fibers for query: {special_fiber_search_query}")
+                special_fiber_results = fiber_service.semantic_search_special_fibers(
+                    query=special_fiber_search_query,
+                    limit=5,
+                    similarity_threshold=0.45
+                )
+                print(f"DEBUG: Special fiber search returned {len(special_fiber_results)} results")
+
+                if special_fiber_results:
+                    special_fiber_context = fiber_service.build_special_fiber_context(special_fiber_results)
+                    print(f"DEBUG: Special fiber context built ({len(special_fiber_context)} chars)")
+                    print(f"DEBUG: Special Fiber Context Preview:\n{special_fiber_context[:300]}...\n")
+                else:
+                    print(f"DEBUG: No special fibers found for query")
+            except Exception as e:
+                print(f"ERROR: Failed to search special fibers: {str(e)}")
+                special_fiber_results = []
+                special_fiber_context = ""
+
         # Search knowledge base for relevant information
         kb_context = ""
         kb_results = []
@@ -1718,7 +1858,7 @@ async def chat_with_bot(
             kb_results = kb_service.semantic_search(
                 query=payload.message,
                 limit=3,
-                similarity_threshold=0.5,
+                similarity_threshold=0.3,  # Lowered from 0.5 to catch more relevant results
                 fiber_ids=fiber_ids,
                 published_only=True
             )
@@ -1747,6 +1887,16 @@ async def chat_with_bot(
             print(f"DEBUG: Fiber context injected ({len(fiber_context)} chars)")
         else:
             print(f"DEBUG: No fiber context for this query")
+
+        # Add special fiber context if available
+        if special_fiber_context:
+            openai_messages.append({
+                "role": "system",
+                "content": f"{special_fiber_context}\n\n**CRITICAL:** Use this special fiber information to supplement your answers. Present facts naturally and authoritatively. Be CONCISE - only provide basic facts unless user asks for details."
+            })
+            print(f"DEBUG: Special fiber context injected ({len(special_fiber_context)} chars)")
+        else:
+            print(f"DEBUG: No special fiber context for this query")
 
         # Add knowledge base context if available
         if kb_context:
@@ -3140,3 +3290,282 @@ async def get_knowledge_base_categories(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching categories: {str(e)}")
+
+
+# ---- special fibers
+@router.post("/fiber/special-fibers", response_model=SpecialFiberRead, status_code=201)
+def create_special_fiber(
+    payload: SpecialFiberCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """
+    Create a new special fiber with dynamic properties.
+    Admin only.
+    """
+    try:
+        from app.services.special_fiber_service import SpecialFiberService
+        # Convert Pydantic model to dict
+        fiber_data = payload.model_dump()
+        special_fiber = SpecialFiberService.create_special_fiber(db, fiber_data)
+        return special_fiber
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating special fiber: {str(e)}")
+
+
+@router.get("/fiber/special-fibers/{special_fiber_id}", response_model=SpecialFiberRead)
+def get_special_fiber(
+    special_fiber_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Get a special fiber by ID with all its properties.
+    """
+    try:
+        from app.services.special_fiber_service import SpecialFiberService
+        special_fiber = SpecialFiberService.get_special_fiber(db, special_fiber_id)
+        if not special_fiber:
+            raise HTTPException(status_code=404, detail="Special fiber not found")
+        return special_fiber
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching special fiber: {str(e)}")
+
+
+@router.get("/fiber/special-fibers/by-fiber/{fiber_id}", response_model=SpecialFiberRead)
+def get_special_fiber_by_fiber_id(
+    fiber_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Get special fiber by associated regular fiber ID.
+    """
+    try:
+        from app.services.special_fiber_service import SpecialFiberService
+        special_fiber = SpecialFiberService.get_special_fiber_by_fiber_id(db, fiber_id)
+        if not special_fiber:
+            raise HTTPException(status_code=404, detail="Special fiber not found for this fiber")
+        return special_fiber
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching special fiber: {str(e)}")
+
+
+@router.put("/fiber/special-fibers/{special_fiber_id}", response_model=SpecialFiberRead)
+def update_special_fiber(
+    special_fiber_id: int,
+    payload: SpecialFiberUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """
+    Update a special fiber's metadata and properties.
+    Admin only.
+    """
+    try:
+        from app.services.special_fiber_service import SpecialFiberService
+        # Convert Pydantic model to dict, excluding unset fields
+        update_data = payload.model_dump(exclude_unset=True)
+        special_fiber = SpecialFiberService.update_special_fiber(db, special_fiber_id, update_data)
+        if not special_fiber:
+            raise HTTPException(status_code=404, detail="Special fiber not found")
+        return special_fiber
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error updating special fiber: {str(e)}")
+
+
+@router.delete("/fiber/special-fibers/{special_fiber_id}", status_code=204)
+def delete_special_fiber(
+    special_fiber_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """
+    Delete a special fiber and all associated data.
+    Admin only.
+    """
+    try:
+        from app.services.special_fiber_service import SpecialFiberService
+        success = SpecialFiberService.delete_special_fiber(db, special_fiber_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Special fiber not found")
+        return None
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting special fiber: {str(e)}")
+
+
+@router.get("/fiber/special-fibers", response_model=SpecialFiberListResponse)
+def list_special_fibers(
+    skip: int = 0,
+    limit: int = 50,
+    db: Session = Depends(get_db)
+):
+    """
+    List all special fibers with pagination.
+    """
+    try:
+        from app.services.special_fiber_service import SpecialFiberService
+        fibers, total = SpecialFiberService.list_special_fibers(db, skip, limit)
+        return {
+            "special_fibers": fibers,
+            "total_count": total,
+            "page": skip // limit if limit > 0 else 0,
+            "page_size": limit
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error listing special fibers: {str(e)}")
+
+
+# ---- Special Fiber Embeddings Endpoints ----
+
+@router.post("/fiber/special-fibers/{special_fiber_id}/embeddings", response_model=SpecialFiberEmbeddingRead, status_code=201)
+def create_special_fiber_embedding(
+    special_fiber_id: int,
+    payload: SpecialFiberEmbeddingCreate,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_admin_user)
+):
+    """
+    Create an embedding for a special fiber.
+    Only admins can create embeddings.
+    """
+    try:
+
+        from app.services.special_fiber_service import SpecialFiberEmbeddingService
+
+        # Verify special fiber exists
+        from app.models.models import SpecialFiber
+        sf = db.query(SpecialFiber).filter(SpecialFiber.id == special_fiber_id).first()
+        if not sf:
+            raise HTTPException(status_code=404, detail="Special fiber not found")
+
+        embedding = SpecialFiberEmbeddingService.create_embedding(
+            db,
+            special_fiber_id,
+            payload.content_type,
+            payload.content_text,
+            payload.embedding
+        )
+        return embedding
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating embedding: {str(e)}")
+
+
+@router.get("/fiber/special-fibers/{special_fiber_id}/embeddings/{embedding_id}", response_model=SpecialFiberEmbeddingRead)
+def get_special_fiber_embedding(
+    special_fiber_id: int,
+    embedding_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Get a specific embedding for a special fiber.
+    """
+    try:
+        from app.services.special_fiber_service import SpecialFiberEmbeddingService
+        embedding = SpecialFiberEmbeddingService.get_embedding(db, embedding_id)
+
+        if not embedding or embedding.special_fiber_id != special_fiber_id:
+            raise HTTPException(status_code=404, detail="Embedding not found")
+
+        return embedding
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving embedding: {str(e)}")
+
+
+@router.get("/fiber/special-fibers/{special_fiber_id}/embeddings", response_model=SpecialFiberEmbeddingListResponse)
+def list_special_fiber_embeddings(
+    special_fiber_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    List all embeddings for a special fiber.
+    """
+    try:
+        from app.services.special_fiber_service import SpecialFiberEmbeddingService
+        from app.models.models import SpecialFiber
+
+        # Verify special fiber exists
+        sf = db.query(SpecialFiber).filter(SpecialFiber.id == special_fiber_id).first()
+        if not sf:
+            raise HTTPException(status_code=404, detail="Special fiber not found")
+
+        embeddings = SpecialFiberEmbeddingService.list_embeddings(db, special_fiber_id)
+        return {
+            "embeddings": embeddings,
+            "total_count": len(embeddings)
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error listing embeddings: {str(e)}")
+
+
+@router.get("/fiber/special-fibers/{special_fiber_id}/embeddings/by-type/{content_type}", response_model=SpecialFiberEmbeddingRead)
+def get_special_fiber_embedding_by_type(
+    special_fiber_id: int,
+    content_type: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Get embedding by content type for a special fiber.
+    """
+    try:
+        from app.services.special_fiber_service import SpecialFiberEmbeddingService
+        embedding = SpecialFiberEmbeddingService.get_embedding_by_type(
+            db,
+            special_fiber_id,
+            content_type
+        )
+
+        if not embedding:
+            raise HTTPException(status_code=404, detail="Embedding not found")
+
+        return embedding
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving embedding: {str(e)}")
+
+
+@router.delete("/fiber/special-fibers/{special_fiber_id}/embeddings/{embedding_id}", status_code=204)
+def delete_special_fiber_embedding(
+    special_fiber_id: int,
+    embedding_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_admin_user)
+):
+    """
+    Delete an embedding for a special fiber.
+    Only admins can delete embeddings.
+    """
+    try:
+
+        from app.services.special_fiber_service import SpecialFiberEmbeddingService
+        from app.models.models import SpecialFiberEmbedding
+
+        # Verify embedding exists and belongs to the special fiber
+        emb = db.query(SpecialFiberEmbedding).filter(SpecialFiberEmbedding.id == embedding_id).first()
+        if not emb or emb.special_fiber_id != special_fiber_id:
+            raise HTTPException(status_code=404, detail="Embedding not found")
+
+        success = SpecialFiberEmbeddingService.delete_embedding(db, embedding_id)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to delete embedding")
+
+        return None
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting embedding: {str(e)}")
