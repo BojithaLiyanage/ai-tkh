@@ -337,7 +337,7 @@ class KnowledgeBaseService:
         self,
         query: str,
         limit: int = 5,
-        similarity_threshold: float = 0.6,
+        similarity_threshold: float = 0.5,
         category: Optional[str] = None,
         fiber_ids: Optional[List[int]] = None,
         published_only: bool = True
@@ -362,6 +362,7 @@ class KnowledgeBaseService:
 
         try:
             print(f"[KB SERVICE] Semantic search for: '{query}'")
+            print(f"[KB SERVICE] Filters: published_only={published_only}, category={category}, fiber_ids={fiber_ids}, threshold={similarity_threshold}")
 
             # Generate query embedding
             response = self.openai_client.embeddings.create(
@@ -370,6 +371,7 @@ class KnowledgeBaseService:
             )
             query_embedding = response.data[0].embedding
             embedding_str = "[" + ",".join(map(str, query_embedding)) + "]"
+            print(f"[KB SERVICE] Generated embedding with {len(query_embedding)} dimensions")
 
             # Build SQL query with filters
             where_clauses = []
@@ -379,6 +381,7 @@ class KnowledgeBaseService:
                 where_clauses.append(f"d.category = '{category}'")
 
             where_clause = " AND " + " AND ".join(where_clauses) if where_clauses else ""
+            print(f"[KB SERVICE] Where clause: {where_clause if where_clause else 'none'}")
 
             # Perform vector similarity search
             query_sql = f"""
@@ -396,11 +399,10 @@ class KnowledgeBaseService:
                         d.fiber_ids,
                         d.created_at,
                         d.updated_at,
-                        ROW_NUMBER() OVER (PARTITION BY e.document_id ORDER BY (e.embedding <=> '{embedding_str}'::vector)) as rank
+                        ROW_NUMBER() OVER (PARTITION BY e.document_id ORDER BY (1 - (e.embedding <=> '{embedding_str}'::vector)) DESC) as rank
                     FROM knowledge_base_embeddings e
                     JOIN knowledge_base_documents d ON e.document_id = d.id
-                    WHERE 1 - (e.embedding <=> '{embedding_str}'::vector) >= :threshold
-                    {where_clause}
+                    WHERE (1 - (e.embedding <=> '{embedding_str}'::vector)) >= :threshold{where_clause}
                 )
                 SELECT *
                 FROM ranked_chunks
@@ -417,9 +419,11 @@ class KnowledgeBaseService:
             results = []
             for row in result:
                 # If fiber_ids filter provided, check if document relates to those fibers
+                # Documents with empty fiber_ids are general knowledge and should always be included
                 if fiber_ids:
                     doc_fiber_ids = row.fiber_ids or []
-                    if not any(fid in fiber_ids for fid in doc_fiber_ids):
+                    # Include if: document has no fiber restrictions OR document matches requested fibers
+                    if doc_fiber_ids and not any(fid in fiber_ids for fid in doc_fiber_ids):
                         continue
 
                 results.append({
@@ -437,6 +441,34 @@ class KnowledgeBaseService:
                 })
 
             print(f"[KB SERVICE] Found {len(results)} matching documents")
+
+            # DEBUG: Show top similarities even if below threshold
+            if len(results) == 0:
+                print("[KB SERVICE] No results found. Checking top similarities without threshold...")
+                # Build WHERE clause for debug (not JOIN condition)
+                debug_where = "WHERE " + " AND ".join(where_clauses) if where_clauses else ""
+                debug_sql = f"""
+                    SELECT
+                        d.id,
+                        d.title,
+                        d.is_published,
+                        e.chunk_text,
+                        1 - (e.embedding <=> '{embedding_str}'::vector) as similarity
+                    FROM knowledge_base_embeddings e
+                    JOIN knowledge_base_documents d ON e.document_id = d.id
+                    {debug_where}
+                    ORDER BY similarity DESC
+                    LIMIT 3
+                """
+                try:
+                    debug_result = self.db.execute(text(debug_sql))
+                    print("[KB SERVICE] Top 3 similarities (no threshold):")
+                    for idx, row in enumerate(debug_result, 1):
+                        print(f"  {idx}. [{row[0]}] {row[1]} (published: {row[2]}) - similarity: {row[4]:.4f}")
+                        print(f"     Chunk: {row[3][:100]}...")
+                except Exception as debug_e:
+                    print(f"[KB SERVICE] Debug query failed: {debug_e}")
+
             return results
 
         except Exception as e:
@@ -466,7 +498,7 @@ class KnowledgeBaseService:
         results = self.semantic_search(
             query=query,
             limit=limit,
-            similarity_threshold=0.5,
+            similarity_threshold=0.4,
             fiber_ids=fiber_ids,
             published_only=True
         )

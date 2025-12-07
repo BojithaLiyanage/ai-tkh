@@ -1711,12 +1711,44 @@ async def chat_with_bot(
                 try:
                     # If a specific fiber was requested, only show videos for that fiber
                     requested_fiber = intent.get("entities", {}).get("fiber_name")
-                    related_videos = fiber_service.extract_related_videos(search_results, payload.message, requested_fiber)
-                    print(f"DEBUG: Extracted {len(related_videos)} related videos (max 3)")
-                    if requested_fiber:
-                        print(f"DEBUG: Filtered to requested fiber: {requested_fiber}")
-                    for vid in related_videos:
-                        print(f"  - {vid['fiber_name']}: {vid.get('title', 'Untitled')} - {vid['video_link']}")
+
+                    # Check if user explicitly asked for videos (keywords: "video", "show", "watch", "materials", etc.)
+                    query_lower = payload.message.lower()
+                    user_asked_for_videos = any(word in query_lower for word in [
+                        "video", "show", "watch", "material", "materials", "related", "content",
+                        "youtube", "link", "more info", "learn more", "see"
+                    ])
+
+                    # Check if videos were already shown for this fiber in recent conversation
+                    videos_already_shown_for_fiber = False
+                    if requested_fiber and not user_asked_for_videos:
+                        # Look at last 4 messages (2 exchanges) to see if videos for this fiber were already shown
+                        for msg in messages[-4:]:
+                            if msg.get("role") == "ai":
+                                msg_content = msg.get("content", "").lower()
+                                # If recent AI response mentioned this fiber AND contained video suggestions
+                                if requested_fiber.lower() in msg_content and "video" in msg_content:
+                                    videos_already_shown_for_fiber = True
+                                    print(f"DEBUG: Videos for {requested_fiber} were already shown recently")
+                                    break
+
+                    # Only extract videos if:
+                    # 1. User explicitly asked for videos, OR
+                    # 2. Videos haven't been shown for this fiber recently
+                    if user_asked_for_videos or not videos_already_shown_for_fiber:
+                        related_videos = fiber_service.extract_related_videos(search_results, payload.message, requested_fiber)
+                        print(f"DEBUG: Extracted {len(related_videos)} related videos (max 3)")
+                        if requested_fiber:
+                            print(f"DEBUG: Filtered to requested fiber: {requested_fiber}")
+                        if user_asked_for_videos:
+                            print(f"DEBUG: User explicitly asked for videos")
+                        for vid in related_videos:
+                            print(f"  - {vid['fiber_name']}: {vid.get('title', 'Untitled')} - {vid['video_link']}")
+                    else:
+                        related_videos = []
+                        print(f"DEBUG: Skipping video extraction - videos for {requested_fiber} already shown recently")
+                        print(f"DEBUG: User can ask explicitly if they want to see videos again")
+
                 except Exception as e:
                     print(f"ERROR: Failed to extract related videos: {str(e)}")
                     related_videos = []
@@ -1826,7 +1858,7 @@ async def chat_with_bot(
             kb_results = kb_service.semantic_search(
                 query=payload.message,
                 limit=3,
-                similarity_threshold=0.5,
+                similarity_threshold=0.3,  # Lowered from 0.5 to catch more relevant results
                 fiber_ids=fiber_ids,
                 published_only=True
             )
