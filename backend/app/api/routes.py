@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Response, Request, Form
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from datetime import timedelta, datetime, timezone
 from app.db.session import get_db
 from app.models.models import (
@@ -904,10 +905,16 @@ def delete_fiber_class(
     try:
         db.delete(fiber_class)
         db.commit()
-        return {"message": "Fiber class deleted successfully"}
-    except Exception:
+        return {"message": "Fiber class deleted successfully. Any fibers using this class have been unlinked."}
+    except IntegrityError as e:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Cannot delete - fiber class may be in use")
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete this fiber class because it is being used by subtypes. Please delete the subtypes first."
+        )
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"An error occurred while deleting: {str(e)}")
 
 # --- Fiber Subtypes ---
 @router.get("/fiber/subtypes", response_model=List[FiberSubtypeRead])
@@ -985,10 +992,16 @@ def delete_fiber_subtype(
     try:
         db.delete(fiber_subtype)
         db.commit()
-        return {"message": "Fiber subtype deleted successfully"}
-    except Exception:
+        return {"message": "Fiber subtype deleted successfully. Any fibers using this subtype have been unlinked."}
+    except IntegrityError as e:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Cannot delete - subtype may be in use")
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete this fiber subtype. Please check for database constraints."
+        )
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"An error occurred while deleting: {str(e)}")
 
 # --- Synthetic Types ---
 @router.get("/fiber/synthetic-types", response_model=List[SyntheticTypeRead])
@@ -1051,10 +1064,16 @@ def delete_synthetic_type(
     try:
         db.delete(synthetic_type)
         db.commit()
-        return {"message": "Synthetic type deleted successfully"}
-    except Exception:
+        return {"message": "Synthetic type deleted successfully. Any fibers using this type have been unlinked."}
+    except IntegrityError as e:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Cannot delete - type may be in use")
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete this synthetic type. Please check for database constraints."
+        )
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"An error occurred while deleting: {str(e)}")
 
 # --- Polymerization Types ---
 @router.get("/fiber/polymerization-types", response_model=List[PolymerizationTypeRead])
@@ -1117,10 +1136,16 @@ def delete_polymerization_type(
     try:
         db.delete(polymerization_type)
         db.commit()
-        return {"message": "Polymerization type deleted successfully"}
-    except Exception:
+        return {"message": "Polymerization type deleted successfully. Any fibers using this type have been unlinked."}
+    except IntegrityError as e:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Cannot delete - type may be in use")
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete this polymerization type. Please check for database constraints."
+        )
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"An error occurred while deleting: {str(e)}")
 
 # --- Fibers ---
 @router.get("/fiber/fibers", response_model=List[FiberSummaryRead])

@@ -329,8 +329,8 @@ class ApplicationCategory(Base):
     created_at = Column(DateTime, default=func.current_timestamp())
     
     # Self-referential relationship
-    parent = relationship("ApplicationCategory", remote_side=[id])
-    children = relationship("ApplicationCategory")
+    parent = relationship("ApplicationCategory", remote_side=[id], back_populates="children")
+    children = relationship("ApplicationCategory", back_populates="parent", overlaps="parent")
     
     # Relationships
     fiber_applications = relationship("FiberApplication", back_populates="application")
