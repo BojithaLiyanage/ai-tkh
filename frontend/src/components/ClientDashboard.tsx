@@ -150,6 +150,7 @@ const ChatView: React.FC<{
   setIsPanelCollapsed,
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<any>(null);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -243,6 +244,11 @@ const ChatView: React.FC<{
     const userMessage = inputMessage.trim();
     setInputMessage('');
 
+    // Keep input focused so cursor continues blinking during analysis
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 0);
+
     setMessages(prev => [...prev, { role: 'user', content: userMessage, isNew: true }]);
     setIsSending(true);
 
@@ -272,10 +278,10 @@ const ChatView: React.FC<{
             : conv
         )
       );
+      // Don't set isSending to false here - wait for typing animation to complete
     } catch (error) {
       console.error('Error sending message:', error);
       setMessages(prev => [...prev, { role: 'ai', content: 'Sorry, I encountered an error. Please try again.' }]);
-    } finally {
       setIsSending(false);
     }
   };
@@ -542,11 +548,18 @@ const ChatView: React.FC<{
                               i === index ? { ...m, isNew: false } : m
                             )
                           );
+                          // If this is the last AI message, re-enable sending and focus input
+                          if (isLastMessage && msg.role === 'ai') {
+                            setIsSending(false);
+                            setTimeout(() => {
+                              inputRef.current?.focus();
+                            }, 100);
+                          }
                         }}
                       />
                     );
                   })}
-                  {isSending && <ThinkingLoader />}
+                  {isSending && messages.length > 0 && messages[messages.length - 1].role !== 'ai' && <ThinkingLoader />}
                   <div ref={messagesEndRef} />
                 </div>
 
@@ -557,11 +570,11 @@ const ChatView: React.FC<{
                       <div className="flex gap-3 items-end">
                         <div className="flex-1">
                           <TextArea
+                            ref={inputRef}
                             value={inputMessage}
                             onChange={(e) => setInputMessage(e.target.value)}
                             onKeyDown={handleKeyDown}
-                            placeholder={isConversationActive ? "Type your message..." : "Type to continue this conversation..."}
-                            disabled={isSending}
+                            placeholder={isSending ? "Analyzing... You can type your next message" : (isConversationActive ? "Type your message..." : "Type to continue this conversation...")}
                             autoSize={{ minRows: 1, maxRows: 4 }}
                             className="border-0 focus:shadow-none resize-none"
                             style={{
