@@ -190,6 +190,10 @@ const ChatView: React.FC<{
         isNew: false
       })));
       fetchConversationHistory();
+      // Focus input field so cursor starts blinking
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
     } catch (error) {
       console.error('Error starting conversation:', error);
       alert('Failed to start conversation. Please try again.');
@@ -204,6 +208,10 @@ const ChatView: React.FC<{
       content: msg.content,
       isNew: false
     })));
+    // Focus input field so cursor starts blinking
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 100);
   };
 
   const openDeleteModal = (deleteId: number, e: React.MouseEvent) => {
