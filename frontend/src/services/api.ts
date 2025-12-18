@@ -891,7 +891,7 @@ export const chatbotApi = {
 // Question Bank Types
 export interface QuestionCreate {
   fiber_id: number;
-  study_group_code: string;
+  study_group_codes: string[];
   question: string;
   options: string[];
   correct_answer: string;
@@ -900,7 +900,7 @@ export interface QuestionCreate {
 export interface QuestionRead {
   id: number;
   fiber_id: number;
-  study_group_code: string;
+  study_group_codes: string[];
   question: string;
   options: string[];
   correct_answer: string;
@@ -910,14 +910,15 @@ export interface QuestionRead {
 
 export interface QuestionWithFiberRead extends QuestionRead {
   fiber_name: string;
-  study_group_name: string;
+  study_group_codes: string[];
+  study_group_names: string[];
 }
 
 export interface QuestionUpdate {
   question?: string;
   options?: string[];
   correct_answer?: string;
-  study_group_code?: string;
+  study_group_codes?: string[];
 }
 
 export interface QuestionStats {

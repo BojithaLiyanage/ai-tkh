@@ -166,6 +166,9 @@ class StudyGroup(Base):
     subtopics: Mapped[list["Subtopic"]] = relationship(
         "Subtopic", secondary="subtopic_study_groups", back_populates="study_groups"
     )
+    questions: Mapped[list["Question"]] = relationship(
+        "Question", secondary="question_study_groups", back_populates="study_groups"
+    )
 
 class SubtopicStudyGroup(Base):
     __tablename__ = "subtopic_study_groups"
@@ -522,12 +525,19 @@ class FiberVideoLink(Base):
     )
 
 
+class QuestionStudyGroup(Base):
+    __tablename__ = "question_study_groups"
+
+    question_id = Column(Integer, ForeignKey("questions.id", ondelete="CASCADE"), primary_key=True)
+    study_group_code = Column(String(1), ForeignKey("study_groups.code", ondelete="CASCADE"), primary_key=True)
+    created_at = Column(DateTime, default=func.current_timestamp())
+
+
 class Question(Base):
     __tablename__ = "questions"
 
     id = Column(Integer, primary_key=True)
     fiber_id = Column(Integer, ForeignKey("fibers.id", ondelete="CASCADE"), nullable=False)
-    study_group_code = Column(String(1), ForeignKey("study_groups.code"), nullable=False)
     question = Column(Text, nullable=False)
     options = Column(ARRAY(String), nullable=False)
     correct_answer = Column(String(500), nullable=False)
@@ -536,11 +546,15 @@ class Question(Base):
 
     # Relationships
     fiber = relationship("Fiber", backref="questions")
-    study_group = relationship("StudyGroup", backref="questions")
+    study_groups = relationship("StudyGroup", secondary="question_study_groups", back_populates="questions")
+
+    @property
+    def study_group_codes(self):
+        """Get list of study group codes for this question"""
+        return [sg.code for sg in self.study_groups]
 
     __table_args__ = (
         Index('idx_questions_fiber_id', 'fiber_id'),
-        Index('idx_questions_study_group_code', 'study_group_code'),
         UniqueConstraint('fiber_id', 'question', name='uq_questions_fiber_question'),
     )
 
