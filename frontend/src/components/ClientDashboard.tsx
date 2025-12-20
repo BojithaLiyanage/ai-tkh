@@ -163,7 +163,7 @@ const ChatView: React.FC<{
     const container = messagesContainerRef.current;
     if (!container) return true;
 
-    const threshold = 150; // pixels from bottom to consider "at bottom"
+    const threshold = 50; // pixels from bottom to consider "at bottom" (reduced for more sensitive detection)
     const { scrollTop, scrollHeight, clientHeight } = container;
     return scrollHeight - scrollTop - clientHeight < threshold;
   }, []);
@@ -201,9 +201,10 @@ const ChatView: React.FC<{
 
     const currentScrollTop = container.scrollTop;
     const didUserScrollUp = currentScrollTop < lastScrollTopRef.current;
+    const scrollDelta = Math.abs(currentScrollTop - lastScrollTopRef.current);
 
-    // If user scrolled up, immediately disable auto-scroll
-    if (didUserScrollUp) {
+    // If user scrolled up (even slightly), immediately disable auto-scroll
+    if (didUserScrollUp && scrollDelta > 5) { // Require at least 5px movement to be intentional
       userInteractingRef.current = true;
       setShouldAutoScroll(false);
 
@@ -212,15 +213,15 @@ const ChatView: React.FC<{
         clearTimeout(interactionTimeoutRef.current);
       }
 
-      // After user stops scrolling for 1 second, check if they're at bottom
+      // After user stops scrolling for 2 seconds, check if they're at bottom
       interactionTimeoutRef.current = setTimeout(() => {
         userInteractingRef.current = false;
         const atBottom = isScrolledToBottom();
         if (atBottom) {
           setShouldAutoScroll(true);
         }
-      }, 1000);
-    } else if (!userInteractingRef.current) {
+      }, 2000); // Increased from 1000ms to 2000ms
+    } else if (!userInteractingRef.current && !didUserScrollUp) {
       // User scrolled down, check if they're at the bottom
       const atBottom = isScrolledToBottom();
       if (atBottom) {
