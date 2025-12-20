@@ -1203,10 +1203,11 @@ def get_fiber(
         joinedload(Fiber.fiber_class),
         joinedload(Fiber.subtype),
         joinedload(Fiber.synthetic_type),
-        joinedload(Fiber.polymerization_type)
+        joinedload(Fiber.polymerization_type),
+        joinedload(Fiber.video_links)
     ).where(Fiber.id == fiber_id)
 
-    fiber = db.execute(query).scalar_one_or_none()
+    fiber = db.execute(query).unique().scalar_one_or_none()
     if not fiber:
         raise HTTPException(status_code=404, detail="Fiber not found")
     return fiber

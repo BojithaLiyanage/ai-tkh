@@ -1049,6 +1049,40 @@ const FiberDatabaseManagement: React.FC<FiberDatabaseManagementProps> = () => {
                 </div>
               </div>
 
+              {/* Video Links */}
+              {selectedFiber.video_links && selectedFiber.video_links.length > 0 && (
+                <div>
+                  <h4 className="text-lg font-medium text-gray-900 mb-3">Available Videos</h4>
+                  <div className="space-y-3">
+                    {selectedFiber.video_links.map((video, index) => (
+                      <div key={video.id} className="border border-gray-300 rounded-lg p-3 bg-gray-50">
+                        <div className="flex items-start gap-3">
+                          <span className="flex-shrink-0 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-medium">
+                            {index + 1}
+                          </span>
+                          <div className="flex-1">
+                            {video.title && (
+                              <h5 className="font-medium text-gray-900 mb-1">{video.title}</h5>
+                            )}
+                            <a
+                              href={video.video_link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 text-sm break-all underline"
+                            >
+                              {video.video_link}
+                            </a>
+                            {video.description && (
+                              <p className="text-sm text-gray-700 mt-2">{video.description}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Metadata */}
               <div>
                 <h4 className="text-lg font-medium text-gray-900 mb-3">Metadata</h4>
