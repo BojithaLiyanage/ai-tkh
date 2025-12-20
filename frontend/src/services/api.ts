@@ -811,6 +811,27 @@ export const fiberApi = {
     const response = await api.delete(`/fiber/special-fibers/properties/${propertyId}`);
     return response.data;
   },
+
+  // Fiber Video Links
+  getFiberVideoLinks: async (fiberId: number): Promise<FiberVideoLink[]> => {
+    const response = await api.get(`/fiber/fibers/${fiberId}/video-links`);
+    return response.data;
+  },
+
+  createFiberVideoLink: async (data: FiberVideoLinkCreate): Promise<FiberVideoLink> => {
+    const response = await api.post('/fiber/video-links', data);
+    return response.data;
+  },
+
+  updateFiberVideoLink: async (videoLinkId: number, data: FiberVideoLinkUpdate): Promise<FiberVideoLink> => {
+    const response = await api.put(`/fiber/video-links/${videoLinkId}`, data);
+    return response.data;
+  },
+
+  deleteFiberVideoLink: async (videoLinkId: number): Promise<{ message: string }> => {
+    const response = await api.delete(`/fiber/video-links/${videoLinkId}`);
+    return response.data;
+  },
 };
 
 // Chatbot API
