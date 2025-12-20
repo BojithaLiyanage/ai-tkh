@@ -1106,21 +1106,23 @@ const FiberDatabaseManagement: React.FC<FiberDatabaseManagementProps> = () => {
       </Modal>
 
       {/* Create/Edit Form Modal */}
-      <FiberFormModal
-        isOpen={showCreateForm || !!editingItem}
-        onClose={() => {
-          setShowCreateForm(false);
-          setEditingItem(null);
-        }}
-        onSubmit={editingItem ?
-          (data) => handleUpdate(editingItem.id, data) :
-          handleCreate
-        }
-        activeTab={activeTab}
-        editingItem={editingItem}
-        fiberClasses={fiberClasses}
-        loading={loading}
-      />
+      {activeTab !== 'special_fibers' && (
+        <FiberFormModal
+          isOpen={showCreateForm || !!editingItem}
+          onClose={() => {
+            setShowCreateForm(false);
+            setEditingItem(null);
+          }}
+          onSubmit={editingItem ?
+            (data) => handleUpdate(editingItem.id, data) :
+            handleCreate
+          }
+          activeTab={activeTab}
+          editingItem={editingItem}
+          fiberClasses={fiberClasses}
+          loading={loading}
+        />
+      )}
     </div>
   );
 };

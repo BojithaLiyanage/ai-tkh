@@ -9,7 +9,7 @@ import KnowledgeBaseManagement from './KnowledgeBaseManagement';
 import Navbar from './Navbar';
 import { authApi, contentApi, fiberApi, questionApi, knowledgeBaseApi, type UserStats, type ContentStats, type QuestionStats, type FiberClass, type KnowledgeBaseStats } from '../services/api';
 import { Card, Statistic, Spin, Button, Menu, Layout } from 'antd';
-import { BookOutlined, ExperimentOutlined, QuestionCircleOutlined, ArrowRightOutlined, HomeOutlined, ToolOutlined, UserOutlined, FileTextOutlined, DatabaseOutlined } from '@ant-design/icons';
+import { BookOutlined, ExperimentOutlined, QuestionCircleOutlined, ArrowRightOutlined, HomeOutlined, ToolOutlined, UserOutlined, DatabaseOutlined } from '@ant-design/icons';
 
 const { Sider, Content: AntContent } = Layout;
 

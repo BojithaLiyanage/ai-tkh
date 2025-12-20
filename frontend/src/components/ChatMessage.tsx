@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Tooltip, Button, message as antMessage, Typography, Space } from 'antd';
+import { Tooltip, Button, message as antMessage, Space } from 'antd';
 import {
   CopyOutlined,
   CheckOutlined,
@@ -9,8 +9,6 @@ import {
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import FiberCard from './FiberCard';
-
-const { Paragraph } = Typography;
 
 interface FiberCardData {
   name: string;
@@ -66,7 +64,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   structureImages,
   morphologyImages,
   relatedVideos,
-  isLoading = false,
   isNew = false,
   onMediaLoad,
   onTypingComplete,

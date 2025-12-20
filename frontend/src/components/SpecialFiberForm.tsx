@@ -12,8 +12,7 @@ import {
   Empty,
   Spin,
 } from 'antd';
-import { DeleteOutlined, PlusOutlined, CopyOutlined } from '@ant-design/icons';
-import { fiberApi } from '../services/api';
+import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 
 interface SpecialFiberPropertyFormData {
   property_name: string;

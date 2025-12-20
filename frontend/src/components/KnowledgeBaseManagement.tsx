@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useAuth } from '../contexts/AuthContext';
 import {
   Card,
   Button,
@@ -60,7 +59,6 @@ interface KnowledgeBaseDocument {
 }
 
 const KnowledgeBaseManagement: React.FC = () => {
-  const { user } = useAuth();
   const [documents, setDocuments] = useState<KnowledgeBaseDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [showEditor, setShowEditor] = useState(false);

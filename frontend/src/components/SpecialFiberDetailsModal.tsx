@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Modal, Table, Tag, Empty, Button, Space, Tooltip, Copy, message } from 'antd';
-import { CopyOutlined, CloseOutlined } from '@ant-design/icons';
+import { Modal, Table, Tag, Empty, Button, Tooltip, message } from 'antd';
+import { CopyOutlined } from '@ant-design/icons';
 
 interface SpecialFiberProperty {
   id: number;
@@ -285,7 +285,7 @@ export const SpecialFiberDetailsModal: React.FC<SpecialFiberDetailsModalProps> =
               }}
               size="small"
               bordered
-              onChange={(pagination, filters, sorter: any) => {
+              onChange={(_pagination, _filters, sorter: any) => {
                 setSortedInfo(sorter);
               }}
             />

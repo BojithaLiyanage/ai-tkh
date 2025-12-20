@@ -8,15 +8,12 @@ import {
   Empty,
   Pagination,
   Select,
-  Popconfirm,
-  Tabs,
   Row,
   Col,
 } from 'antd';
 import {
   PlusOutlined,
   ReloadOutlined,
-  DeleteOutlined,
   ExportOutlined,
 } from '@ant-design/icons';
 import { SpecialFiberForm } from './SpecialFiberForm';
@@ -96,8 +93,8 @@ export const SpecialFibersManagement: React.FC = () => {
 
       // Extract unique fiber types for filter
       const types = Array.from(
-        new Set(response.special_fibers.map((f) => f.special_fiber_type))
-      );
+        new Set(response.special_fibers.map((f: SpecialFiber) => f.special_fiber_type))
+      ) as string[];
       setFiberTypes(types);
     } catch (error: any) {
       message.error('Failed to load special fibers');

@@ -144,7 +144,7 @@ const SpecialFiberModal: React.FC<SpecialFiberModalProps> = ({
       dataIndex: 'key',
       key: 'key',
       width: '35%',
-      render: (text: string, record: PropertyEntry, index: number) => (
+      render: (text: string, _record: PropertyEntry, index: number) => (
         <Input
           value={text}
           onChange={(e) => handleUpdatePropertyKey(index, e.target.value)}
@@ -158,7 +158,7 @@ const SpecialFiberModal: React.FC<SpecialFiberModalProps> = ({
       dataIndex: 'value',
       key: 'value',
       width: '55%',
-      render: (text: string, record: PropertyEntry, index: number) => (
+      render: (text: string, _record: PropertyEntry, index: number) => (
         <Input
           value={text}
           onChange={(e) => handleUpdateProperty(index, e.target.value)}
