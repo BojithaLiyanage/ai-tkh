@@ -33,7 +33,7 @@ const QuestionBankManagement: React.FC<QuestionBankManagementProps> = () => {
   // Form state
   const [formData, setFormData] = useState<QuestionCreate>({
     fiber_id: 0,
-    study_group_code: 'S',
+    study_group_codes: ['S'],
     question: '',
     options: ['', '', '', ''],
     correct_answer: '',
@@ -43,7 +43,7 @@ const QuestionBankManagement: React.FC<QuestionBankManagementProps> = () => {
     question: '',
     options: ['', '', '', ''],
     correct_answer: '',
-    study_group_code: '',
+    study_group_codes: [] as string[],
   });
 
   const studyGroups = [
@@ -132,7 +132,7 @@ const QuestionBankManagement: React.FC<QuestionBankManagementProps> = () => {
       setShowAddForm(false);
       setFormData({
         fiber_id: 0,
-        study_group_code: 'S',
+        study_group_codes: ['S'],
         question: '',
         options: ['', '', '', ''],
         correct_answer: '',
@@ -175,7 +175,7 @@ const QuestionBankManagement: React.FC<QuestionBankManagementProps> = () => {
       question: question.question,
       options: [...question.options],
       correct_answer: question.correct_answer,
-      study_group_code: question.study_group_code,
+      study_group_codes: question.study_group_codes || [],
     });
     setShowEditForm(true);
     setError(null);
@@ -205,7 +205,7 @@ const QuestionBankManagement: React.FC<QuestionBankManagementProps> = () => {
         question: editFormData.question,
         options: editFormData.options,
         correct_answer: editFormData.correct_answer,
-        study_group_code: editFormData.study_group_code,
+        study_group_codes: editFormData.study_group_codes,
       });
       setSuccess('Question updated successfully!');
       setShowEditForm(false);
@@ -223,7 +223,7 @@ const QuestionBankManagement: React.FC<QuestionBankManagementProps> = () => {
       question: '',
       options: ['', '', '', ''],
       correct_answer: '',
-      study_group_code: '',
+      study_group_codes: [],
     });
   };
 
@@ -357,7 +357,9 @@ const QuestionBankManagement: React.FC<QuestionBankManagementProps> = () => {
                   <div className="flex-1">
                     <Space size="small" wrap style={{ marginBottom: '8px' }}>
                       <Tag color="purple">{question.fiber_name}</Tag>
-                      <Tag color="blue">{question.study_group_name}</Tag>
+                      {question.study_group_names && question.study_group_names.map((name, idx) => (
+                        <Tag key={idx} color="blue">{name}</Tag>
+                      ))}
                       <span className="text-gray-400 text-xs">#{question.id}</span>
                     </Space>
                     <h3 className="font-medium text-gray-900 mb-3">{question.question}</h3>
@@ -470,10 +472,12 @@ const QuestionBankManagement: React.FC<QuestionBankManagementProps> = () => {
               />
             </Form.Item>
 
-            <Form.Item label="Study Group" required>
+            <Form.Item label="Study Groups (Select one or more)" required>
               <Select
-                value={editFormData.study_group_code}
-                onChange={(value) => setEditFormData({ ...editFormData, study_group_code: value })}
+                mode="multiple"
+                value={editFormData.study_group_codes}
+                onChange={(value) => setEditFormData({ ...editFormData, study_group_codes: value })}
+                placeholder="Select study groups"
               >
                 {studyGroups.map((group) => (
                   <Select.Option key={group.code} value={group.code}>
@@ -568,10 +572,12 @@ const QuestionBankManagement: React.FC<QuestionBankManagementProps> = () => {
               </Select>
             </Form.Item>
 
-            <Form.Item label="Study Group" required>
+            <Form.Item label="Study Groups (Select one or more)" required>
               <Select
-                value={formData.study_group_code}
-                onChange={(value) => setFormData({ ...formData, study_group_code: value })}
+                mode="multiple"
+                value={formData.study_group_codes}
+                onChange={(value) => setFormData({ ...formData, study_group_codes: value })}
+                placeholder="Select study groups"
               >
                 {studyGroups.map((group) => (
                   <Select.Option key={group.code} value={group.code}>

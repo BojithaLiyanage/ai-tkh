@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Form, Input, InputNumber, Select, Button } from 'antd';
+import { Modal, Form, Input, InputNumber, Select, Button, Card, Divider } from 'antd';
+import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import {
   fiberApi,
   type FiberClass,
   type FiberSubtype,
   type SyntheticType,
-  type PolymerizationType
+  type PolymerizationType,
+  type FiberVideoLink
 } from '../services/api';
 import ImageUploadComponent from './ImageUploadComponent';
 
@@ -37,6 +39,8 @@ const FiberFormModal: React.FC<FiberFormModalProps> = ({
   const [fiberSubtypes, setFiberSubtypes] = useState<FiberSubtype[]>([]);
   const [syntheticTypes, setSyntheticTypes] = useState<SyntheticType[]>([]);
   const [polymerizationTypes, setPolymerizationTypes] = useState<PolymerizationType[]>([]);
+  const [videoLinks, setVideoLinks] = useState<FiberVideoLink[]>([]);
+  const [newVideoLink, setNewVideoLink] = useState({ video_link: '', title: '', description: '' });
 
   // Load reference data for fiber forms
   useEffect(() => {
@@ -58,6 +62,24 @@ const FiberFormModal: React.FC<FiberFormModalProps> = ({
       loadReferenceData();
     }
   }, [isOpen, activeTab]);
+
+  // Load video links when editing a fiber
+  useEffect(() => {
+    if (isOpen && activeTab === 'fibers' && editingItem?.id) {
+      const loadVideoLinks = async () => {
+        try {
+          const videos = await fiberApi.getFiberVideoLinks(editingItem.id);
+          setVideoLinks(videos);
+        } catch (error) {
+          console.error('Failed to load video links:', error);
+          setVideoLinks([]);
+        }
+      };
+      loadVideoLinks();
+    } else {
+      setVideoLinks([]);
+    }
+  }, [isOpen, activeTab, editingItem]);
 
   useEffect(() => {
     if (editingItem) {
@@ -114,6 +136,7 @@ const FiberFormModal: React.FC<FiberFormModalProps> = ({
       setFormData(processedData);
     } else {
       // Reset form for new item
+      setNewVideoLink({ video_link: '', title: '', description: '' });
       switch (activeTab) {
         case 'classes':
           setFormData({ name: '', description: '' });
@@ -227,6 +250,52 @@ const FiberFormModal: React.FC<FiberFormModalProps> = ({
     return Object.keys(errors).length === 0;
   };
 
+  const handleAddVideoLink = async () => {
+    if (!newVideoLink.video_link.trim()) {
+      return;
+    }
+
+    if (editingItem?.id) {
+      try {
+        const created = await fiberApi.createFiberVideoLink({
+          fiber_id: editingItem.id,
+          video_link: newVideoLink.video_link,
+          title: newVideoLink.title || undefined,
+          description: newVideoLink.description || undefined
+        });
+        setVideoLinks([...videoLinks, created]);
+        setNewVideoLink({ video_link: '', title: '', description: '' });
+      } catch (error) {
+        console.error('Failed to add video link:', error);
+      }
+    } else {
+      const tempVideo = {
+        id: Date.now(),
+        fiber_id: 0,
+        video_link: newVideoLink.video_link,
+        title: newVideoLink.title || undefined,
+        description: newVideoLink.description || undefined,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      setVideoLinks([...videoLinks, tempVideo]);
+      setNewVideoLink({ video_link: '', title: '', description: '' });
+    }
+  };
+
+  const handleDeleteVideoLink = async (videoId: number) => {
+    if (editingItem?.id && videoId < 1000000000000) {
+      try {
+        await fiberApi.deleteFiberVideoLink(videoId);
+        setVideoLinks(videoLinks.filter(v => v.id !== videoId));
+      } catch (error) {
+        console.error('Failed to delete video link:', error);
+      }
+    } else {
+      setVideoLinks(videoLinks.filter(v => v.id !== videoId));
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -289,6 +358,17 @@ const FiberFormModal: React.FC<FiberFormModalProps> = ({
       }
 
       await onSubmit(submitData);
+
+      // If this is a new fiber and there are video links, we need to save them after the fiber is created
+      // Note: This won't work as expected because we don't have the fiber ID after creation
+      // The parent component should handle refreshing the data which will load the video links
+
+      // Clear video links state for new fibers (temporary videos)
+      if (!editingItem && videoLinks.some(v => v.id > 1000000000000)) {
+        setVideoLinks([]);
+        setNewVideoLink({ video_link: '', title: '', description: '' });
+      }
+
       onClose();
     } catch (error) {
       console.error('Form submission error:', error);
@@ -900,6 +980,91 @@ const FiberFormModal: React.FC<FiberFormModalProps> = ({
                     placeholder="Enter data source"
                   />
                 </Form.Item>
+              </div>
+            </div>
+
+            {/* Video Links */}
+            <div style={{ marginBottom: '24px' }}>
+              <h4 style={{ fontSize: '16px', fontWeight: 500, marginBottom: '12px' }}>Available Videos</h4>
+
+              {/* Existing Video Links */}
+              {videoLinks.length > 0 && (
+                <div style={{ marginBottom: '16px' }}>
+                  <div className="space-y-2">
+                    {videoLinks.map((video, index) => (
+                      <Card key={video.id} size="small" style={{ backgroundColor: '#f9fafb' }}>
+                        <div className="flex items-start gap-3">
+                          <span className="flex-shrink-0 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-medium">
+                            {index + 1}
+                          </span>
+                          <div className="flex-1">
+                            {video.title && (
+                              <p className="font-medium text-gray-900 mb-1">{video.title}</p>
+                            )}
+                            <a
+                              href={video.video_link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 text-sm break-all underline"
+                            >
+                              {video.video_link}
+                            </a>
+                            {video.description && (
+                              <p className="text-sm text-gray-700 mt-1">{video.description}</p>
+                            )}
+                          </div>
+                          <Button
+                            size="small"
+                            danger
+                            icon={<DeleteOutlined />}
+                            onClick={() => handleDeleteVideoLink(video.id)}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <Divider style={{ margin: '16px 0' }}>Add New Video</Divider>
+
+              {/* Add New Video Link */}
+              <div style={{ padding: '16px', border: '1px solid #d1d5db', borderRadius: '8px', backgroundColor: '#f9fafb' }}>
+                <Form.Item label="Video Title" style={{ marginBottom: '12px' }}>
+                  <Input
+                    value={newVideoLink.title}
+                    onChange={(e) => setNewVideoLink({ ...newVideoLink, title: e.target.value })}
+                    placeholder="Enter video title (optional)"
+                  />
+                </Form.Item>
+
+                <Form.Item label="Video Link" required style={{ marginBottom: '12px' }}>
+                  <Input
+                    value={newVideoLink.video_link}
+                    onChange={(e) => setNewVideoLink({ ...newVideoLink, video_link: e.target.value })}
+                    placeholder="Enter video URL"
+                  />
+                </Form.Item>
+
+                <Form.Item label="Description" style={{ marginBottom: '12px' }}>
+                  <TextArea
+                    value={newVideoLink.description}
+                    onChange={(e) => setNewVideoLink({ ...newVideoLink, description: e.target.value })}
+                    rows={2}
+                    placeholder="Enter video description (optional)"
+                  />
+                </Form.Item>
+
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={handleAddVideoLink}
+                  disabled={!newVideoLink.video_link.trim()}
+                >
+                  Add Video Link
+                </Button>
               </div>
             </div>
           </div>

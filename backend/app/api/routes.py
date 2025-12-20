@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Response, Request, Form
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from datetime import timedelta, datetime, timezone
 from app.db.session import get_db
 from app.models.models import (
@@ -904,10 +905,16 @@ def delete_fiber_class(
     try:
         db.delete(fiber_class)
         db.commit()
-        return {"message": "Fiber class deleted successfully"}
-    except Exception:
+        return {"message": "Fiber class deleted successfully. Any fibers using this class have been unlinked."}
+    except IntegrityError as e:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Cannot delete - fiber class may be in use")
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete this fiber class because it is being used by subtypes. Please delete the subtypes first."
+        )
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"An error occurred while deleting: {str(e)}")
 
 # --- Fiber Subtypes ---
 @router.get("/fiber/subtypes", response_model=List[FiberSubtypeRead])
@@ -985,10 +992,16 @@ def delete_fiber_subtype(
     try:
         db.delete(fiber_subtype)
         db.commit()
-        return {"message": "Fiber subtype deleted successfully"}
-    except Exception:
+        return {"message": "Fiber subtype deleted successfully. Any fibers using this subtype have been unlinked."}
+    except IntegrityError as e:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Cannot delete - subtype may be in use")
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete this fiber subtype. Please check for database constraints."
+        )
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"An error occurred while deleting: {str(e)}")
 
 # --- Synthetic Types ---
 @router.get("/fiber/synthetic-types", response_model=List[SyntheticTypeRead])
@@ -1051,10 +1064,16 @@ def delete_synthetic_type(
     try:
         db.delete(synthetic_type)
         db.commit()
-        return {"message": "Synthetic type deleted successfully"}
-    except Exception:
+        return {"message": "Synthetic type deleted successfully. Any fibers using this type have been unlinked."}
+    except IntegrityError as e:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Cannot delete - type may be in use")
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete this synthetic type. Please check for database constraints."
+        )
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"An error occurred while deleting: {str(e)}")
 
 # --- Polymerization Types ---
 @router.get("/fiber/polymerization-types", response_model=List[PolymerizationTypeRead])
@@ -1117,10 +1136,16 @@ def delete_polymerization_type(
     try:
         db.delete(polymerization_type)
         db.commit()
-        return {"message": "Polymerization type deleted successfully"}
-    except Exception:
+        return {"message": "Polymerization type deleted successfully. Any fibers using this type have been unlinked."}
+    except IntegrityError as e:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Cannot delete - type may be in use")
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete this polymerization type. Please check for database constraints."
+        )
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"An error occurred while deleting: {str(e)}")
 
 # --- Fibers ---
 @router.get("/fiber/fibers", response_model=List[FiberSummaryRead])
@@ -1178,10 +1203,11 @@ def get_fiber(
         joinedload(Fiber.fiber_class),
         joinedload(Fiber.subtype),
         joinedload(Fiber.synthetic_type),
-        joinedload(Fiber.polymerization_type)
+        joinedload(Fiber.polymerization_type),
+        joinedload(Fiber.video_links)
     ).where(Fiber.id == fiber_id)
 
-    fiber = db.execute(query).scalar_one_or_none()
+    fiber = db.execute(query).unique().scalar_one_or_none()
     if not fiber:
         raise HTTPException(status_code=404, detail="Fiber not found")
     return fiber
@@ -2466,17 +2492,20 @@ def get_all_questions(
     Admin only endpoint.
     """
     try:
-        query = select(Question).join(Fiber).join(StudyGroup)
+        from app.models.models import QuestionStudyGroup
+
+        query = select(Question).join(Fiber).options(joinedload(Question.study_groups))
 
         if fiber_id:
             query = query.where(Question.fiber_id == fiber_id)
 
         if study_group_code:
-            query = query.where(Question.study_group_code == study_group_code)
+            # Join through the junction table to filter by study group
+            query = query.join(QuestionStudyGroup).where(QuestionStudyGroup.study_group_code == study_group_code)
 
         query = query.offset(offset).limit(limit)
 
-        questions = db.execute(query).scalars().all()
+        questions = db.execute(query).scalars().unique().all()
 
         # Transform to QuestionWithFiberRead format
         result = []
@@ -2485,8 +2514,8 @@ def get_all_questions(
                 "id": q.id,
                 "fiber_id": q.fiber_id,
                 "fiber_name": q.fiber.name,
-                "study_group_code": q.study_group_code,
-                "study_group_name": q.study_group.name,
+                "study_group_codes": [sg.code for sg in q.study_groups],
+                "study_group_names": [sg.name for sg in q.study_groups],
                 "question": q.question,
                 "options": q.options,
                 "correct_answer": q.correct_answer,
@@ -2512,6 +2541,7 @@ def create_question(
     """
     Create a new question in the question bank.
     Admin only endpoint.
+    Question can be assigned to multiple study groups.
     """
     try:
         # Verify fiber exists
@@ -2519,10 +2549,13 @@ def create_question(
         if not fiber:
             raise HTTPException(status_code=404, detail="Fiber not found")
 
-        # Verify study group exists
-        study_group = db.get(StudyGroup, question_data.study_group_code)
-        if not study_group:
-            raise HTTPException(status_code=404, detail="Study group not found")
+        # Verify all study groups exist
+        study_groups = []
+        for code in question_data.study_group_codes:
+            study_group = db.get(StudyGroup, code)
+            if not study_group:
+                raise HTTPException(status_code=404, detail=f"Study group '{code}' not found")
+            study_groups.append(study_group)
 
         # Verify correct answer is in options
         if question_data.correct_answer not in question_data.options:
@@ -2534,11 +2567,13 @@ def create_question(
         # Create question
         new_question = Question(
             fiber_id=question_data.fiber_id,
-            study_group_code=question_data.study_group_code,
             question=question_data.question,
             options=question_data.options,
             correct_answer=question_data.correct_answer
         )
+
+        # Assign study groups
+        new_question.study_groups = study_groups
 
         db.add(new_question)
         db.commit()
@@ -2606,12 +2641,15 @@ def update_question(
                 )
             question.correct_answer = question_data.correct_answer
 
-        if question_data.study_group_code is not None:
-            # Verify study group exists
-            study_group = db.get(StudyGroup, question_data.study_group_code)
-            if not study_group:
-                raise HTTPException(status_code=404, detail="Study group not found")
-            question.study_group_code = question_data.study_group_code
+        if question_data.study_group_codes is not None:
+            # Verify all study groups exist
+            study_groups = []
+            for code in question_data.study_group_codes:
+                study_group = db.get(StudyGroup, code)
+                if not study_group:
+                    raise HTTPException(status_code=404, detail=f"Study group '{code}' not found")
+                study_groups.append(study_group)
+            question.study_groups = study_groups
 
         db.commit()
         db.refresh(question)
@@ -2669,18 +2707,19 @@ def get_question_stats(
     """
     try:
         from sqlalchemy import func, distinct
+        from app.models.models import QuestionStudyGroup
 
         total_questions = db.query(func.count(Question.id)).scalar()
         total_fibers_with_questions = db.query(func.count(distinct(Question.fiber_id))).scalar()
 
-        # Questions per study group
+        # Questions per study group (using junction table)
         questions_by_group = db.execute(
             select(
                 StudyGroup.code,
                 StudyGroup.name,
-                func.count(Question.id).label("count")
+                func.count(distinct(QuestionStudyGroup.question_id)).label("count")
             )
-            .outerjoin(Question, Question.study_group_code == StudyGroup.code)
+            .outerjoin(QuestionStudyGroup, QuestionStudyGroup.study_group_code == StudyGroup.code)
             .group_by(StudyGroup.code, StudyGroup.name)
         ).all()
 
@@ -2728,9 +2767,15 @@ def get_available_quizzes(
 
         study_group_code = study_group_mapping.get(client.client_type, "U")
 
-        # Get all fibers with questions for the user's study group
+        # Get all fibers with questions for the user's study group (using junction table)
+        from app.models.models import QuestionStudyGroup
+
         fibers_with_questions = db.query(Fiber).join(
-            Question, (Fiber.id == Question.fiber_id) & (Question.study_group_code == study_group_code)
+            Question, Fiber.id == Question.fiber_id
+        ).join(
+            QuestionStudyGroup, Question.id == QuestionStudyGroup.question_id
+        ).filter(
+            QuestionStudyGroup.study_group_code == study_group_code
         ).distinct().all()
 
         quiz_cards = []
@@ -2738,9 +2783,11 @@ def get_available_quizzes(
 
         for fiber in fibers_with_questions:
             # Count questions for this fiber and study group
-            question_count = db.query(Question).filter(
+            question_count = db.query(Question).join(
+                QuestionStudyGroup
+            ).filter(
                 Question.fiber_id == fiber.id,
-                Question.study_group_code == study_group_code
+                QuestionStudyGroup.study_group_code == study_group_code
             ).count()
 
             # Get last attempt for this quiz
@@ -2789,10 +2836,14 @@ def start_quiz(
         if not fiber:
             raise HTTPException(status_code=404, detail="Fiber not found")
 
-        # Get questions for this fiber and study group
-        questions = db.query(Question).filter(
+        # Get questions for this fiber and study group (using junction table)
+        from app.models.models import QuestionStudyGroup
+
+        questions = db.query(Question).join(
+            QuestionStudyGroup
+        ).filter(
             Question.fiber_id == quiz_data.fiber_id,
-            Question.study_group_code == quiz_data.study_group_code
+            QuestionStudyGroup.study_group_code == quiz_data.study_group_code
         ).all()
 
         if not questions:

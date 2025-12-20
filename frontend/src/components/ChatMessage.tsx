@@ -6,6 +6,8 @@ import {
   RobotOutlined,
   UserOutlined
 } from '@ant-design/icons';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import FiberCard from './FiberCard';
 
 const { Paragraph } = Typography;
@@ -175,13 +177,53 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
           {/* AI Text Response */}
           <div className="relative">
             <div className="bg-gradient-to-br from-white to-blue-50 p-5 rounded-2xl shadow-md border border-blue-100 hover:shadow-lg transition-shadow duration-200">
-              <Paragraph
-                className="text-gray-800 whitespace-pre-wrap leading-relaxed mb-0"
-                style={{ fontSize: '15px', minHeight: '24px' }}
-              >
-                {displayedText}
-                {isTyping && <span className="animate-pulse">▌</span>}
-              </Paragraph>
+              {isTyping ? (
+                <div className="text-gray-800 leading-relaxed whitespace-pre-wrap" style={{ fontSize: '15px', minHeight: '24px' }}>
+                  {displayedText}
+                  <span className="inline-block animate-pulse ml-0.5">▌</span>
+                </div>
+              ) : (
+                <div className="text-gray-800 leading-relaxed prose prose-sm max-w-none">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      table: ({ node, ...props }) => (
+                        <div className="overflow-x-auto my-4">
+                          <table className="min-w-full divide-y divide-gray-300 border border-gray-300" {...props} />
+                        </div>
+                      ),
+                      thead: ({ node, ...props }) => (
+                        <thead className="bg-blue-50" {...props} />
+                      ),
+                      th: ({ node, ...props }) => (
+                        <th className="px-4 py-2 text-left text-sm font-semibold text-gray-900 border border-gray-300" {...props} />
+                      ),
+                      td: ({ node, ...props }) => (
+                        <td className="px-4 py-2 text-sm text-gray-700 border border-gray-300" {...props} />
+                      ),
+                      tr: ({ node, ...props }) => (
+                        <tr className="hover:bg-gray-50" {...props} />
+                      ),
+                      p: ({ node, ...props }) => (
+                        <p className="mb-2 last:mb-0 whitespace-pre-wrap" {...props} />
+                      ),
+                      ul: ({ node, ...props }) => (
+                        <ul className="list-disc list-inside mb-2" {...props} />
+                      ),
+                      ol: ({ node, ...props }) => (
+                        <ol className="list-decimal list-inside mb-2" {...props} />
+                      ),
+                      code: ({ node, inline, ...props }: any) => (
+                        inline ?
+                          <code className="bg-gray-100 px-1 py-0.5 rounded text-sm font-mono" {...props} /> :
+                          <code className="block bg-gray-100 p-2 rounded text-sm font-mono overflow-x-auto" {...props} />
+                      ),
+                    }}
+                  >
+                    {displayedText}
+                  </ReactMarkdown>
+                </div>
+              )}
             </div>
 
             {/* Message Actions */}
@@ -409,12 +451,18 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
     <div className="flex items-start space-x-3 justify-end group">
       <div className="flex flex-col items-end max-w-md">
         <div className="bg-gradient-to-br from-blue-600 to-blue-700 text-white p-5 rounded-2xl shadow-md hover:shadow-lg transition-shadow duration-200">
-          <Paragraph
-            className="text-white whitespace-pre-wrap mb-0"
-            style={{ fontSize: '15px' }}
-          >
-            {content}
-          </Paragraph>
+          <div className="text-white prose prose-sm max-w-none prose-invert">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                p: ({ node, ...props }) => (
+                  <p className="mb-2 last:mb-0 whitespace-pre-wrap" {...props} />
+                ),
+              }}
+            >
+              {content}
+            </ReactMarkdown>
+          </div>
         </div>
         <span className="text-xs text-gray-400 mt-2 px-1">{getCurrentTime()}</span>
       </div>
