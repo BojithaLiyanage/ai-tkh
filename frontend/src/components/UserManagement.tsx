@@ -314,9 +314,9 @@ const UserManagement: React.FC<UserManagementProps> = ({ onUserUpdated }) => {
           dataSource={users}
           rowKey="id"
           pagination={{
-            pageSize: 10,
+            // pageSize: 10,
             showSizeChanger: true,
-            pageSizeOptions: ['10', '20', '50', '100'],
+            pageSizeOptions: ['10', '50', '100'],
             showTotal: (total) => `Total ${total} users`
           }}
           scroll={{ x: 1200 }}

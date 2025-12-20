@@ -15,8 +15,9 @@ import {
 } from '../services/api';
 import FiberFormModal from './FiberFormModal';
 import SpecialFibersTab from './SpecialFibersTab';
-import { Tabs, Card, Button, Alert, Spin, Input, Select, Tag, Space, Modal } from 'antd';
+import { Tabs, Card, Button, Alert, Spin, Input, Select, Tag, Space, Modal, App } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, CheckCircleOutlined, StopOutlined } from '@ant-design/icons';
+import { ExclamationCircleOutlined } from '@ant-design/icons';
 
 interface FiberDatabaseManagementProps {
   onClose?: () => void;
@@ -25,6 +26,7 @@ interface FiberDatabaseManagementProps {
 type TabType = 'fibers' | 'classes' | 'subtypes' | 'synthetic' | 'polymerization' | 'special_fibers';
 
 const FiberDatabaseManagement: React.FC<FiberDatabaseManagementProps> = () => {
+  const { modal } = App.useApp();
   const [activeTab, setActiveTab] = useState<TabType>('fibers');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -157,46 +159,64 @@ const FiberDatabaseManagement: React.FC<FiberDatabaseManagementProps> = () => {
   };
 
   const handleDelete = async (id: number) => {
-    Modal.confirm({
+    console.log('handleDelete called with id:', id, 'activeTab:', activeTab);
+
+    modal.confirm({
       title: 'Are you sure you want to delete this item?',
-      content: 'This action cannot be undone.',
+      icon: <ExclamationCircleOutlined />,
+      content: 'This action cannot be undone. Any fibers using this item will be unlinked.',
       okText: 'Delete',
       okType: 'danger',
       cancelText: 'Cancel',
       onOk: async () => {
+        console.log('Delete confirmed for id:', id);
         setLoading(true);
         clearMessages();
 
         try {
           switch (activeTab) {
             case 'classes':
+              console.log('Deleting fiber class:', id);
               await fiberApi.deleteFiberClass(id);
               setSuccess('Fiber class deleted successfully');
               break;
             case 'subtypes':
+              console.log('Deleting fiber subtype:', id);
               await fiberApi.deleteFiberSubtype(id);
               setSuccess('Fiber subtype deleted successfully');
               break;
             case 'synthetic':
+              console.log('Deleting synthetic type:', id);
               await fiberApi.deleteSyntheticType(id);
               setSuccess('Synthetic type deleted successfully');
               break;
             case 'polymerization':
+              console.log('Deleting polymerization type:', id);
               await fiberApi.deletePolymerizationType(id);
               setSuccess('Polymerization type deleted successfully');
               break;
             case 'fibers':
+              console.log('Deleting fiber:', id);
               await fiberApi.deleteFiber(id);
               setSuccess('Fiber deleted successfully');
               break;
+            default:
+              console.error('Unknown activeTab:', activeTab);
+              setError('Invalid tab type');
+              return;
           }
 
+          console.log('Delete successful, reloading data...');
           await loadData();
         } catch (err: any) {
+          console.error('Delete error:', err);
           setError(err.response?.data?.detail || 'Failed to delete item');
         } finally {
           setLoading(false);
         }
+      },
+      onCancel: () => {
+        console.log('Delete cancelled');
       },
     });
   };
@@ -1029,6 +1049,40 @@ const FiberDatabaseManagement: React.FC<FiberDatabaseManagementProps> = () => {
                 </div>
               </div>
 
+              {/* Video Links */}
+              {selectedFiber.video_links && selectedFiber.video_links.length > 0 && (
+                <div>
+                  <h4 className="text-lg font-medium text-gray-900 mb-3">Available Videos</h4>
+                  <div className="space-y-3">
+                    {selectedFiber.video_links.map((video, index) => (
+                      <div key={video.id} className="border border-gray-300 rounded-lg p-3 bg-gray-50">
+                        <div className="flex items-start gap-3">
+                          <span className="flex-shrink-0 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-medium">
+                            {index + 1}
+                          </span>
+                          <div className="flex-1">
+                            {video.title && (
+                              <h5 className="font-medium text-gray-900 mb-1">{video.title}</h5>
+                            )}
+                            <a
+                              href={video.video_link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 text-sm break-all underline"
+                            >
+                              {video.video_link}
+                            </a>
+                            {video.description && (
+                              <p className="text-sm text-gray-700 mt-2">{video.description}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Metadata */}
               <div>
                 <h4 className="text-lg font-medium text-gray-900 mb-3">Metadata</h4>
@@ -1071,4 +1125,13 @@ const FiberDatabaseManagement: React.FC<FiberDatabaseManagementProps> = () => {
   );
 };
 
-export default FiberDatabaseManagement;
+// Wrap with App component to provide modal context
+const FiberDatabaseManagementWithProvider: React.FC<FiberDatabaseManagementProps> = (props) => {
+  return (
+    <App>
+      <FiberDatabaseManagement {...props} />
+    </App>
+  );
+};
+
+export default FiberDatabaseManagementWithProvider;

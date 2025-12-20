@@ -468,6 +468,9 @@ export interface FiberDetail {
   morphology_image_cms_id?: string;
   morphology_image_url?: string;
 
+  // Video Links
+  video_links?: FiberVideoLink[];
+
   // Sustainability
   biodegradability?: boolean;
   sustainability_notes?: string;
@@ -541,6 +544,29 @@ export interface SyntheticTypeCreate {
 export interface PolymerizationTypeCreate {
   name: string;
   description?: string;
+}
+
+export interface FiberVideoLink {
+  id: number;
+  fiber_id: number;
+  video_link: string;
+  description?: string;
+  title?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FiberVideoLinkCreate {
+  fiber_id: number;
+  video_link: string;
+  description?: string;
+  title?: string;
+}
+
+export interface FiberVideoLinkUpdate {
+  video_link?: string;
+  description?: string;
+  title?: string;
 }
 
 export interface FiberCreate {
@@ -785,6 +811,27 @@ export const fiberApi = {
     const response = await api.delete(`/fiber/special-fibers/properties/${propertyId}`);
     return response.data;
   },
+
+  // Fiber Video Links
+  getFiberVideoLinks: async (fiberId: number): Promise<FiberVideoLink[]> => {
+    const response = await api.get(`/fiber/fibers/${fiberId}/videos`);
+    return response.data;
+  },
+
+  createFiberVideoLink: async (data: FiberVideoLinkCreate): Promise<FiberVideoLink> => {
+    const response = await api.post('/fiber/videos', data);
+    return response.data;
+  },
+
+  updateFiberVideoLink: async (videoId: number, data: FiberVideoLinkUpdate): Promise<FiberVideoLink> => {
+    const response = await api.put(`/fiber/videos/${videoId}`, data);
+    return response.data;
+  },
+
+  deleteFiberVideoLink: async (videoId: number): Promise<{ message: string }> => {
+    const response = await api.delete(`/fiber/videos/${videoId}`);
+    return response.data;
+  },
 };
 
 // Chatbot API
@@ -891,7 +938,7 @@ export const chatbotApi = {
 // Question Bank Types
 export interface QuestionCreate {
   fiber_id: number;
-  study_group_code: string;
+  study_group_codes: string[];
   question: string;
   options: string[];
   correct_answer: string;
@@ -900,7 +947,7 @@ export interface QuestionCreate {
 export interface QuestionRead {
   id: number;
   fiber_id: number;
-  study_group_code: string;
+  study_group_codes: string[];
   question: string;
   options: string[];
   correct_answer: string;
@@ -910,14 +957,15 @@ export interface QuestionRead {
 
 export interface QuestionWithFiberRead extends QuestionRead {
   fiber_name: string;
-  study_group_name: string;
+  study_group_codes: string[];
+  study_group_names: string[];
 }
 
 export interface QuestionUpdate {
   question?: string;
   options?: string[];
   correct_answer?: string;
-  study_group_code?: string;
+  study_group_codes?: string[];
 }
 
 export interface QuestionStats {
