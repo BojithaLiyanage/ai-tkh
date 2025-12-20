@@ -156,6 +156,7 @@ const ChatView: React.FC<{
   const userInteractingRef = useRef(false);
   const interactionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastScrollTopRef = useRef(0);
+  const programmaticScrollRef = useRef(false); // Flag to distinguish programmatic scrolls
 
   // Check if user is at the bottom of the scroll container
   const isScrolledToBottom = useCallback(() => {
@@ -192,16 +193,37 @@ const ChatView: React.FC<{
     const container = messagesContainerRef.current;
     if (!container) return;
 
+    // Ignore programmatic scrolls - don't reset the flag here as it may be needed for smooth scrolling
+    if (programmaticScrollRef.current) {
+      lastScrollTopRef.current = container.scrollTop;
+      return;
+    }
+
     const currentScrollTop = container.scrollTop;
     const didUserScrollUp = currentScrollTop < lastScrollTopRef.current;
 
-    // Only process if user is actively interacting or scrolled up
-    if (userInteractingRef.current || didUserScrollUp) {
+    // If user scrolled up, immediately disable auto-scroll
+    if (didUserScrollUp) {
+      userInteractingRef.current = true;
       setShouldAutoScroll(false);
-    } else {
+
+      // Clear any pending auto-scroll timeout
+      if (interactionTimeoutRef.current) {
+        clearTimeout(interactionTimeoutRef.current);
+      }
+
+      // After user stops scrolling for 1 second, check if they're at bottom
+      interactionTimeoutRef.current = setTimeout(() => {
+        userInteractingRef.current = false;
+        const atBottom = isScrolledToBottom();
+        if (atBottom) {
+          setShouldAutoScroll(true);
+        }
+      }, 1000);
+    } else if (!userInteractingRef.current) {
       // User scrolled down, check if they're at the bottom
       const atBottom = isScrolledToBottom();
-      if (atBottom && !userInteractingRef.current) {
+      if (atBottom) {
         setShouldAutoScroll(true);
       }
     }
@@ -222,10 +244,18 @@ const ChatView: React.FC<{
     if (shouldScroll) {
       const scrollTimer = setTimeout(() => {
         if (!userInteractingRef.current && messagesContainerRef.current) {
+          // Mark this as a programmatic scroll to prevent triggering handleScroll
+          programmaticScrollRef.current = true;
+
           // Use scrollTop for instant scroll instead of smooth to avoid animation conflicts
           const container = messagesContainerRef.current;
           container.scrollTop = container.scrollHeight;
           lastScrollTopRef.current = container.scrollTop;
+
+          // Reset the flag after a short delay to allow scroll event to fire
+          setTimeout(() => {
+            programmaticScrollRef.current = false;
+          }, 50);
         }
       }, 0);
       return () => clearTimeout(scrollTimer);
@@ -275,10 +305,18 @@ const ChatView: React.FC<{
     if (shouldScroll && messagesContainerRef.current) {
       setTimeout(() => {
         if (!userInteractingRef.current && messagesContainerRef.current) {
+          // Mark this as a programmatic scroll to prevent triggering handleScroll
+          programmaticScrollRef.current = true;
+
           // Use scrollTop for instant scroll
           const container = messagesContainerRef.current;
           container.scrollTop = container.scrollHeight;
           lastScrollTopRef.current = container.scrollTop;
+
+          // Reset the flag after a short delay to allow scroll event to fire
+          setTimeout(() => {
+            programmaticScrollRef.current = false;
+          }, 50);
         }
       }, 0);
     }
@@ -338,15 +376,19 @@ const ChatView: React.FC<{
     // Scroll to bottom smoothly after messages are loaded
     setTimeout(() => {
       if (messagesContainerRef.current) {
+        // Mark as programmatic scroll for the duration of the smooth scroll animation
+        programmaticScrollRef.current = true;
+
         messagesContainerRef.current.scrollTo({
           top: messagesContainerRef.current.scrollHeight,
           behavior: 'smooth'
         });
-        // Update scroll position after animation
+        // Update scroll position after animation and reset programmatic flag
         setTimeout(() => {
           if (messagesContainerRef.current) {
             lastScrollTopRef.current = messagesContainerRef.current.scrollTop;
           }
+          programmaticScrollRef.current = false;
         }, 300);
       }
       // Focus input field so cursor starts blinking
