@@ -151,21 +151,138 @@ const ChatView: React.FC<{
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<any>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+  const userInteractingRef = useRef(false);
+  const interactionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastScrollTopRef = useRef(0);
 
-  // Auto-scroll to bottom when messages change
+  // Check if user is at the bottom of the scroll container
+  const isScrolledToBottom = useCallback(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return true;
+
+    const threshold = 150; // pixels from bottom to consider "at bottom"
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    return scrollHeight - scrollTop - clientHeight < threshold;
+  }, []);
+
+  // Handle user interaction - wheel or touch events
+  const handleUserInteraction = useCallback(() => {
+    userInteractingRef.current = true;
+    setShouldAutoScroll(false);
+
+    // Clear existing timeout
+    if (interactionTimeoutRef.current) {
+      clearTimeout(interactionTimeoutRef.current);
+    }
+
+    // After user stops interacting for 500ms, check if they're at bottom
+    interactionTimeoutRef.current = setTimeout(() => {
+      userInteractingRef.current = false;
+      const atBottom = isScrolledToBottom();
+      if (atBottom) {
+        setShouldAutoScroll(true);
+      }
+    }, 500);
+  }, [isScrolledToBottom]);
+
+  // Handle scroll event - detect when user manually scrolls
+  const handleScroll = useCallback(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const currentScrollTop = container.scrollTop;
+    const didUserScrollUp = currentScrollTop < lastScrollTopRef.current;
+
+    // Only process if user is actively interacting or scrolled up
+    if (userInteractingRef.current || didUserScrollUp) {
+      setShouldAutoScroll(false);
+    } else {
+      // User scrolled down, check if they're at the bottom
+      const atBottom = isScrolledToBottom();
+      if (atBottom && !userInteractingRef.current) {
+        setShouldAutoScroll(true);
+      }
+    }
+
+    lastScrollTopRef.current = currentScrollTop;
+  }, [isScrolledToBottom]);
+
+  // Auto-scroll to bottom when messages change, but only if user hasn't scrolled up
   useEffect(() => {
-    const scrollTimer = setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, 0);
-    return () => clearTimeout(scrollTimer);
-  }, [messages, isSending]);
+    // Don't auto-scroll if user is actively interacting
+    if (userInteractingRef.current) {
+      return;
+    }
+
+    // Check current scroll position before auto-scrolling
+    const shouldScroll = shouldAutoScroll && isScrolledToBottom();
+
+    if (shouldScroll) {
+      const scrollTimer = setTimeout(() => {
+        if (!userInteractingRef.current && messagesContainerRef.current) {
+          // Use scrollTop for instant scroll instead of smooth to avoid animation conflicts
+          const container = messagesContainerRef.current;
+          container.scrollTop = container.scrollHeight;
+          lastScrollTopRef.current = container.scrollTop;
+        }
+      }, 0);
+      return () => clearTimeout(scrollTimer);
+    }
+  }, [messages, isSending, shouldAutoScroll, isScrolledToBottom]);
+
+  // Add event listeners for user interaction
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    // Initialize last scroll position
+    lastScrollTopRef.current = container.scrollTop;
+
+    // Listen for scroll events
+    container.addEventListener('scroll', handleScroll, { passive: true });
+
+    // Listen for wheel events (mouse wheel)
+    container.addEventListener('wheel', handleUserInteraction, { passive: true });
+
+    // Listen for touch events (mobile)
+    container.addEventListener('touchstart', handleUserInteraction, { passive: true });
+    container.addEventListener('touchmove', handleUserInteraction, { passive: true });
+
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+      container.removeEventListener('wheel', handleUserInteraction);
+      container.removeEventListener('touchstart', handleUserInteraction);
+      container.removeEventListener('touchmove', handleUserInteraction);
+
+      if (interactionTimeoutRef.current) {
+        clearTimeout(interactionTimeoutRef.current);
+      }
+    };
+  }, [handleScroll, handleUserInteraction]);
 
   // Callback for when media loads in ChatMessage component
   const handleMediaLoad = useCallback(() => {
-    setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, 0);
-  }, []);
+    // Don't auto-scroll if user is actively interacting
+    if (userInteractingRef.current) {
+      return;
+    }
+
+    // Only auto-scroll if enabled and user is near bottom
+    const shouldScroll = shouldAutoScroll && isScrolledToBottom();
+
+    if (shouldScroll && messagesContainerRef.current) {
+      setTimeout(() => {
+        if (!userInteractingRef.current && messagesContainerRef.current) {
+          // Use scrollTop for instant scroll
+          const container = messagesContainerRef.current;
+          container.scrollTop = container.scrollHeight;
+          lastScrollTopRef.current = container.scrollTop;
+        }
+      }, 0);
+    }
+  }, [shouldAutoScroll, isScrolledToBottom]);
 
   const fetchConversationHistory = async () => {
     setLoadingHistory(true);
@@ -189,6 +306,11 @@ const ChatView: React.FC<{
         content: msg.content,
         isNew: false
       })));
+
+      // Reset auto-scroll state for new conversation
+      setShouldAutoScroll(true);
+      userInteractingRef.current = false;
+
       fetchConversationHistory();
       // Focus input field so cursor starts blinking
       setTimeout(() => {
@@ -208,8 +330,26 @@ const ChatView: React.FC<{
       content: msg.content,
       isNew: false
     })));
-    // Focus input field so cursor starts blinking
+
+    // Reset auto-scroll and scroll to bottom when loading conversation
+    setShouldAutoScroll(true);
+    userInteractingRef.current = false;
+
+    // Scroll to bottom smoothly after messages are loaded
     setTimeout(() => {
+      if (messagesContainerRef.current) {
+        messagesContainerRef.current.scrollTo({
+          top: messagesContainerRef.current.scrollHeight,
+          behavior: 'smooth'
+        });
+        // Update scroll position after animation
+        setTimeout(() => {
+          if (messagesContainerRef.current) {
+            lastScrollTopRef.current = messagesContainerRef.current.scrollTop;
+          }
+        }, 300);
+      }
+      // Focus input field so cursor starts blinking
       inputRef.current?.focus();
     }, 100);
   };
@@ -251,6 +391,9 @@ const ChatView: React.FC<{
 
     const userMessage = inputMessage.trim();
     setInputMessage('');
+
+    // Reset auto-scroll when user sends a message
+    setShouldAutoScroll(true);
 
     // Keep input focused so cursor continues blinking during analysis
     setTimeout(() => {
@@ -529,7 +672,7 @@ const ChatView: React.FC<{
             ) : (
               <>
                 {/* Chat Messages */}
-                <div className="flex-1 bg-gray-50 rounded-lg p-6 space-y-4 overflow-y-auto">
+                <div ref={messagesContainerRef} className="flex-1 bg-gray-50 rounded-lg p-6 space-y-4 overflow-y-auto">
                   {messages.map((msg, index) => {
                     const isLastMessage = index === messages.length - 1;
                     const isLoadingThisMessage = isLastMessage && isSending && msg.role === 'ai';
