@@ -3,7 +3,7 @@ import axios from 'axios';
 // Create an API instance with cookie-based auth (similar to your main API service)
 const createAuthenticatedApi = () => {
   const api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || 'https://api.ai-tkh.xyz',
+    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
     withCredentials: true,  // Enable sending cookies with requests
   });
 
